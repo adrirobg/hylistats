@@ -1,5 +1,5 @@
 # Think: hylistats
-**Estado**: cerrado
+**Estado**: iter-01 cerrada — sin iteración activa
 **Ultima sesion**: 2026-09-29
 **Sesiones**: 2026-09-29 (Webapp de estadísticas de perfil de jugador para trackear progreso en el modo Arena de LoL usando la Riot API (inspiración: lolalytics.com/arena, op.gg/lol/modes/arena, metasrc.com/lol/arena, arenasweats.lol, arena.trott.dev))
 **Grill**: cerrado (2026-09-29) — gate confirmado; §1 cerrada; I1–I4 entregadas. El supervisor da paso a desarrollo (2026-09-29)

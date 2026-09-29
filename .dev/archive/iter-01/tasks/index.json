@@ -1,0 +1,148 @@
+{
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Scaffolding Next.js 16 + Postgres + tooling",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/1-motor-de-datos",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T01_scaffolding.md",
+      "created_at": "2026-09-29T15:05:00Z",
+      "updated_at": "2026-09-29T15:17:21Z"
+    },
+    {
+      "id": "T02",
+      "title": "Esquema de BD, migraciones y db:reset",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/1-motor-de-datos",
+      "worktree": null,
+      "depends_on": [
+        "T01"
+      ],
+      "artifact_path": ".dev/tasks/task_T02_esquema-bd.md",
+      "created_at": "2026-09-29T15:05:00Z",
+      "updated_at": "2026-09-29T15:21:05Z"
+    },
+    {
+      "id": "T03",
+      "title": "Fixtures reales anonimizadas",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/1-motor-de-datos",
+      "worktree": null,
+      "depends_on": [
+        "T01"
+      ],
+      "artifact_path": ".dev/tasks/task_T03_fixtures.md",
+      "created_at": "2026-09-29T15:05:00Z",
+      "updated_at": "2026-09-29T15:30:02Z"
+    },
+    {
+      "id": "T04",
+      "title": "Cliente Riot con limitador de dos ventanas",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/1-motor-de-datos",
+      "worktree": null,
+      "depends_on": [
+        "T02",
+        "T03"
+      ],
+      "artifact_path": ".dev/tasks/task_T04_cliente-riot.md",
+      "created_at": "2026-09-29T15:05:00Z",
+      "updated_at": "2026-09-29T15:39:52Z"
+    },
+    {
+      "id": "T05",
+      "title": "Ingesta de partidas y dominio de stats",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/1-motor-de-datos",
+      "worktree": null,
+      "depends_on": [
+        "T02",
+        "T03",
+        "T04"
+      ],
+      "artifact_path": ".dev/tasks/task_T05_ingesta-dominio.md",
+      "created_at": "2026-09-29T15:05:00Z",
+      "updated_at": "2026-09-29T15:47:08Z"
+    },
+    {
+      "id": "T06",
+      "title": "Worker en proceso con cola persistente",
+      "status": "done",
+      "owner": "worker:opus",
+      "branch": "feat/1-motor-de-datos",
+      "worktree": null,
+      "depends_on": [
+        "T04",
+        "T05"
+      ],
+      "artifact_path": ".dev/tasks/task_T06_worker.md",
+      "created_at": "2026-09-29T15:05:00Z",
+      "updated_at": "2026-09-29T17:43:07Z"
+    },
+    {
+      "id": "T07",
+      "title": "/admin (rotación de key) y /api/health",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/1-motor-de-datos",
+      "worktree": null,
+      "depends_on": [
+        "T06"
+      ],
+      "artifact_path": ".dev/tasks/task_T07_admin-health.md",
+      "created_at": "2026-09-29T15:05:00Z",
+      "updated_at": "2026-09-29T17:53:09Z"
+    },
+    {
+      "id": "T08",
+      "title": "Página mínima de perfil /euw/{nombre}-{tag}",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/1-motor-de-datos",
+      "worktree": null,
+      "depends_on": [
+        "T06",
+        "T07"
+      ],
+      "artifact_path": ".dev/tasks/task_T08_pagina-perfil.md",
+      "created_at": "2026-09-29T15:05:00Z",
+      "updated_at": "2026-09-29T18:06:17Z"
+    },
+    {
+      "id": "T09",
+      "title": "noindex y descargo de Riot",
+      "status": "done",
+      "owner": "worker:haiku",
+      "branch": "feat/1-motor-de-datos",
+      "worktree": null,
+      "depends_on": [
+        "T01"
+      ],
+      "artifact_path": ".dev/tasks/task_T09_noindex-descargo.md",
+      "created_at": "2026-09-29T15:05:00Z",
+      "updated_at": "2026-09-29T15:31:56Z"
+    },
+    {
+      "id": "T10",
+      "title": "Verificación E2E contra la API real",
+      "status": "done",
+      "owner": "orchestrator",
+      "branch": "feat/1-motor-de-datos",
+      "worktree": null,
+      "depends_on": [
+        "T08",
+        "T09"
+      ],
+      "artifact_path": ".dev/tasks/task_T10_verificacion-e2e.md",
+      "created_at": "2026-09-29T15:05:00Z",
+      "updated_at": "2026-09-29T18:33:10Z"
+    }
+  ]
+}
