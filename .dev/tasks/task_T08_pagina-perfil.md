@@ -1,7 +1,7 @@
 # Task T08 — Página mínima de perfil /euw/{nombre}-{tag}
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -39,11 +39,24 @@ Sin llamadas a la Riot API real ni lectura de `.env.local`. Sin diseño: HTML se
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Registro desde la página y progreso `fetched/total` con auto-refresco.
-- [ ] Aviso de pausa con key caducada y botón "Actualizar" con cooldown.
-- [ ] Cifras de temporada y lista verificada frente a `602002` con explicación de la diferencia.
-- [ ] Ningún `puuid` en la página ni en sus datos; `lint`, `typecheck`, `test`, `build` en verde.
+- [x] Registro desde la página y progreso `fetched/total` con auto-refresco.
+- [x] Aviso de pausa con key caducada y botón "Actualizar" con cooldown.
+- [x] Cifras de temporada y lista verificada frente a `602002` con explicación de la diferencia.
+- [x] Ningún `puuid` en la página ni en sus datos; `lint`, `typecheck`, `test`, `build` en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- API: `src/lib/riot-id.ts` (`parseProfileSlug`, `profileSlug` —ya codificado—, `parseRiotId('Nombre#TAG')`; módulo puro para el bundle cliente, `normalizeRiotId` sigue en `src/worker/queue.ts`), `src/app/euw/[slug]/data.ts` (`loadProfilePage(db, gameName, tagLine, seasonStart?)` → `unregistered | not_found | profile`, con `sync` = `resolving | listing (listedIds) | fetching (fetched, total)` y `paused`), `actions.ts` (`registerProfileAction`, `refreshAction` con `useActionState`, `ensureFreshOnViewAction`), `auto-refresh.tsx`, `refresh-button.tsx`, `src/app/riot-id-form.tsx`.
+- Las actions reciben el slug de la URL y resuelven por `riotIdNorm` (el worker sobrescribe `gameName`/`tagLine` con los canónicos, pero `riotIdNorm` queda con el tecleado).
+- `listedIds` con `cardinality(match_ids)`: no trae el array en cada poll de 3 s. `puuid`, compañeros y `reason` de la key no entran en el objeto de la página.
+- `riot-id.ts`: tag `[\p{L}\p{N}]{2,5}`, nombre de 3–16 caracteres (no unidades UTF-16), sin caracteres de control (un `%00` daría 500 en Postgres).
+- `RefreshButton` oculta su mensaje a los 8 s; solo se deshabilita mientras la action está pendiente (así `active` es alcanzable).
+- Fuera de alcance (#2): sin reintento desde la UI para un perfil `not_found`; sin aviso si el último job acabó en `error`.
+- El subagente no pudo abrir el navegador integrado (permiso denegado): el comportamiento en cliente (polling de `AutoRefresh`, `RefreshButton`, buscador) se verifica en el navegador en T10.
+
 ## Evidencias <!-- MUST -->
+
+- 40 tests nuevos: `riot-id.test.ts` 15, `data.test.ts` 14 (perfil inexistente, job `fetching` con `fetched/total`, `listing` con `listedIds`, stats + `challengeValue`, `keyStatus = 'invalid'` → `paused: true`, sin clave `puuid` en ningún nivel ni el valor en el JSON), `actions.test.ts` 11.
+- Subagente: `next start` con `WORKER_ENABLED=false` contra `hylistats_test` → HTML renderizado, POST de formularios sin JS y Server Actions con `Next-Action` vía `curl` (`ensureFreshOnView`: `queued` con datos viejos y `active` en la segunda llamada).
+- Orquestador: `npm run lint && npm run typecheck && npm test && npm run build` → 24 ficheros, 299 tests OK; build OK (`ƒ /euw/[slug]`).
+- Commit: `feat(profile): página mínima de perfil /euw/{nombre}-{tag}`.

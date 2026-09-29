@@ -103,7 +103,7 @@
     {
       "id": "T08",
       "title": "Página mínima de perfil /euw/{nombre}-{tag}",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/1-motor-de-datos",
       "worktree": null,
@@ -113,7 +113,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T08_pagina-perfil.md",
       "created_at": "2026-09-29T15:05:00Z",
-      "updated_at": "2026-09-29T15:05:00Z"
+      "updated_at": "2026-09-29T18:06:17Z"
     },
     {
       "id": "T09",
