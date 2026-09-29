@@ -74,7 +74,7 @@
     {
       "id": "T06",
       "title": "Worker en proceso con cola persistente",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:opus",
       "branch": "feat/1-motor-de-datos",
       "worktree": null,
@@ -84,7 +84,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T06_worker.md",
       "created_at": "2026-09-29T15:05:00Z",
-      "updated_at": "2026-09-29T15:47:08Z"
+      "updated_at": "2026-09-29T17:43:07Z"
     },
     {
       "id": "T07",
