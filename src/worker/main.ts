@@ -2,10 +2,12 @@ import { Client } from "pg";
 import { type Db, getDb } from "@/db";
 import { getSeasonStart } from "@/lib/config";
 import { getRiotClient, type RiotApi } from "@/lib/riot/client";
+import { getRiotApiKey } from "@/lib/riot/key";
 import { sleep as realSleep } from "@/lib/riot/limiter";
 import { onWake, wakeSeq } from "./queue";
 import {
   markKeyOk,
+  markKeyUnknown,
   readKeyState,
   runNextStep,
   safeErrorMessage,
@@ -167,11 +169,26 @@ export function createWorker(deps: WorkerDeps): Worker {
 
   async function init() {
     const key = await readKeyState(deps.db);
-    if (key.keyStatus === "invalid") {
-      pause = { baseline: key.updatedAt };
-      log("la key está marcada como inválida: arranca en pausa");
+    let keyStatus = key.keyStatus;
+    if (keyStatus === "invalid") {
+      // Sin key en BD la key sale de `RIOT_API_KEY`: un reinicio puede traer una nueva en el
+      // entorno, así que se reprueba una vez (si sigue mal, vuelve a pausar). Con una key
+      // guardada desde `/admin` se mantiene la pausa hasta que se guarde otra.
+      const current = await getRiotApiKey(deps.db);
+      if (
+        current?.source !== "db" &&
+        (await markKeyUnknown(deps.db, new Date(now())))
+      ) {
+        keyStatus = "unknown";
+        log(
+          "la key del entorno estaba marcada como inválida: se reprueba una vez",
+        );
+      } else {
+        pause = { baseline: key.updatedAt };
+        log("la key está marcada como inválida: arranca en pausa");
+      }
     }
-    keyConfirmed = key.keyStatus === "ok";
+    keyConfirmed = keyStatus === "ok";
     initialized = true;
   }
 

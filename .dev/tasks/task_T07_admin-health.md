@@ -1,7 +1,7 @@
 # Task T07 — /admin (rotación de key) y /api/health
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -35,11 +35,23 @@ Sin llamadas a la Riot API real ni lectura de `.env.local`.
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `/admin` protegido por `ADMIN_TOKEN`; la key se valida contra Riot antes de guardarse y despierta al worker sin reinicio.
-- [ ] `POST /api/admin/key` con bearer equivalente.
-- [ ] `/api/health` con BD, worker, key (sin valor), cola y métricas; test que prueba que no filtra la key.
-- [ ] `lint`, `typecheck`, `test`, `build` en verde.
+- [x] `/admin` protegido por `ADMIN_TOKEN`; la key se valida contra Riot antes de guardarse y despierta al worker sin reinicio.
+- [x] `POST /api/admin/key` con bearer equivalente.
+- [x] `/api/health` con BD, worker, key (sin valor), cola y métricas; test que prueba que no filtra la key.
+- [x] `lint`, `typecheck`, `test`, `build` en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- API: `src/lib/admin/auth.ts` (`ADMIN_COOKIE`, `isAdminConfigured`, `checkAdminToken`, `adminSessionValue`, `isAdminSession`, `isAdminBearer`), `src/lib/admin/key-service.ts` (`saveRiotKey(db, candidate, deps?)` → `ok | invalid | invalid_format | error`; `getKeyStatus(db)` → `{ status, since, reason, source, updatedAt, expiresHint }`, sin traer la key a memoria), `src/worker/steps.ts` (`markKeyUnknown`).
+- Los errores de Drizzle citan los parámetros (la key): `saveKeyAction` y `POST /api/admin/key` capturan y loguean solo `safeErrorMessage` (test incluido).
+- `/api/health` responde 503 (mismo JSON con `ok: false`, `db: 'error'`) si la BD falla; 200 si no. No expone `reason`.
+- `/admin`: resultado por `redirect('/admin?result=<código>')` con mensajes de un mapa cerrado; la key nunca va en la URL ni se re-renderiza. Token y candidato con `trim()`.
+- Punto 7: `init()` pasa `invalid` → `unknown` (sin tocar `updatedAt`) solo si la key no está en BD; si Riot vuelve a dar 401, se pausa otra vez. El test previo de "arranca en pausa" pasa a tener key en BD.
+- Para T10: `ADMIN_TOKEN` debe estar en el entorno del servidor; sin él, `/admin` muestra "Admin deshabilitado" y el POST da 401.
+
 ## Evidencias <!-- MUST -->
+
+- 60 tests nuevos (auth 12, key-service 18, health 3, `POST /api/admin/key` 13, actions 11, worker 3); el de health comprueba que el JSON no contiene la key de BD ni la del entorno, `RGAPI-`, puuids ni el motivo.
+- Subagente: `next start` con `WORKER_ENABLED=false` → health 200 + `no-store`; POST sin bearer 401; con bearer y formato inválido 400 sin llamar a Riot; login con token malo/bueno y logout en el navegador.
+- Orquestador: `npm run lint && npm run typecheck && npm test && npm run build` → 21 ficheros, 259 tests OK; build OK (`ƒ /admin`, `ƒ /api/admin/key`, `ƒ /api/health`).
+- Commit: `feat(admin): rotación de key en /admin y /api/health`.

@@ -1,5 +1,13 @@
 import { asc, count, eq, sql } from "drizzle-orm";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { closeDb } from "@/db";
 import {
   matches,
@@ -461,10 +469,14 @@ describe("AC6 pausa por key rechazada", () => {
     expect((await readSettings()).keyStatus).toBe("ok");
   });
 
-  it("arranca en pausa si keyStatus = 'invalid' y reanuda cuando cambia settings", async () => {
+  it("arranca en pausa si keyStatus = 'invalid' con key en BD y reanuda cuando cambia settings", async () => {
     await db
       .update(settings)
-      .set({ keyStatus: "invalid", keyStatusSince: new Date() })
+      .set({
+        riotApiKey: "RGAPI-fake-expired-key-0000",
+        keyStatus: "invalid",
+        keyStatusSince: new Date(),
+      })
       .where(eq(settings.id, 1));
     await registerProfile(db, "BEJITO MAMBO", "1991");
     const { fake, worker } = setup();
@@ -483,6 +495,71 @@ describe("AC6 pausa por key rechazada", () => {
     expect(fake.calls.map((c) => c.method)).toEqual(["account"]);
     // Primera petición OK con la key nueva.
     expect((await readSettings()).keyStatus).toBe("ok");
+  });
+});
+
+describe("arranque con la key del entorno marcada como inválida", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  async function markInvalid(riotApiKey: string | null) {
+    const since = new Date("2026-09-29T09:00:00Z");
+    await db
+      .update(settings)
+      .set({
+        riotApiKey,
+        keyStatus: "invalid",
+        keyStatusSince: since,
+        keyStatusReason: "Riot 401",
+      })
+      .where(eq(settings.id, 1));
+    return since;
+  }
+
+  it("sin key en BD (sale de RIOT_API_KEY) se reprueba una vez al arrancar", async () => {
+    vi.stubEnv("RIOT_API_KEY", "RGAPI-env-key-000");
+    await markInvalid(null);
+    const before = await readSettings();
+    await registerProfile(db, "BEJITO MAMBO", "1991");
+    const { fake, worker } = setup();
+
+    expect(await worker.tick()).toBe("worked");
+    expect(fake.calls.map((c) => c.method)).toEqual(["account"]);
+
+    // La petición fue bien: la key queda confirmada; `updatedAt` no se toca.
+    const after = await readSettings();
+    expect(after).toMatchObject({ keyStatus: "ok", keyStatusReason: null });
+    expect(after.updatedAt).toEqual(before.updatedAt);
+  });
+
+  it("si la key del entorno sigue rechazada, vuelve a pausar tras esa única prueba", async () => {
+    vi.stubEnv("RIOT_API_KEY", "RGAPI-env-key-000");
+    await markInvalid(null);
+    await registerProfile(db, "BEJITO MAMBO", "1991");
+    const { fake, worker } = setup();
+    fake.failWith = () =>
+      new RiotAuthError({
+        host: "europe",
+        path: "/riot/account/v1/accounts/by-riot-id/:gameName/:tagLine",
+        status: 401,
+      });
+
+    expect(await worker.tick()).toBe("paused");
+    expect((await readSettings()).keyStatus).toBe("invalid");
+    for (let i = 0; i < 3; i++) expect(await worker.tick()).toBe("paused");
+    expect(fake.calls).toHaveLength(1);
+  });
+
+  it("con una key guardada en BD (desde /admin) mantiene la pausa", async () => {
+    vi.stubEnv("RIOT_API_KEY", "RGAPI-env-key-000");
+    await markInvalid("RGAPI-fake-expired-key-0000");
+    await registerProfile(db, "BEJITO MAMBO", "1991");
+    const { fake, worker } = setup();
+
+    expect(await worker.tick()).toBe("paused");
+    expect(fake.calls).toHaveLength(0);
+    expect((await readSettings()).keyStatus).toBe("invalid");
   });
 });
 

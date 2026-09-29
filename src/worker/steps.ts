@@ -177,6 +177,24 @@ export async function markKeyOk(db: Db, now: Date): Promise<void> {
     .where(and(eq(settings.id, 1), ne(settings.keyStatus, "ok")));
 }
 
+/**
+ * Arranque con una key marcada `invalid` que no está en BD (sale de `RIOT_API_KEY`): vuelve a
+ * `unknown` para reprobarla una vez. Devuelve `true` si cambió algo.
+ */
+export async function markKeyUnknown(db: Db, now: Date): Promise<boolean> {
+  const rows = await db
+    .update(settings)
+    .set({
+      keyStatus: "unknown",
+      keyStatusSince: now,
+      keyStatusReason: null,
+      updatedAt: sql`${settings.updatedAt}`,
+    })
+    .where(and(eq(settings.id, 1), eq(settings.keyStatus, "invalid")))
+    .returning({ id: settings.id });
+  return rows.length > 0;
+}
+
 // --- Selección del trabajo ---------------------------------------------------------------
 
 interface JobRow {
