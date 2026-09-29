@@ -30,7 +30,8 @@ Sin llamadas a la Riot API real ni lectura de `.env.local`.
 4. `POST /api/admin/key` (Route Handler): exige `Authorization: Bearer <ADMIN_TOKEN>` (401 si no), cuerpo JSON `{ key }`, llama a `saveRiotKey` y responde `{ result }` (`ok` 200, `invalid`/`invalid_format` 400, `error` 502). Sin la key en la respuesta ni en logs. (Permite rotar la key desde el shell sin teclearla en un navegador.)
 5. `GET /api/health` (`dynamic = 'force-dynamic'`, `Cache-Control: no-store`): `{ ok, db: 'ok' | 'error', worker: getWorkerStatus(), key: { status, since, source }, queue: { activeJobs, pendingMatches }, riot: getRiotMetrics() }`. Nunca la key ni puuids. `ok` = BD accesible.
 6. Tests: `auth.test.ts` (token correcto/incorrecto/longitud distinta; sesión; bearer); `key-service.test.ts` con BD de test y `validateKey` falso (ok guarda + `wakeWorker` llamado; invalid/error no guardan; `invalid_format`; `getKeyStatus` con fuente `db`/`env`/`none`); test del handler de health invocando la función `GET` exportada con `settings.riotApiKey = 'RGAPI-test-secret-000'` y comprobando que el JSON serializado **no** contiene esa cadena; test del handler `POST /api/admin/key` (401 sin bearer; 200 con bearer y validador falso — inyecta el validador vía un módulo sustituible con `vi.mock`).
-7. `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+7. **Arranque con key del entorno** (hallazgo de T06): en `src/worker/main.ts` (`init()`), si `keyStatus = 'invalid'` y **no** hay key en BD (`settings.riotApiKey` null → la key sale de `RIOT_API_KEY`), poner `keyStatus = 'unknown'` al arrancar para reprobar una vez (el reinicio puede traer una key nueva en `.env.local`). Con key en BD inválida se mantiene la pausa hasta `/admin`. Test en `src/worker/main.test.ts` o `worker.test.ts`.
+8. `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Criterios de aceptacion <!-- MUST -->
 

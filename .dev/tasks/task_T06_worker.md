@@ -1,7 +1,7 @@
 # Task T06 — Worker en proceso con cola persistente
 
 **Owner**: worker:opus
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -61,4 +61,17 @@ Sin llamadas a la Riot API real ni lectura de `.env.local`: en tests, un `RiotAp
 
 ## Notas de implementacion <!-- MAY -->
 
+- API: `queue.ts` (`registerProfile`, `requestRefresh`, `ensureFreshOnView`, `wakeWorker`, `onWake`, `normalizeRiotId`, `REFRESH_COOLDOWN_MS` 60 s, `STALE_AFTER_MS` 2 min), `steps.ts` (`runNextStep`, `readKeyState`, `markKeyInvalid/Ok`, `safeErrorMessage`), `main.ts` (`createWorker`, `startWorker`, `stopWorker`, `getWorkerStatus`, `acquireAdvisoryLock`).
+- `startTime` del incremental = fin de la partida más reciente listada por los jobs `done` **del propio perfil** (no de todas sus partidas en BD): evita saltarse partidas si un amigo refrescó antes.
+- `wakeWorker()` no reanuda una pausa por sí solo: solo adelanta la lectura de `settings` (reanuda con `keyStatus = 'ok'` o `updatedAt` posterior a la pausa). El worker no toca `settings.updatedAt`.
+- Errores saneados (sin parámetros de Drizzle, sin `RGAPI-…` ni puuids) en logs, `lastError` y `getWorkerStatus()`.
+- Fallos en pending/listing/cierre: backoff 30 s–10 min, `error` al 5º intento. `match_fetch` en `error` no se reintenta aunque otro job la liste (reinicio manual).
+- Build: `server-only` se resuelve a módulo vacío en el bundle de instrumentation (Turbopack); no rompe.
+- Pendiente detectado (se resuelve en T07): si `keyStatus = 'invalid'` y la key viene del entorno, reiniciar con una key nueva en `.env.local` no reanuda.
+
 ## Evidencias <!-- MUST -->
+
+- 31 tests nuevos (estables en 5 ejecuciones): backfill completo (13 pasos, más reciente primero, 602002 = 75); **AC3** (`BEJITO MAMBO` + `Player013#ANON` → 10 `getMatch`, 1 por id, 180 participantes); **AC5** (sin nuevas → llamadas exactas `[matchIds, playerData]`; 1 nueva → 1 ids + 1 detalle; cooldown); **AC6** (401 a mitad → `paused`/`invalid`, filas idénticas, 0 llamadas en pausa; reanuda con `ok` + señal; arranque en pausa); **AC7** (kill tras `storeMatch` → otra instancia termina con 9 `getMatch` sin repetir; listado paginado de 250 ids se reanuda desde el cursor); round-robin ABAB; 404 → `missing`; 5xx ×5 → `error`; advisory lock.
+- App real (BD dev sin perfiles): `npm start` → `lock obtenido` → `sin trabajo pendiente`, 0 peticiones a Riot; 2º proceso espera el lock; `kill -9` libera el lock; `WORKER_ENABLED=false` no arranca worker.
+- Orquestador: `npm run lint && npm run typecheck && npm test && npm run build` → 16 ficheros, 199 tests OK, build OK.
+- Commit: `feat(worker): worker en proceso con cola persistente`.

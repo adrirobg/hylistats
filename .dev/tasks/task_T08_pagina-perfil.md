@@ -32,6 +32,8 @@ Sin llamadas a la Riot API real ni lectura de `.env.local`. Sin diseño: HTML se
    - Campeones ganados verificados: **N verificados vs `602002` = V (nivel)** con el estado de `compareWithChallenge` ("cuadra" / "diferencia de D: la lista verificada solo ve el historial Match-V5 de esta temporada" / "contador no disponible"); lista `championName`, nº de 1º, fecha del último 1º y `matchId`.
    - Sin compañeros en la UI (van en #3). Nunca se renderiza ningún `puuid`.
 4. Auto-refresco: componente cliente `AutoRefresh` que llama a `router.refresh()` cada 3 s si hay job activo y cada 30 s si no; y un efecto de montaje que invoca una Server Action `ensureFreshOnView` una vez por visita.
+   - Durante el listado `totalIds` vale 0 (se fija al acabar de listar): muestra "listando… N ids" con `matchIds.length` en vez de `0/0`.
+   - `normalizeRiotId` ya existe en `src/worker/queue.ts` (T06): reutilízala.
 5. Tests: `riot-id.test.ts`; test de la función de carga de datos de la página (sepárala en `src/app/euw/[slug]/data.ts`) contra la BD de test: perfil inexistente, perfil con job `fetching` (devuelve `fetched/total`), perfil con stats y `challengeValue`, `keyStatus = 'invalid'` → `paused: true`; y que el objeto devuelto no contiene la clave `puuid` en ningún nivel.
 6. `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 

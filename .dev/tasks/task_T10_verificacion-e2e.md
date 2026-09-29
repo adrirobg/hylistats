@@ -34,4 +34,7 @@ La ejecuta el orquestador (necesita la key y el presupuesto de Riot; no se deleg
 
 ## Notas de implementacion <!-- MAY -->
 
+- Del informe de T06: backfill secuencial ~11–12 min (90 peticiones/120 s); el `kill -9` repite como mucho 1 petición; `SIGTERM` de Next no espera al paso en curso (inocuo). Para AC6, rotar la key vía `POST /api/admin/key` (bearer `ADMIN_TOKEN` de `.env.local`, leído en el shell sin imprimirlo).
+- `.env.local` ya tiene `DATABASE_URL`, `DATABASE_URL_TEST`, `ADMIN_TOKEN` (generado), `SEASON_START` y `WORKER_ENABLED`.
+
 ## Evidencias <!-- MUST -->
