@@ -1,3 +1,4 @@
+import { ARENA_QUEUE_IDS } from "@/lib/config";
 import type { MatchIdsQuery, RiotApi } from "@/lib/riot/client";
 import { RiotNotFoundError } from "@/lib/riot/errors";
 import type { AccountDto, MatchDto, PlayerDataDto } from "@/lib/riot/schemas";
@@ -26,8 +27,11 @@ export interface FakeRiot extends RiotApi {
   failWith?: (call: FakeCall) => Error | undefined;
   addMatch(entry: { match: MatchDto; raw: string }): void;
   addAccount(account: AccountDto): void;
-  /** Sustituye el historial de ids de un jugador (ids solo para listar). */
-  setMatchIds(puuid: string, ids: string[]): void;
+  /**
+   * Sustituye el historial de ids de un jugador en una cola (ids solo para listar; por defecto la
+   * primera de `ARENA_QUEUE_IDS`). Las demás colas siguen saliendo de las partidas añadidas.
+   */
+  setMatchIds(puuid: string, ids: string[], queue?: number): void;
   count(method: FakeMethod, arg?: string): number;
   /** matchIds pedidos a `getMatch`, en orden. */
   matchCalls(): string[];
@@ -39,6 +43,7 @@ export function createFakeRiot(
   const store = new Map<string, { match: MatchDto; raw: string }>();
   const accounts = new Map<string, AccountDto>();
   const idOverrides = new Map<string, string[]>();
+  const overrideKey = (puuid: string, queue: number) => `${puuid}:${queue}`;
   const calls: FakeCall[] = [];
 
   function addMatch(entry: { match: MatchDto; raw: string }) {
@@ -68,8 +73,8 @@ export function createFakeRiot(
     calls,
     addMatch,
     addAccount,
-    setMatchIds(puuid, ids) {
-      idOverrides.set(puuid, ids);
+    setMatchIds(puuid, ids, queue = ARENA_QUEUE_IDS[0]) {
+      idOverrides.set(overrideKey(puuid, queue), ids);
     },
     count(method, arg) {
       return calls.filter(
@@ -89,7 +94,7 @@ export function createFakeRiot(
 
     async getMatchIds(puuid, query, priority) {
       record({ method: "matchIds", arg: puuid, query, priority });
-      const override = idOverrides.get(puuid);
+      const override = idOverrides.get(overrideKey(puuid, query.queue));
       const history =
         override ??
         [...store.values()]

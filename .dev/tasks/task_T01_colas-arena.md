@@ -1,7 +1,7 @@
 # Task T01 — Colas de Arena 1750 + 1740 en backfill, incremental y stats
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -56,14 +56,25 @@ El worker lista, descarga y cuenta las partidas de las dos colas de Arena tríos
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `ARENA_QUEUE_IDS = [1750, 1740]`; ningún uso de `ARENA_QUEUE_ID` en `src/`.
-- [ ] Migración generada con drizzle-kit que añade `sync_jobs.list_queue_index`, aplicada a dev y test.
-- [ ] El backfill lista las dos colas (tests) y deja `matchIds` ordenado de más reciente a más antigua.
-- [ ] Incremental sin partidas nuevas: 2 peticiones de ids y 0 de detalle (test).
-- [ ] Stats y verificados cuentan 1750 ∪ 1740 e ignoran otras colas (test).
-- [ ] `npm run sync:season -- "Nombre#TAG"` encola un backfill sin imprimir `puuid`; lógica probada.
-- [ ] Los cuatro checks en verde.
+- [x] `ARENA_QUEUE_IDS = [1750, 1740]`; ningún uso de `ARENA_QUEUE_ID` en `src/`.
+- [x] Migración generada con drizzle-kit que añade `sync_jobs.list_queue_index`, aplicada a dev y test.
+- [x] El backfill lista las dos colas (tests) y deja `matchIds` ordenado de más reciente a más antigua.
+- [x] Incremental sin partidas nuevas: 2 peticiones de ids y 0 de detalle (test).
+- [x] Stats y verificados cuentan 1750 ∪ 1740 e ignoran otras colas (test).
+- [x] `npm run sync:season -- "Nombre#TAG"` encola un backfill sin imprimir `puuid`; lógica probada.
+- [x] Los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- `resolveAccount` ya pasa a `listing` sin petición si el perfil tiene `puuid`: `enqueueSeasonBackfill` inserta el job en `pending` (no interactivo) sin tocar `steps.ts`. Un test comprueba 0 llamadas a `account` en el re-backfill.
+- Orden final de ids: `sortNewestFirst` por la parte numérica del `matchId` (desempate por texto), solo al cerrar la última cola.
+- El fake de Riot guarda los overrides de ids por cola (`setMatchIds(puuid, ids, queue = 1750)`).
+- Orquestador (mismo commit): skill `riot-api` y `.dev/research/riot-api.md` §5.2 corregidas (premisa "solo 1750" → 1750 + 1740, con nota fechada).
+
 ## Evidencias <!-- MUST -->
+
+- Migración `drizzle/0002_light_ravenous.sql` (drizzle-kit): `list_queue_index integer DEFAULT 0 NOT NULL`, presente en `hylistats` y `hylistats_test` (`information_schema`).
+- `grep -rn "ARENA_QUEUE_ID\b" src scripts tests` → sin resultados.
+- Checks (orquestador, 2026-09-29): `npm run lint` OK (75 ficheros) · `npm run typecheck` OK · `npm test` 24 ficheros, 313 tests en verde · `npm run build` OK.
+- Tests clave: `worker.test.ts` (dos colas, paginación llena/incompleta, incremental 2 ids + 0 detalle, re-backfill 0 `account` y solo las 3 partidas nuevas), `queue.test.ts` (`enqueueSeasonBackfill`: unknown, inactive, active, queued, concurrencia), `queries.test.ts` (1750 ∪ 1740, ignora 400).
+- Commit: ver `git log` (`feat(worker): colas de Arena 1750 + 1740 …`).

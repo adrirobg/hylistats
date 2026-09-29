@@ -24,7 +24,7 @@ import {
 } from "@/db/schema";
 import { storeMatch } from "@/domain/ingest";
 import { extractChallenge } from "@/domain/stats";
-import { ARENA_QUEUE_ID, CHALLENGE_ARENA_GOD } from "@/lib/config";
+import { ARENA_QUEUE_IDS, CHALLENGE_ARENA_GOD } from "@/lib/config";
 import type { RiotApi } from "@/lib/riot/client";
 import {
   RiotAuthError,
@@ -42,7 +42,7 @@ import { PRIORITY, type Priority } from "@/lib/riot/limiter";
 // la petición en curso (y `storeMatch` es idempotente).
 //
 // Máquina de estados de un job:
-//   pending --Account-V1--> listing --Match-V5 ids (páginas de 100)--> fetching
+//   pending --Account-V1--> listing --Match-V5 ids (páginas de 100, una cola tras otra)--> fetching
 //   fetching --detalle por matchId (match_fetch)--> [todos resueltos] --player-data--> done
 //   error: Riot ID inexistente, fallo permanente o 5 fallos seguidos en pending/listing/cierre.
 // Máquina de estados de `match_fetch` (única global por matchId):
@@ -356,9 +356,29 @@ async function resolveMatchFetch(
   });
 }
 
-/** Ids en el orden de la API (más reciente primero), sin duplicados. */
+/** Ids en el orden de llegada (dentro de cada cola, más reciente primero), sin duplicados. */
 function mergeIds(existing: readonly string[], page: readonly string[]) {
   return [...new Set([...existing, ...page])];
+}
+
+/** Parte numérica de un `matchId` (`EUW1_7999000010` -> 7999000010); -1 si no la tiene. */
+function matchNumber(matchId: string): number {
+  const digits = matchId.slice(matchId.lastIndexOf("_") + 1);
+  return /^\d+$/.test(digits) ? Number(digits) : -1;
+}
+
+/**
+ * Ids de más reciente a más antigua. En una misma plataforma (EUW1) la parte numérica del
+ * `matchId` crece con el tiempo, así que ordenarla equivale a ordenar por fecha sin pedir el
+ * detalle. Cada cola llega ordenada por separado; al fusionarlas hay que reordenar para que el
+ * detalle se descargue de más reciente a más antigua entre las dos. Desempate por el texto.
+ */
+function sortNewestFirst(ids: readonly string[]): string[] {
+  return [...ids].sort((a, b) => {
+    const diff = matchNumber(b) - matchNumber(a);
+    if (diff !== 0) return diff;
+    return a < b ? 1 : a > b ? -1 : 0;
+  });
 }
 
 function requirePuuid(row: JobRow): string {
@@ -490,18 +510,27 @@ async function incrementalStartTime(
 }
 
 /**
- * listing: una página de ids. Página llena -> se guardan ids y cursor en la misma escritura y se
- * sigue listando. Página incompleta -> fin del listado: se crean las filas de `match_fetch`, se
- * resuelven sin petición las que ya están en `matches` y el job pasa a `fetching`.
+ * listing: una página de ids de la cola `ARENA_QUEUE_IDS[listQueueIndex]`, desde `listCursor`.
+ * - Página llena -> se guardan ids y cursor en la misma escritura y se sigue con la misma cola.
+ * - Página incompleta con más colas por delante -> se guardan los ids, se pasa a la cola
+ *   siguiente (`listQueueIndex + 1`, cursor a 0) y el job sigue en `listing`.
+ * - Página incompleta en la última cola -> fin del listado: los ids de todas las colas se ordenan
+ *   de más reciente a más antigua, se crean las filas de `match_fetch`, se resuelven sin petición
+ *   las que ya están en `matches` y el job pasa a `fetching`.
  *
  * Backfill: todos los ids de la temporada (el total del progreso). Incremental: solo los que no
- * están en `matches`; sin ninguno nuevo, el job queda con 0 ids y el siguiente paso lo cierra
- * (AC5: 1 sola petición de ids y ninguna de detalle).
+ * están en `matches`, con un único `startTime` para las dos colas; sin ninguno nuevo, el job queda
+ * con 0 ids y el siguiente paso lo cierra (AC5: 1 petición de ids por cola y ninguna de detalle).
  */
 async function listPage(deps: StepDeps, row: JobRow) {
   const { db } = deps;
   const { job } = row;
   const puuid = requirePuuid(row);
+  const queueId = ARENA_QUEUE_IDS[job.listQueueIndex];
+  if (queueId === undefined) {
+    throw new Error(`${label(row)}: cola ${job.listQueueIndex} fuera de rango`);
+  }
+  const lastQueue = job.listQueueIndex >= ARENA_QUEUE_IDS.length - 1;
   const seasonStartS = Math.floor(deps.seasonStart.getTime() / 1000);
   const startTime =
     job.kind === "backfill"
@@ -513,26 +542,43 @@ async function listPage(deps: StepDeps, row: JobRow) {
     {
       start: job.listCursor,
       count: MATCH_IDS_PAGE_SIZE,
-      queue: ARENA_QUEUE_ID,
+      queue: queueId,
       startTime,
     },
     priorityOf(job, PRIORITY.list),
   );
   // Si entra una partida nueva mientras se pagina, los desplazamientos corren una posición y la
   // siguiente página repite ids: `mergeIds` los descarta (no se salta ninguno).
-  const ids = mergeIds(job.matchIds, page);
+  const merged = mergeIds(job.matchIds, page);
   const listCursor = job.listCursor + page.length;
   const reset = { attempts: 0, nextRunAt: null, lastError: null };
 
   if (page.length >= MATCH_IDS_PAGE_SIZE) {
     await db
       .update(syncJobs)
-      .set({ matchIds: ids, listCursor, ...reset })
+      .set({ matchIds: merged, listCursor, ...reset })
       .where(eq(syncJobs.id, job.id));
-    deps.log(`${label(row)}: ${ids.length} ids listados, sigue`);
+    deps.log(`${label(row)}: ${merged.length} ids listados, sigue`);
     return;
   }
 
+  if (!lastQueue) {
+    await db
+      .update(syncJobs)
+      .set({
+        matchIds: merged,
+        listQueueIndex: job.listQueueIndex + 1,
+        listCursor: 0,
+        ...reset,
+      })
+      .where(eq(syncJobs.id, job.id));
+    deps.log(
+      `${label(row)}: cola ${queueId} completa (${merged.length} ids), sigue con la siguiente`,
+    );
+    return;
+  }
+
+  const ids = sortNewestFirst(merged);
   const queued = await db.transaction(async (tx) => {
     let queue = ids;
     if (job.kind === "incremental" && ids.length > 0) {
@@ -679,7 +725,7 @@ async function registerFetchFailure(
 /**
  * Cierre: contador del challenge 602002 (Challenges-V1, host `euw1`), `lastSyncedAt` y job
  * `done`. También en el incremental sin partidas nuevas: el criterio AC5 cuenta peticiones de
- * ids (1), y refrescar el contador oficial en cada sync es lo que permite compararlo con la
+ * ids (1 por cola), y refrescar el contador oficial en cada sync es lo que permite compararlo con la
  * lista verificada (va a otro host, con su propia ventana de límite). Si `player-data` falla
  * por algo que no es la key, se anota en `lastError` y el job se cierra igualmente.
  */

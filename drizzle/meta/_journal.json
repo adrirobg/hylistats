@@ -15,6 +15,13 @@
       "when": 1790695149510,
       "tag": "0001_seed_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790709037868,
+      "tag": "0002_light_ravenous",
+      "breakpoints": true
     }
   ]
 }

@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
-  ARENA_QUEUE_ID,
+  ARENA_QUEUE_IDS,
   CHALLENGE_ARENA_GOD,
   DEFAULT_SEASON_START,
   getSeasonStart,
 } from "./config";
 
 describe("constantes de dominio", () => {
-  it("Arena tríos es la cola 1750 y Arena God el challenge 602002", () => {
-    expect(ARENA_QUEUE_ID).toBe(1750);
+  it("Arena tríos son las colas 1750 y 1740 (en ese orden) y Arena God el challenge 602002", () => {
+    expect(ARENA_QUEUE_IDS).toEqual([1750, 1740]);
     expect(CHALLENGE_ARENA_GOD).toBe(602002);
   });
 });

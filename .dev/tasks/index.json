@@ -3,14 +3,14 @@
     {
       "id": "T01",
       "title": "Colas de Arena 1750 + 1740 en backfill, incremental y stats",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/2-perfil-y-album",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T01_colas-arena.md",
       "created_at": "2026-09-29T20:30:00Z",
-      "updated_at": "2026-09-29T20:30:00Z"
+      "updated_at": "2026-09-29T19:18:48Z"
     },
     {
       "id": "T02",

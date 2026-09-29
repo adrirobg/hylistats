@@ -182,6 +182,51 @@ export async function requestRefresh(
   return "queued";
 }
 
+export type SeasonBackfillResult =
+  | { outcome: "queued"; jobId: number }
+  /** No hay ningún perfil con ese `riotIdNorm`. */
+  | { outcome: "unknown" }
+  /** El perfil existe pero no está `active` (aún se resuelve, o no existe en Riot). */
+  | { outcome: "inactive"; status: Profile["status"] }
+  /** Ya tiene un job en curso: no se encola otro. */
+  | { outcome: "active" };
+
+/**
+ * Re-backfill de la temporada de un perfil ya sincronizado (p. ej. tras añadir una cola nueva a
+ * `ARENA_QUEUE_IDS`): encola un job `backfill` NO interactivo (es mantenimiento, no lo pide una
+ * persona) y despierta al worker. Las partidas que ya están en `matches` se resuelven sin
+ * petición al listar, así que solo se descargan las que faltan.
+ *
+ * El job entra en `pending` como el del registro: al ser un perfil con `puuid`, el worker lo pasa
+ * a `listing` en ese paso sin pedir nada a Riot (`resolveAccount`). `wakeWorker` solo llega a un
+ * worker del mismo proceso; si se llama desde `sync:season`, el worker lo recoge por sondeo.
+ */
+export async function enqueueSeasonBackfill(
+  db: Db,
+  riotIdNorm: string,
+): Promise<SeasonBackfillResult> {
+  const [profile] = await db
+    .select({ id: profiles.id, status: profiles.status })
+    .from(profiles)
+    .where(eq(profiles.riotIdNorm, riotIdNorm))
+    .limit(1);
+  if (!profile) return { outcome: "unknown" };
+  if (profile.status !== "active") {
+    return { outcome: "inactive", status: profile.status };
+  }
+  if (await hasActiveJob(db, profile.id)) return { outcome: "active" };
+
+  // El índice único parcial (un job activo por perfil) resuelve la carrera con otro encolado.
+  const [job] = await db
+    .insert(syncJobs)
+    .values({ profileId: profile.id, kind: "backfill", interactive: false })
+    .onConflictDoNothing()
+    .returning({ id: syncJobs.id });
+  if (!job) return { outcome: "active" };
+  wakeWorker();
+  return { outcome: "queued", jobId: job.id };
+}
+
 export interface EnsureFreshOptions {
   now?: Date;
   staleAfterMs?: number;

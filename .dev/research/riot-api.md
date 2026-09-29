@@ -121,6 +121,8 @@ Conclusiones:
 - **1750 no figura en `queues.json`** [VERIFICADO contra <https://static.developer.riotgames.com/docs/lol/queues.json>]: no se puede depender del fichero oficial para reconocer la cola actual.
 - [INFERIDO] Para hylistats basta `queue=1750` en backfill y sync. Si algún amigo tuviera historial 2v2 dentro de retención, aparecería con 1700/1710; el filtro por `queue` de la Arena antigua y su tratamiento (8 equipos, `placement` 1–8) queda como pregunta abierta (§13).
 
+> **Nota 2026-09-29 — la inferencia anterior era incompleta: también existe la cola 1740** [VERIFICADO]. El jugador de prueba tiene 80 partidas `queue=1740` en esta temporada (19-jul → 23-sep de 2026, parches 16.14 → 16.19, los mismos que la 1750 en esas fechas). El formato es idéntico: `CHERRY`, `mapId 30`, `MATCHED_GAME`, 18 jugadores en 6 tríos, puestos 1–6. No hay partidas de ninguna de las dos colas anteriores a `SEASON_START`. En los días con 1740 casi no hay 1750, así que son sesiones separadas; qué distingue una cola de otra **no se sabe**. La 1740 no está en `queues.json` y **cuenta para `602002`**: solo 1750 da 70 campeones con 1º, 1750 ∪ 1740 da 75 = `value`, y el paso a MASTER cae en el campeón nº 60 de la unión. Backfill, incremental y stats cubren las dos colas desde iter-02 (F14). Evidencia: `.dev/archive/iter-01/verify-report.md` § AC4 y F14 en `think.md`.
+
 ### 5.3 `GET /lol/match/v5/matches/{matchId}` — estructura
 
 Top-level [VERIFICADO]: `metadata {dataVersion "2", matchId, participants[18 puuids]}` e `info {endOfGameResult, gameCreation, gameDuration (segundos), gameEndTimestamp, gameId, gameMode, gameName, gameStartTimestamp, gameType, gameVersion, mapId, participants[], platformId, queueId, teams[], tournamentCode}`.

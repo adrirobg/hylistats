@@ -1,8 +1,8 @@
-import { and, asc, eq, gte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { Db } from "@/db";
 import { matches, participants, profiles } from "@/db/schema";
-import { ARENA_QUEUE_ID, getSeasonStart } from "@/lib/config";
+import { ARENA_QUEUE_IDS, getSeasonStart } from "@/lib/config";
 import {
   type ChallengeComparison,
   compareWithChallenge,
@@ -16,9 +16,10 @@ import {
   verifiedChampions,
 } from "./stats";
 
-// Consultas de BD que alimentan el dominio. Todas acotan a la temporada: cola de Arena tríos
-// (`queueId = 1750`) y `gameCreation >= seasonStart`. El orden de las filas es cronológico
-// ascendente (`gameCreation`, `matchId`) para que el resultado sea determinista.
+// Consultas de BD que alimentan el dominio. Todas acotan a la temporada: las dos colas de Arena
+// tríos (`queueId` 1750 y 1740, `ARENA_QUEUE_IDS`) y `gameCreation >= seasonStart`. El orden de las
+// filas es cronológico ascendente (`gameCreation`, `matchId`) para que el resultado sea
+// determinista.
 
 /**
  * Partidas del jugador dentro de la temporada, una fila por partida.
@@ -43,7 +44,7 @@ export async function getPlayerRows(
     .where(
       and(
         eq(participants.puuid, puuid),
-        eq(matches.queueId, ARENA_QUEUE_ID),
+        inArray(matches.queueId, [...ARENA_QUEUE_IDS]),
         gte(matches.gameCreation, seasonStart.getTime()),
       ),
     )
@@ -83,7 +84,7 @@ export async function getTeammateRows(
     )
     .where(
       and(
-        eq(matches.queueId, ARENA_QUEUE_ID),
+        inArray(matches.queueId, [...ARENA_QUEUE_IDS]),
         gte(matches.gameCreation, seasonStart.getTime()),
       ),
     )

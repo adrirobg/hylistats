@@ -10,7 +10,7 @@ import {
   variantOf,
 } from "../../tests/helpers/matches";
 import { storeMatch } from "./ingest";
-import { getProfileStats, getTeammateRows } from "./queries";
+import { getPlayerRows, getProfileStats, getTeammateRows } from "./queries";
 import { computeTeammates } from "./stats";
 
 const db = getTestDb();
@@ -49,6 +49,84 @@ async function insertProfile(
     .returning();
   return profile;
 }
+
+/**
+ * Un 1º del jugador de prueba en `queueId`, `gameCreation` posterior a las partidas reales.
+ * La 1740 es la otra cola de Arena tríos; la 400 no es Arena y no debe contar.
+ */
+function storeFirst(
+  fixture: MatchFixture,
+  matchId: string,
+  queueId: number,
+  gameCreation: number,
+) {
+  return storeVariant(fixture, matchId, (j) => {
+    j.info.queueId = queueId;
+    j.info.gameCreation = gameCreation;
+    promoteTrioToFirst(j, SELF_PUUID);
+  });
+}
+
+describe("colas de Arena 1750 y 1740", () => {
+  it("getPlayerRows cuenta las partidas de las dos colas e ignora otras", async () => {
+    await storeAll();
+    await storeFirst(fixtures[1], "EUW1_TEST_Q1740", 1740, 1_790_700_000_000);
+    await storeFirst(fixtures[2], "EUW1_TEST_Q400", 400, 1_790_700_100_000);
+
+    const rows = await getPlayerRows(db, SELF_PUUID, seasonStart);
+    // Las 10 reales (1750) + la de la 1740; la de la 400 no está.
+    expect(rows).toHaveLength(11);
+    expect(rows.at(-1)).toMatchObject({
+      matchId: "EUW1_TEST_Q1740",
+      placement: 1,
+    });
+    expect(rows.some((r) => r.matchId === "EUW1_TEST_Q400")).toBe(false);
+  });
+
+  it("getTeammateRows incluye el trío de las partidas de la 1740 e ignora otras colas", async () => {
+    await storeAll();
+    await storeFirst(fixtures[1], "EUW1_TEST_Q1740", 1740, 1_790_700_000_000);
+    await storeFirst(fixtures[2], "EUW1_TEST_Q400", 400, 1_790_700_100_000);
+
+    const rows = await getTeammateRows(db, SELF_PUUID, seasonStart);
+    expect(rows).toHaveLength(33); // 11 partidas x 3
+    expect(rows.filter((r) => r.matchId === "EUW1_TEST_Q1740")).toHaveLength(3);
+    expect(rows.some((r) => r.matchId === "EUW1_TEST_Q400")).toBe(false);
+  });
+
+  it("getProfileStats cuenta partidas y 1º de 1750 ∪ 1740 (y los campeones verificados de ambas)", async () => {
+    await storeAll();
+    // 1º con Blitzcrank en la 1750, 1º con Zaahen en la 1740 y 1º con Teemo en la 400 (fuera).
+    await storeFirst(fixtures[1], "EUW1_TEST_Q1750", 1750, 1_790_700_000_000);
+    await storeFirst(fixtures[2], "EUW1_TEST_Q1740", 1740, 1_790_700_100_000);
+    await storeFirst(fixtures[4], "EUW1_TEST_Q400", 400, 1_790_700_200_000);
+    const profile = await insertProfile();
+
+    const stats = await getProfileStats(db, profile.id, seasonStart);
+    expect(stats).not.toBeNull();
+    if (!stats) return;
+
+    // 10 reales [5,3,3,3,5,6,4,4,2,2] (suma 37) + dos 1º = 12 partidas, suma 39.
+    expect(stats.summary.games).toBe(12);
+    expect(stats.summary.firsts).toBe(2);
+    expect(stats.summary.top3).toBe(7);
+    expect(stats.summary.avgPlacement).toBeCloseTo(39 / 12, 10);
+    expect(stats.summary.distribution).toEqual({
+      1: 2,
+      2: 2,
+      3: 3,
+      4: 2,
+      5: 2,
+      6: 1,
+    });
+    expect(
+      stats.verifiedChampions.map((c) => [c.championId, c.lastWinMatchId]),
+    ).toEqual([
+      [904, "EUW1_TEST_Q1740"],
+      [53, "EUW1_TEST_Q1750"],
+    ]);
+  });
+});
 
 describe("getTeammateRows", () => {
   it("devuelve las 3 filas del trío del jugador por partida (él incluido)", async () => {
