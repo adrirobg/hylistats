@@ -1,7 +1,7 @@
 # Task T01 — Scaffolding Next.js 16 + Postgres + tooling
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -43,4 +43,15 @@ App Next.js 16 en la raíz del repo con Tailwind 4, shadcn/ui, Biome, Vitest, de
 
 ## Notas de implementacion <!-- MAY -->
 
+- `typecheck` = `next typegen && tsc --noEmit`: en Next 16 los tipos globales (`LayoutProps`) los genera Next; sin `typegen` falla en un checkout limpio.
+- `"type": "module"` en `package.json` para que `tsx` admita top-level await en los scripts.
+- `@types/node` ^24 (peer de vitest 5). TypeScript 5.9.3 (el que trae `create-next-app`), Biome 2.4.2.
+- shadcn CLI 4.21 no admite `-t next` no interactivo: `shadcn init -d -y --no-monorepo` → preset `base-nova` (Base UI) con base color neutral. Deps añadidas por shadcn: `@base-ui/react`, `class-variance-authority`, `cn`, `lucide-react`, `recharts`, `shadcn`, `tw-animate-css`. El preset es revisable en #2 (UI).
+- `docker compose pull` se colgaba en `docker-credential-desktop`; se sorteó con un `DOCKER_CONFIG` temporal sin credsStore para la imagen pública.
+
 ## Evidencias <!-- MUST -->
+
+- Orquestador (2026-09-29): `npm run lint && npm run typecheck && npm test && npm run build` OK (3 tests de humo; rutas `/` y `/_not-found`).
+- `docker compose ps` → `Up (healthy)` en `5433->5432`; `psql -l` lista `hylistats` y `hylistats_test`.
+- `git check-ignore .env.local` → ignorado; `.env.example` versionado. `AGENTS.md` solo gana la sección `## Next.js 16`; `CLAUDE.md` intacto.
+- Commit: `feat(scaffold): Next.js 16, Postgres en Docker, Biome, Vitest y CI` (rama `feat/1-motor-de-datos`).

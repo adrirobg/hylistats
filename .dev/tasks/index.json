@@ -3,14 +3,14 @@
     {
       "id": "T01",
       "title": "Scaffolding Next.js 16 + Postgres + tooling",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:sonnet",
       "branch": "feat/1-motor-de-datos",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T01_scaffolding.md",
       "created_at": "2026-09-29T15:05:00Z",
-      "updated_at": "2026-09-29T15:05:00Z"
+      "updated_at": "2026-09-29T15:02:44Z"
     },
     {
       "id": "T02",
