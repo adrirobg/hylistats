@@ -1,0 +1,112 @@
+{
+  "totalPoints": {
+    "level": "DIAMOND",
+    "current": 17685,
+    "max": 29680,
+    "percentile": 0.034
+  },
+  "categoryPoints": {
+    "IMAGINATION": {
+      "level": "DIAMOND",
+      "current": 3210,
+      "max": 4730,
+      "percentile": 0.039
+    },
+    "VETERANCY": {
+      "level": "DIAMOND",
+      "current": 3440,
+      "max": 6300,
+      "percentile": 0.048
+    },
+    "EXPERTISE": {
+      "level": "DIAMOND",
+      "current": 3740,
+      "max": 6715,
+      "percentile": 0.047
+    },
+    "TEAMWORK": {
+      "level": "PLATINUM",
+      "current": 3770,
+      "max": 7735,
+      "percentile": 0.083
+    },
+    "COLLECTION": {
+      "level": "MASTER",
+      "current": 3525,
+      "max": 4200,
+      "percentile": 0.002
+    }
+  },
+  "challenges": [
+    {
+      "challengeId": 602001,
+      "percentile": 0.015,
+      "level": "PLATINUM",
+      "value": 133,
+      "achievedTime": 1788387413480
+    },
+    {
+      "challengeId": 602000,
+      "percentile": 0.007,
+      "level": "DIAMOND",
+      "value": 140,
+      "achievedTime": 1789076815643
+    },
+    {
+      "challengeId": 602002,
+      "percentile": 0.004,
+      "level": "MASTER",
+      "value": 75,
+      "achievedTime": 1789853414530
+    },
+    {
+      "challengeId": 601001,
+      "percentile": 0.007,
+      "level": "MASTER",
+      "value": 52,
+      "achievedTime": 1788801698552
+    },
+    {
+      "challengeId": 601000,
+      "percentile": 0.041,
+      "level": "MASTER",
+      "value": 600,
+      "achievedTime": 1718578819770
+    },
+    {
+      "challengeId": 601003,
+      "percentile": 0,
+      "level": "CHALLENGER",
+      "value": 1266,
+      "achievedTime": 1720311796568
+    },
+    {
+      "challengeId": 601002,
+      "percentile": 0,
+      "level": "CHALLENGER",
+      "value": 9357,
+      "achievedTime": 1720128993926
+    },
+    {
+      "challengeId": 601005,
+      "percentile": 0,
+      "level": "CHALLENGER",
+      "value": 590,
+      "achievedTime": 1783380982151
+    },
+    {
+      "challengeId": 601004,
+      "percentile": 0,
+      "level": "CHALLENGER",
+      "value": 539,
+      "achievedTime": 1783199581426
+    },
+    {
+      "challengeId": 601006,
+      "percentile": 0,
+      "level": "CHALLENGER",
+      "value": 1111,
+      "achievedTime": 1724269254187
+    }
+  ]
+}

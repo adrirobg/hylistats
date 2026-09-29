@@ -1,0 +1,323 @@
+import { eq } from "drizzle-orm";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { closeDb } from "@/db";
+import { profiles, settings, syncJobs } from "@/db/schema";
+import { storeMatch } from "@/domain/ingest";
+import { getTestDb, truncateAll } from "../../../../tests/helpers/db";
+import {
+  loadMatchFixtures,
+  type MatchFixture,
+  promoteTrioToFirst,
+  SELF_PUUID,
+  variantOf,
+} from "../../../../tests/helpers/matches";
+import { loadProfilePage, type ProfilePageData } from "./data";
+
+const db = getTestDb();
+const fixtures = loadMatchFixtures();
+const seasonStart = new Date("2026-05-12T00:00:00Z");
+
+beforeEach(truncateAll);
+afterAll(closeDb);
+
+async function storeAll() {
+  for (const f of fixtures) await storeMatch(db, f.match, f.raw);
+}
+
+async function storeVariant(
+  fixture: MatchFixture,
+  matchId: string,
+  mutate: Parameters<typeof variantOf>[2],
+) {
+  const v = variantOf(fixture, matchId, mutate);
+  await storeMatch(db, v.match, v.raw);
+}
+
+async function insertProfile(
+  overrides: Partial<typeof profiles.$inferInsert> = {},
+) {
+  const [profile] = await db
+    .insert(profiles)
+    .values({
+      gameName: "BEJITO MAMBO",
+      tagLine: "1991",
+      riotIdNorm: "bejito mambo#1991",
+      puuid: SELF_PUUID,
+      status: "active",
+      ...overrides,
+    })
+    .returning();
+  return profile;
+}
+
+async function insertJob(
+  profileId: number,
+  values: Partial<typeof syncJobs.$inferInsert> = {},
+) {
+  await db.insert(syncJobs).values({ profileId, kind: "backfill", ...values });
+}
+
+async function load(gameName = "BEJITO MAMBO", tagLine = "1991") {
+  return loadProfilePage(db, gameName, tagLine, seasonStart);
+}
+
+/** La variante `profile` de la carga (falla el test si es otra). */
+async function loadProfile() {
+  const data = await load();
+  if (data.kind !== "profile") throw new Error(`kind inesperado: ${data.kind}`);
+  return data;
+}
+
+/** ¿Aparece la clave `key` en algún nivel del valor? (recorre objetos y arrays; salta fechas). */
+function hasKeyDeep(value: unknown, key: string): boolean {
+  if (Array.isArray(value)) return value.some((v) => hasKeyDeep(v, key));
+  if (value === null || typeof value !== "object" || value instanceof Date) {
+    return false;
+  }
+  return Object.entries(value).some(
+    ([k, v]) => k === key || hasKeyDeep(v, key),
+  );
+}
+
+describe("loadProfilePage", () => {
+  it("perfil inexistente: unregistered con el Riot ID tecleado", async () => {
+    expect(await load("Faker", "KR1")).toEqual({
+      kind: "unregistered",
+      gameName: "Faker",
+      tagLine: "KR1",
+    });
+  });
+
+  it("perfil not_found: not_found", async () => {
+    await insertProfile({ status: "not_found", puuid: null });
+    expect(await load()).toEqual({
+      kind: "not_found",
+      gameName: "BEJITO MAMBO",
+      tagLine: "1991",
+    });
+  });
+
+  it("busca por riotIdNorm y devuelve el Riot ID canónico del perfil", async () => {
+    await insertProfile({
+      gameName: "Bejito Mambo",
+      tagLine: "1991",
+      riotIdNorm: "bejito mambo#1991",
+    });
+    const data = await load("  BEJITO mambo ", "1991");
+    expect(data).toMatchObject({
+      kind: "profile",
+      gameName: "Bejito Mambo",
+      tagLine: "1991",
+      seasonStart,
+    });
+  });
+
+  it("perfil recién registrado (sin puuid): job pending = resolviendo y stats vacías", async () => {
+    const profile = await insertProfile({
+      puuid: null,
+      status: "resolving",
+    });
+    await insertJob(profile.id);
+    const data = await loadProfile();
+    expect(data.sync).toEqual({ kind: "backfill", phase: "resolving" });
+    expect(data.lastSyncedAt).toBeNull();
+    expect(data.summary.games).toBe(0);
+    expect(data.summary.avgPlacement).toBeNull();
+    expect(data.verifiedChampions).toEqual([]);
+    expect(data.challenge.comparison.status).toBe("unknown");
+    expect(data.paused).toBe(false);
+  });
+
+  it("job listing: cuenta los ids ya listados (totalIds aún vale 0)", async () => {
+    const profile = await insertProfile();
+    await insertJob(profile.id, {
+      status: "listing",
+      matchIds: ["EUW1_1", "EUW1_2", "EUW1_3"],
+      totalIds: 0,
+    });
+    expect((await loadProfile()).sync).toEqual({
+      kind: "backfill",
+      phase: "listing",
+      listedIds: 3,
+    });
+  });
+
+  it("job fetching: devuelve fetched/total", async () => {
+    const profile = await insertProfile();
+    await insertJob(profile.id, {
+      kind: "incremental",
+      status: "fetching",
+      matchIds: ["EUW1_1", "EUW1_2", "EUW1_3"],
+      totalIds: 3,
+      fetched: 2,
+    });
+    expect((await loadProfile()).sync).toEqual({
+      kind: "incremental",
+      phase: "fetching",
+      fetched: 2,
+      total: 3,
+    });
+  });
+
+  it("sin job activo (solo done/error) no hay progreso y sale lastSyncedAt", async () => {
+    const lastSyncedAt = new Date("2026-09-29T10:00:00Z");
+    const profile = await insertProfile({ lastSyncedAt });
+    await insertJob(profile.id, { status: "done", finishedAt: lastSyncedAt });
+    await insertJob(profile.id, { kind: "incremental", status: "error" });
+    const data = await loadProfile();
+    expect(data.sync).toBeNull();
+    expect(data.lastSyncedAt).toEqual(lastSyncedAt);
+  });
+
+  it("solo mira los jobs del perfil pedido", async () => {
+    const other = await insertProfile({
+      gameName: "Otro Jugador",
+      riotIdNorm: "otro jugador#eu1",
+      tagLine: "EU1",
+      puuid: "anon-puuid-otro",
+    });
+    await insertJob(other.id, { status: "fetching", totalIds: 9, fetched: 4 });
+    await insertProfile();
+    expect((await loadProfile()).sync).toBeNull();
+  });
+
+  it("perfil con stats y challengeValue: resumen, campeones verificados y comparación", async () => {
+    await storeAll();
+    await storeVariant(fixtures[1], "EUW1_TEST_FIRST", (j) => {
+      j.info.gameCreation = 1_790_700_000_000;
+      promoteTrioToFirst(j, SELF_PUUID);
+    });
+    const checkedAt = new Date("2026-09-29T12:00:00Z");
+    await insertProfile({
+      challengeValue: 75,
+      challengeLevel: "MASTER",
+      challengeCheckedAt: checkedAt,
+    });
+
+    const data = await loadProfile();
+    expect(data.summary.games).toBe(11);
+    expect(data.summary.firsts).toBe(1);
+    expect(data.summary.distribution).toEqual({
+      1: 1,
+      2: 2,
+      3: 3,
+      4: 2,
+      5: 2,
+      6: 1,
+    });
+    expect(data.verifiedChampions).toEqual([
+      {
+        championId: 53,
+        championName: "Blitzcrank",
+        firsts: 1,
+        firstWinMatchId: "EUW1_TEST_FIRST",
+        firstWinAt: 1_790_700_000_000,
+        lastWinMatchId: "EUW1_TEST_FIRST",
+        lastWinAt: 1_790_700_000_000,
+      },
+    ]);
+    // 1 campeón verificado frente a 75 del challenge.
+    expect(data.challenge).toEqual({
+      value: 75,
+      level: "MASTER",
+      checkedAt,
+      comparison: { status: "diff", diff: -74 },
+    });
+  });
+
+  it("acota a la temporada pedida", async () => {
+    await storeAll();
+    await insertProfile();
+    const data = await loadProfilePage(
+      db,
+      "BEJITO MAMBO",
+      "1991",
+      new Date("2026-09-29T00:00:00Z"),
+    );
+    expect(data.kind === "profile" && data.summary.games).toBe(2);
+  });
+
+  it("sin temporada explícita usa SEASON_START", async () => {
+    await storeAll();
+    await insertProfile();
+    try {
+      vi.stubEnv("SEASON_START", "2026-05-12T00:00:00Z");
+      const all = await loadProfilePage(db, "BEJITO MAMBO", "1991");
+      expect(all.kind === "profile" && all.summary.games).toBe(10);
+      vi.stubEnv("SEASON_START", "2026-09-29T00:00:00Z");
+      const late = await loadProfilePage(db, "BEJITO MAMBO", "1991");
+      expect(late.kind === "profile" && late.summary.games).toBe(2);
+      expect(late.kind === "profile" && late.seasonStart).toEqual(
+        new Date("2026-09-29T00:00:00Z"),
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("keyStatus = 'invalid' -> paused: true (y solo entonces)", async () => {
+    await insertProfile();
+    expect((await loadProfile()).paused).toBe(false); // unknown
+
+    await db
+      .update(settings)
+      .set({ keyStatus: "ok" })
+      .where(eq(settings.id, 1));
+    expect((await loadProfile()).paused).toBe(false);
+
+    await db
+      .update(settings)
+      .set({
+        keyStatus: "invalid",
+        keyStatusReason: "401 Unauthorized",
+        keyStatusSince: new Date(),
+      })
+      .where(eq(settings.id, 1));
+    const data = await loadProfile();
+    expect(data.paused).toBe(true);
+    // El motivo de la pausa no viaja a la página pública.
+    expect(JSON.stringify(data)).not.toContain("401");
+  });
+
+  it("no contiene la clave puuid en ningún nivel ni el valor del puuid", async () => {
+    await storeAll();
+    const profile = await insertProfile({
+      challengeValue: 3,
+      lastSyncedAt: new Date(),
+    });
+    await insertJob(profile.id, {
+      status: "fetching",
+      matchIds: ["EUW1_1"],
+      totalIds: 1,
+    });
+    const datas: ProfilePageData[] = [await load(), await load("Faker", "KR1")];
+    await insertProfile({
+      gameName: "Fantasma",
+      tagLine: "EUW",
+      riotIdNorm: "fantasma#euw",
+      puuid: "anon-puuid-fantasma",
+      status: "not_found",
+    });
+    datas.push(await load("Fantasma", "EUW"));
+
+    expect(datas.map((d) => d.kind)).toEqual([
+      "profile",
+      "unregistered",
+      "not_found",
+    ]);
+    for (const data of datas) {
+      expect(hasKeyDeep(data, "puuid")).toBe(false);
+      const json = JSON.stringify(data);
+      expect(json).not.toContain(SELF_PUUID);
+      expect(json).not.toContain("anon-puuid");
+    }
+  });
+
+  it("los compañeros no viajan a la página (van en #3)", async () => {
+    await storeAll();
+    await insertProfile();
+    const data = await loadProfile();
+    expect(hasKeyDeep(data, "teammates")).toBe(false);
+    expect(JSON.stringify(data)).not.toContain("Player013");
+  });
+});
