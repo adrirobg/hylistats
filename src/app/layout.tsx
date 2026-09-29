@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "hylistats",
   description: "Estadísticas de perfil de jugador para el modo Arena de LoL",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -24,7 +28,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <footer className="text-xs text-gray-500 py-4 px-4 text-center border-t border-gray-200">
+          hylistats isn't endorsed by Riot Games and doesn't reflect the views
+          or opinions of Riot Games or anyone officially involved in producing
+          or managing Riot Games properties. Riot Games, and all associated
+          properties are trademarks or registered trademarks of Riot Games, Inc.
+        </footer>
+      </body>
     </html>
   );
 }

@@ -1,7 +1,7 @@
 # Task T09 — noindex y descargo de Riot
 
 **Owner**: worker:haiku
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -35,3 +35,7 @@ Sin llamadas a la Riot API ni lectura de `.env.local`.
 ## Notas de implementacion <!-- MAY -->
 
 ## Evidencias <!-- MUST -->
+
+- `src/app/robots.ts` (`Disallow: /`), `metadata.robots = { index: false, follow: false }` y footer con el descargo exacto en `src/app/layout.tsx`, `headers()` con `X-Robots-Tag: noindex, nofollow` en `next.config.ts`.
+- `src/app/noindex.test.ts` (2 tests) OK; el worker reporta lint/typecheck/test (30)/build en verde con `/robots.txt` generado. La comprobación HTTP de la cabecera queda para el E2E (T10).
+- Commit: `feat(seo): noindex en tres capas y descargo de Riot en el footer`.
