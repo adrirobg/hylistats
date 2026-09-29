@@ -51,7 +51,7 @@
     {
       "id": "T05",
       "title": "Landing: buscador, recientes/favoritos y redirección a mi perfil",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/2-perfil-y-album",
       "worktree": null,
@@ -61,7 +61,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T05_landing.md",
       "created_at": "2026-09-29T20:30:00Z",
-      "updated_at": "2026-09-29T20:30:00Z"
+      "updated_at": "2026-09-29T22:39:20Z"
     },
     {
       "id": "T06",

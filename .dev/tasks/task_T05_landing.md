@@ -1,7 +1,7 @@
 # Task T05 — Landing: buscador, recientes/favoritos y redirección a "mi perfil"
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -62,12 +62,25 @@ Con "mi perfil" guardado en el navegador, `/` redirige a su perfil. `?inicio` fu
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] El campo acepta las tres formas y muestra el error inline sin perder lo escrito.
-- [ ] Recientes/Favoritos con ★ y ✕ desde la capa de navegador; vacíos útiles.
-- [ ] `/` redirige a "mi perfil" si existe; `?inicio` fuerza la landing (función pura probada; comprobación en navegador del orquestador).
-- [ ] `format.ts` probado y `formatDate` duplicado eliminado.
-- [ ] Los cuatro checks en verde.
+- [x] El campo acepta las tres formas y muestra el error inline sin perder lo escrito.
+- [x] Recientes/Favoritos con ★ y ✕ desde la capa de navegador; vacíos útiles.
+- [x] `/` redirige a "mi perfil" si existe; `?inicio` fuerza la landing (función pura probada; comprobación en navegador del orquestador).
+- [x] `format.ts` probado y `formatDate` duplicado eliminado.
+- [x] Los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- `/` es estática: `?inicio` y los datos locales los resuelven componentes cliente. `RedirectToMyProfile` (en `Suspense` por `useSearchParams`) decide con `landingTarget` solo tras `useLocalReady()` y usa `router.replace`.
+- La landing no llama a `addRecent`: lo hará el perfil (T06) cuando exista. Enlaces a perfiles con `prefetch={false}`. Volver a la landing con "mi perfil": `/?inicio`.
+- Favoritos muestra "añadido hace X" y se quitan con la ★ (sin ✕).
+- `src/lib/format.ts`: `formatRelative(ms, now)`, `formatDateTime`, `formatPercent`, `formatDecimal`; sustituye los `formatDate` duplicados de `/admin` y del perfil.
+
 ## Evidencias <!-- MUST -->
+
+- Navegador integrado (orquestador, 2026-09-30, `WORKER_ENABLED=false`):
+  - Landing vacía con vacíos útiles; errores inline (`role="alert"`) para vacío, `hola` y URL de op.gg NA, sin perder lo escrito.
+  - Recientes con ★/✕ y "hace 2 h" / "ayer" / "20 ago"; ★ añade a Favoritos ("añadido ahora"); ✕ quita el reciente (persistido en `hylistats:v1`).
+  - 375 px: `scrollWidth` = `clientWidth` = 375.
+  - Con `myProfile` guardado, `/` → `/euw/Poro%20Veloz-EUW` con `replace` (`history.length` 1); `/?inicio` muestra la landing y "Ir a mi perfil (Poro Veloz#EUW)". Consola sin errores. BD sin jobs ni perfiles nuevos.
+- Checks (orquestador): `npm run lint` OK (93 ficheros) · `npm run typecheck` OK · `npm test` 30 ficheros, 461 tests en verde · `npm run build` OK (`/` estática).
+- Commit: ver `git log` (`feat(ui): landing …`).

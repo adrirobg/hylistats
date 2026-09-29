@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getDb } from "@/db";
 import type { ProfileChallenge } from "@/domain/queries";
 import { PLACEMENTS, type StatsSummary } from "@/domain/stats";
+import { formatDateTime, formatDecimal, formatPercent } from "@/lib/format";
 import { parseProfileSlug, profileSlug } from "@/lib/riot-id";
 import { REFRESH_COOLDOWN_MS } from "@/worker/queue";
 import { registerProfileAction } from "./actions";
@@ -19,23 +20,6 @@ export const dynamic = "force-dynamic";
 
 const CELL = "border-b border-gray-200 px-2 py-1";
 const H2 = "mb-2 text-xl font-semibold";
-
-const percent = new Intl.NumberFormat("es-ES", {
-  style: "percent",
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-const decimal = new Intl.NumberFormat("es-ES", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-/** `2026-09-29 15:04 UTC`; `-` si no hay fecha. */
-function formatDate(date: Date | number | null): string {
-  return date === null
-    ? "-"
-    : `${new Date(date).toISOString().slice(0, 16).replace("T", " ")} UTC`;
-}
 
 export default async function ProfilePage({
   params,
@@ -77,7 +61,7 @@ function Header({ data }: { data: ProfilePageData }) {
       <p className="text-sm text-gray-600">EUW</p>
       {data.kind === "profile" && (
         <p className="text-sm">
-          Temporada desde {formatDate(data.seasonStart)}
+          Temporada desde {formatDateTime(data.seasonStart)}
         </p>
       )}
     </header>
@@ -111,7 +95,7 @@ function SyncBlock({ data, slug }: { data: ProfileView; slug: string }) {
           sincronización
         </p>
       )}
-      <p>Última sincronización: {formatDate(data.lastSyncedAt)}</p>
+      <p>Última sincronización: {formatDateTime(data.lastSyncedAt)}</p>
       {data.sync && <SyncStatus sync={data.sync} />}
       <RefreshButton slug={slug} cooldownSeconds={REFRESH_COOLDOWN_MS / 1000} />
     </section>
@@ -143,16 +127,16 @@ function Summary({ summary }: { summary: StatsSummary }) {
       <ul className="mb-4 list-disc pl-5">
         <li>Partidas: {summary.games}</li>
         <li>
-          1º: {summary.firsts} ({percent.format(summary.firstRate)})
+          1º: {summary.firsts} ({formatPercent(summary.firstRate)})
         </li>
         <li>
-          Top 3: {summary.top3} ({percent.format(summary.top3Rate)})
+          Top 3: {summary.top3} ({formatPercent(summary.top3Rate)})
         </li>
         <li>
           Puesto medio:{" "}
           {summary.avgPlacement === null
             ? "-"
-            : decimal.format(summary.avgPlacement)}
+            : formatDecimal(summary.avgPlacement)}
         </li>
       </ul>
       <table className="border-collapse text-left text-sm">
@@ -229,7 +213,7 @@ function Champions({
               <tr key={champion.championId}>
                 <td className={CELL}>{champion.championName}</td>
                 <td className={CELL}>{champion.firsts}</td>
-                <td className={CELL}>{formatDate(champion.lastWinAt)}</td>
+                <td className={CELL}>{formatDateTime(champion.lastWinAt)}</td>
                 <td className={CELL}>{champion.lastWinMatchId}</td>
               </tr>
             ))}

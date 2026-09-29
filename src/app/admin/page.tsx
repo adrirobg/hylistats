@@ -6,6 +6,7 @@ import {
   isAdminSession,
 } from "@/lib/admin/auth";
 import { getKeyStatus } from "@/lib/admin/key-service";
+import { formatDateTime } from "@/lib/format";
 import { getWorkerStatus } from "@/worker/main";
 import { loginAction, logoutAction, saveKeyAction } from "./actions";
 
@@ -20,13 +21,6 @@ const RESULT_MESSAGES: Record<string, string> = {
   error:
     "No se pudo comprobar la key con Riot (fallo temporal): no se ha guardado. Reintenta.",
 };
-
-/** `2026-09-29 15:04 UTC`; `-` si no hay fecha. */
-function formatDate(date: Date | null): string {
-  return date
-    ? `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`
-    : "-";
-}
 
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   if (!isAdminConfigured()) {
@@ -67,13 +61,13 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       <h2>Key de Riot</h2>
       <ul>
         <li>Estado: {key.status}</li>
-        <li>Desde: {formatDate(key.since)}</li>
+        <li>Desde: {formatDateTime(key.since)}</li>
         {key.reason && <li>Motivo: {key.reason}</li>}
         <li>Fuente: {key.source}</li>
-        <li>Guardada: {formatDate(key.updatedAt)}</li>
+        <li>Guardada: {formatDateTime(key.updatedAt)}</li>
         {key.expiresHint && (
           <li>
-            Caduca aprox.: {formatDate(key.expiresHint)} (última key + 24 h)
+            Caduca aprox.: {formatDateTime(key.expiresHint)} (última key + 24 h)
           </li>
         )}
       </ul>
@@ -81,7 +75,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
       <h2>Worker</h2>
       <ul>
         <li>Estado: {worker.state}</li>
-        <li>Última actividad: {formatDate(worker.lastActivityAt)}</li>
+        <li>Última actividad: {formatDateTime(worker.lastActivityAt)}</li>
         <li>Job actual: {worker.currentJobId ?? "-"}</li>
         {worker.lastError && <li>Último error: {worker.lastError}</li>}
       </ul>
