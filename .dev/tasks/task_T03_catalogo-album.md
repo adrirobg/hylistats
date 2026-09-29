@@ -1,7 +1,7 @@
 # Task T03 — Catálogo de campeones (Data Dragon) y dominio del álbum
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -67,11 +67,20 @@ Tests sin red: inyecta el `fetch` y usa datos inline mínimos en el test. No toq
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `loadChampionCatalog` nunca lanza, cachea 24 h y mapea por `key` numérico.
-- [ ] `buildAlbum` cubre catálogo + jugados sin catálogo con los 3 estados de dominio; invariante `won` = `verifiedChampions.length` probado.
-- [ ] `recentForm` y `lastGameAt` probados.
-- [ ] Tests sin red; los cuatro checks en verde.
+- [x] `loadChampionCatalog` nunca lanza, cachea 24 h y mapea por `key` numérico.
+- [x] `buildAlbum` cubre catálogo + jugados sin catálogo con los 3 estados de dominio; invariante `won` = `verifiedChampions.length` probado.
+- [x] `recentForm` y `lastGameAt` probados.
+- [x] Tests sin red; los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- Caché: `fetch(url, { next: { revalidate: 86400 }, signal })` (Data Cache de Next; `"use cache"` exige `cacheComponents` y `unstable_cache` está sustituido en 16). `getChampionCatalog` va envuelta en `cache()` de React para no repetir el parseo de `champion.json` (~0,7 MB) en un render. Timeout único de 8 s para las dos peticiones.
+- `album.ts` importa `ChampionCatalog` con `import type`: los componentes cliente pueden usar `AlbumEntry`/`RecentGame`; `ddragon.ts` nunca desde `"use client"`.
+- `recentForm` y `lastGameAt` no filtran puestos fuera de 1..6 (solo `buildAlbum`, como pide la task).
+- Pendiente para T06: comprobar en `next dev` que el `fetch` de Data Dragon se cachea al usarse por primera vez.
+
 ## Evidencias <!-- MUST -->
+
+- Tests nuevos: `src/lib/ddragon.test.ts` (15) y `src/domain/album.test.ts` (23), sin red (`fetch` inyectado o `vi.stubGlobal`). Invariante `won` = `verifiedChampions(rows).length` en 6 escenarios.
+- Checks (orquestador, 2026-09-29): `npm run lint` OK (83 ficheros) · `npm run typecheck` OK · `npm test` 26 ficheros, 351 tests en verde · `npm run build` OK.
+- Commit: ver `git log` (`feat(domain): catálogo de Data Dragon y dominio del álbum`).

@@ -27,14 +27,14 @@
     {
       "id": "T03",
       "title": "Catálogo de campeones (Data Dragon) y dominio del álbum",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/2-perfil-y-album",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T03_catalogo-album.md",
       "created_at": "2026-09-29T20:30:00Z",
-      "updated_at": "2026-09-29T20:30:00Z"
+      "updated_at": "2026-09-29T19:33:38Z"
     },
     {
       "id": "T04",

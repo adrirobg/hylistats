@@ -27,7 +27,7 @@ Con "mi perfil" guardado en el navegador, `/` redirige a su perfil. `?inicio` fu
   - `src/lib/riot-id.ts`: `parseRiotIdInput(input)`, `riotIdInputError(reason)`, `profileSlug(gameName, tagLine)` y `normalizeRiotId`.
   - `src/lib/use-local-store.ts`: `useLocalStore(selector)` y sus acciones `toggleFavorite`, `removeRecent`…
   - `src/lib/local-store.ts`: tipos del estado (`myProfile`, `favorites`, `recents`).
-- Componentes de T02 en `src/components/hy/` (`Btn`, `Chip`, `Box`…) y tokens Tailwind (`bg-surface-1`, `text-muted`, `font-display`…).
+- Componentes de T02 en `src/components/hy/` (`Btn`, `Chip`, `Box`…) y tokens Tailwind (`bg-surface-1`, `text-muted-foreground`, `text-faint`, `font-display`…). Ojo: `text-muted` **no** es texto atenuado (en shadcn `muted` es una superficie).
 - Estado actual: `src/app/page.tsx` y `src/app/riot-id-form.tsx`, un formulario mínimo de iter-01 que se sustituye.
 - Next 16: lee `node_modules/next/dist/docs/` sobre `searchParams` (asíncronos en páginas), `useRouter`/`router.replace` y `useSearchParams`, que exige `Suspense`, antes de escribir.
 
