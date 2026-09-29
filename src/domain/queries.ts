@@ -3,6 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import type { Db } from "@/db";
 import { matches, participants, profiles } from "@/db/schema";
 import { ARENA_QUEUE_IDS, getSeasonStart } from "@/lib/config";
+import { lastGameAt } from "./album";
 import {
   type ChallengeComparison,
   compareWithChallenge,
@@ -122,6 +123,8 @@ export interface ProfileChallenge {
 /** Stats de un perfil dentro de la temporada: todo lo que necesita la página de perfil. */
 export interface ProfileStats {
   summary: StatsSummary;
+  /** Epoch en ms de la última partida de la temporada; `null` sin partidas. */
+  lastGameAt: number | null;
   verifiedChampions: VerifiedChampion[];
   teammates: TeammateSummary[];
   challenge: ProfileChallenge;
@@ -154,6 +157,7 @@ export async function getProfileStats(
   const verified = verifiedChampions(playerRows);
   return {
     summary: computeSummary(playerRows),
+    lastGameAt: lastGameAt(playerRows),
     verifiedChampions: verified,
     teammates: profile.puuid
       ? computeTeammates(teammateRows, profile.puuid).map(toTeammateSummary)

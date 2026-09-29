@@ -1,7 +1,7 @@
 # Task T06 — Perfil: layout cabina, header, sincronización y estados
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -87,14 +87,30 @@ Los datos locales siguen D12: solo se usan en "mi perfil".
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Layout cabina con raíl a partir de 1100 px (container query) y una columna por debajo; solo la pestaña Campeones.
-- [ ] Header §4.1 completo, con ★, "Mi perfil"/"Este soy yo"/"Viendo el perfil de X", frescura en dos líneas y Actualizar con progreso.
-- [ ] Menú local con exportar/importar y borrados con confirmación en dos pasos.
-- [ ] Banda de backfill con f/t y ETA, y pausa por key; se actualiza con el polling.
-- [ ] Toast de resultado con `refreshOutcome` probado.
-- [ ] Estados §5: no registrado, no encontrado con reintento, sin partidas, error de la API con datos visibles, y esqueletos.
-- [ ] `data.ts` sin `puuid`, con tests actualizados. Los cuatro checks en verde.
+- [x] Layout cabina con raíl a partir de 1100 px (container query) y una columna por debajo; solo la pestaña Campeones.
+- [x] Header §4.1 completo, con ★, "Mi perfil"/"Este soy yo"/"Viendo el perfil de X", frescura en dos líneas y Actualizar con progreso.
+- [x] Menú local con exportar/importar y borrados con confirmación en dos pasos.
+- [x] Banda de backfill con f/t y ETA, y pausa por key; se actualiza con el polling.
+- [x] Toast de resultado con `refreshOutcome` probado.
+- [x] Estados §5: no registrado, no encontrado con reintento, sin partidas, error de la API con datos visibles, y esqueletos.
+- [x] `data.ts` sin `puuid`, con tests actualizados. Los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- Cabina en `cabin.tsx` (`<Cabin header band god tabs main rail/>`, `@container`). Huecos: `god={null}` (T07), `ChampionsPanel`/`VerifiedChampions` provisional en `#panel-campeones` (T08), `RailPlaceholders` (T10).
+- Todo `position: fixed` dentro de `.app` queda contenido por `container-type`: el toast va en portal (`src/components/hy/toast.tsx`); menús y paneles futuros igual.
+- `ProfileView` gana `lastGameAt` y `lastJobError: { at }` (sin el texto de `lastError`). El reintento de "no encontrado" usa `refreshAction` (no existe `refreshProfileAction`).
+- **Desviación conocida**: el raíl de 380 px (≥ 1500 px de contenedor) es inalcanzable con el contenedor raíz de 1480 px; a 1920 el raíl mide 340 px. No se toca (prototipo; pulido futuro).
+- `riot-id-search.tsx` (T05) recibe `defaultValue` para el estado "no encontrado".
+
 ## Evidencias <!-- MUST -->
+
+- Navegador integrado (orquestador, 2026-09-30) contra `hylistats_test` (`WORKER_ENABLED=false`, puerto 3001) con escenarios sembrados:
+  - Header: iniciales, ★, "Mi perfil", EUW, "Arena · temporada actual", frescura en dos líneas; rótulo enlaza a `/?inicio`; `addRecent` al visitar.
+  - Anchos 375/960/1440/1920: `scrollWidth` = viewport en los cuatro; raíl 340 px a 1440 y 1920, debajo del `main` a 960.
+  - Banda de backfill "212 / 504 partidas · ~6 min" → "343 / 504 · ~4 min" sin recargar (polling).
+  - Actualizar → job → partida nueva: toast "+1 partida · nuevo 1º con Rakan" y datos renovados.
+  - Estados: "No se pudo actualizar" con Reintentar y datos visibles; "No encontramos «Ausente Demo#EUW»" con campo y Reintentar; vacío "No hay partidas de Arena desde…"; perfil ajeno "Viendo el perfil de Vacio Demo".
+  - Menú local: "Borrar objetivos y marcas" pide un segundo clic y vacía `profiles`. En móvil, Actualizar conserva el nombre accesible (`sr-only`).
+- Checks (orquestador): `npm run lint` OK (106 ficheros) · `npm run typecheck` OK · `npm test` 32 ficheros, 499 tests en verde · `npm run build` OK.
+- Commit: ver `git log` (`feat(ui): perfil con cabina, header, sincronización y estados`).

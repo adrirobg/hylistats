@@ -27,8 +27,15 @@ export interface ProfileView {
   tagLine: string;
   seasonStart: Date;
   lastSyncedAt: Date | null;
+  /** Epoch en ms de la última partida de la temporada; `null` sin partidas. */
+  lastGameAt: number | null;
   /** Job en curso (`null` si no hay ninguno). */
   sync: SyncProgress | null;
+  /**
+   * El último job que terminó (`done` o `error`) acabó en `error`: la última actualización falló.
+   * `at` es cuándo. Sin el texto de `lastError` (puede traer rutas o detalles internos).
+   */
+  lastJobError: { at: Date } | null;
   /** La key de Riot está caducada (`keyStatus = 'invalid'`): no se actualiza hasta rotarla. */
   paused: boolean;
   summary: StatsSummary;
@@ -85,6 +92,34 @@ async function loadSyncProgress(
 }
 
 /**
+ * ¿Falló la última actualización? Mira el último job terminado del perfil (`done`/`error`, por
+ * `id`: solo hay un job activo por perfil, así que el orden de ids es el de finalización). Un
+ * `done` posterior borra el aviso. Solo devuelve el instante: `lastError` no sale de la BD.
+ */
+async function loadLastJobError(
+  db: Db,
+  profileId: number,
+): Promise<{ at: Date } | null> {
+  const [last] = await db
+    .select({
+      status: syncJobs.status,
+      finishedAt: syncJobs.finishedAt,
+      updatedAt: syncJobs.updatedAt,
+    })
+    .from(syncJobs)
+    .where(
+      and(
+        eq(syncJobs.profileId, profileId),
+        inArray(syncJobs.status, ["done", "error"]),
+      ),
+    )
+    .orderBy(desc(syncJobs.id))
+    .limit(1);
+  if (last?.status !== "error") return null;
+  return { at: last.finishedAt ?? last.updatedAt };
+}
+
+/**
  * Todo lo que pinta la página de un Riot ID. El perfil se busca por `riotIdNorm`
  * (`lower(nombre)#lower(tag)`), no por el nombre canónico. `seasonStart` sale de `SEASON_START`
  * salvo que se pase otro (tests).
@@ -116,9 +151,10 @@ export async function loadProfilePage(
     };
   }
 
-  const [stats, sync, key] = await Promise.all([
+  const [stats, sync, lastJobError, key] = await Promise.all([
     getProfileStats(db, profile.id, seasonStart),
     loadSyncProgress(db, profile.id),
+    loadLastJobError(db, profile.id),
     getKeyStatus(db),
   ]);
   if (!stats) return unregistered; // borrado entre las dos consultas
@@ -129,7 +165,9 @@ export async function loadProfilePage(
     tagLine: profile.tagLine,
     seasonStart,
     lastSyncedAt: profile.lastSyncedAt,
+    lastGameAt: stats.lastGameAt,
     sync,
+    lastJobError,
     paused: key.status === "invalid",
     summary: stats.summary,
     verifiedChampions: stats.verifiedChampions,

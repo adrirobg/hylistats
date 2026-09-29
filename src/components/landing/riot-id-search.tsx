@@ -9,11 +9,13 @@ import { cn } from "@/lib/utils";
  * Campo único de la landing (`.lsearch` de la maqueta): acepta `Nombre#TAG`, `Nombre-TAG` o la
  * URL de un perfil de op.gg. Solo valida el formato; que el Riot ID exista en Riot lo resuelve
  * la página de perfil. Si el formato falla, el error sale bajo el campo y se mantiene lo escrito.
+ * `defaultValue` precarga el campo (el estado «no encontrado» del perfil lo usa con el Riot ID
+ * que no apareció, para corregir el #TAG).
  */
-export function RiotIdSearch() {
+export function RiotIdSearch({ defaultValue = "" }: { defaultValue?: string }) {
   const router = useRouter();
   const errorId = useId();
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(defaultValue);
   const [error, setError] = useState<string | null>(null);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {

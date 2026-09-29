@@ -205,6 +205,7 @@ describe("getProfileStats", () => {
     const stats = await getProfileStats(db, profile.id, seasonStart);
     expect(stats).toMatchObject({
       summary: { games: 0, firsts: 0, avgPlacement: null },
+      lastGameAt: null,
       verifiedChampions: [],
       teammates: [],
       challenge: {
@@ -240,6 +241,8 @@ describe("getProfileStats", () => {
     expect(stats.summary.firsts).toBe(1);
     expect(stats.summary.top3).toBe(6);
     expect(stats.summary.avgPlacement).toBeCloseTo(38 / 11, 10);
+    // La partida sintética (posterior a las reales) es la última.
+    expect(stats.lastGameAt).toBe(1_790_700_000_000);
     expect(stats.summary.distribution).toEqual({
       1: 1,
       2: 2,

@@ -66,7 +66,7 @@
     {
       "id": "T06",
       "title": "Perfil: layout cabina, header, sincronización y estados",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/2-perfil-y-album",
       "worktree": null,
@@ -78,7 +78,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T06_perfil-header-sync.md",
       "created_at": "2026-09-29T20:30:00Z",
-      "updated_at": "2026-09-29T20:30:00Z"
+      "updated_at": "2026-09-29T23:09:44Z"
     },
     {
       "id": "T07",

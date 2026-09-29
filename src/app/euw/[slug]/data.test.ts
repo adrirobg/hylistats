@@ -167,6 +167,67 @@ describe("loadProfilePage", () => {
     const data = await loadProfile();
     expect(data.sync).toBeNull();
     expect(data.lastSyncedAt).toEqual(lastSyncedAt);
+    // El último job terminado (el incremental) acabó en error.
+    expect(data.lastJobError).not.toBeNull();
+  });
+
+  it("lastJobError: solo si el último job terminado acabó en error, con su instante y sin el texto", async () => {
+    const profile = await insertProfile();
+    expect((await loadProfile()).lastJobError).toBeNull(); // sin jobs
+
+    const failedAt = new Date("2026-09-29T11:00:00Z");
+    await insertJob(profile.id, {
+      status: "error",
+      finishedAt: failedAt,
+      lastError: "connect ECONNREFUSED /srv/secreto/ruta",
+    });
+    const failed = await loadProfile();
+    expect(failed.lastJobError).toEqual({ at: failedAt });
+    // El motivo (puede traer rutas o detalles internos) no viaja a la página.
+    expect(JSON.stringify(failed)).not.toContain("ECONNREFUSED");
+    expect(JSON.stringify(failed)).not.toContain("secreto");
+
+    // Un job activo posterior no borra el dato (la UI decide ocultarlo mientras se sincroniza)...
+    await insertJob(profile.id, { kind: "incremental", status: "pending" });
+    const retrying = await loadProfile();
+    expect(retrying.sync).not.toBeNull();
+    expect(retrying.lastJobError).toEqual({ at: failedAt });
+
+    // ...pero un `done` posterior sí: la actualización se recuperó.
+    await db
+      .update(syncJobs)
+      .set({ status: "done", finishedAt: new Date("2026-09-29T12:00:00Z") })
+      .where(eq(syncJobs.status, "pending"));
+    const recovered = await loadProfile();
+    expect(recovered.sync).toBeNull();
+    expect(recovered.lastJobError).toBeNull();
+  });
+
+  it("lastJobError: sin finishedAt usa updatedAt; un error antiguo tras un done reciente no cuenta", async () => {
+    const profile = await insertProfile();
+    // Error más antiguo (id 1) y luego un done (id 2): el último terminado es el done.
+    await insertJob(profile.id, { status: "error", lastError: "boom" });
+    await insertJob(profile.id, {
+      kind: "incremental",
+      status: "done",
+      finishedAt: new Date("2026-09-29T12:00:00Z"),
+    });
+    expect((await loadProfile()).lastJobError).toBeNull();
+
+    await insertJob(profile.id, { kind: "incremental", status: "error" });
+    const data = await loadProfile();
+    expect(data.lastJobError?.at).toBeInstanceOf(Date);
+  });
+
+  it("lastGameAt: null sin partidas y la última partida de la temporada con ellas", async () => {
+    await insertProfile();
+    expect((await loadProfile()).lastGameAt).toBeNull();
+
+    await storeAll();
+    await storeVariant(fixtures[1], "EUW1_TEST_LATEST", (j) => {
+      j.info.gameCreation = 1_790_700_000_000;
+    });
+    expect((await loadProfile()).lastGameAt).toBe(1_790_700_000_000);
   });
 
   it("solo mira los jobs del perfil pedido", async () => {
@@ -289,6 +350,12 @@ describe("loadProfilePage", () => {
       status: "fetching",
       matchIds: ["EUW1_1"],
       totalIds: 1,
+    });
+    await db.insert(syncJobs).values({
+      profileId: profile.id,
+      kind: "incremental",
+      status: "error",
+      lastError: `fallo con ${SELF_PUUID}`,
     });
     const datas: ProfilePageData[] = [await load(), await load("Faker", "KR1")];
     await insertProfile({
