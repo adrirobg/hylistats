@@ -1,7 +1,7 @@
 # Task T04 — Capa de navegador (F6) y parser de entrada de Riot ID
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -77,12 +77,21 @@ Dos piezas puras y probadas que consumen la landing (T05), el header (T06) y el 
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `parseRiotIdInput` acepta `Nombre#TAG`, `Nombre-TAG` y URLs de op.gg EUW, y rechaza las demás regiones y la basura, con tests.
-- [ ] `normalizeRiotId` es pura en `src/lib/riot-id.ts`, sin romper el worker ni la página.
-- [ ] La capa de navegador funciona sin storage, con storage que lanza y con JSON corrupto; import/export con validación (tests).
-- [ ] Hook `useLocalStore` compatible con SSR (`useSyncExternalStore` con snapshot de servidor).
-- [ ] Los cuatro checks en verde.
+- [x] `parseRiotIdInput` acepta `Nombre#TAG`, `Nombre-TAG` y URLs de op.gg EUW, y rechaza las demás regiones y la basura, con tests.
+- [x] `normalizeRiotId` es pura en `src/lib/riot-id.ts`, sin romper el worker ni la página.
+- [x] La capa de navegador funciona sin storage, con storage que lanza y con JSON corrupto; import/export con validación (tests).
+- [x] Hook `useLocalStore` compatible con SSR (`useSyncExternalStore` con snapshot de servidor).
+- [x] Los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- `normalizeRiotId` vive en `src/lib/riot-id.ts` y `src/worker/queue.ts` la re-exporta (los imports de servidor no cambian); `toRiotId` pasa a exportarse.
+- `localStorage`: clave `hylistats:v1`. Para probar la redirección: `localStorage.setItem("hylistats:v1", JSON.stringify({v:1, myProfile:{gameName:"…", tagLine:"…"}, favorites:[], recents:[], profiles:{}}))`.
+- `useLocalStore(selector)` memoiza el selector por referencia de estado; `useLocalReady()` es `false` en servidor e hidratación (la redirección de la landing debe esperarlo). `localActions` lanza en el servidor.
+- `favorites` en orden de alta; `recents` del más reciente al más antiguo. `importText` sustituye el estado (no fusiona).
+
 ## Evidencias <!-- MUST -->
+
+- Tests: `src/lib/riot-id.test.ts` (49; tres formas, 17 variantes de URL, regiones y basura), `src/lib/local-store.test.ts` (53; sin storage, storage que lanza, JSON corrupto, export/import, reductores, suscripción) y `src/lib/use-local-store.test.ts` (4; SSR con `renderToString`).
+- Checks (orquestador, 2026-09-29): `npm run lint` OK (87 ficheros) · `npm run typecheck` OK · `npm test` 28 ficheros, 442 tests en verde · `npm run build` OK.
+- Commit: ver `git log` (`feat(lib): capa de navegador y parser de Riot ID`).

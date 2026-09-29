@@ -7,6 +7,7 @@ import {
   profiles,
   syncJobs,
 } from "@/db/schema";
+import { normalizeRiotId } from "@/lib/riot-id";
 
 // Cola persistente de sincronización (sync-strategy.md §2 y §3): lo que la web encola para el
 // worker. Aquí no se llama nunca a Riot; todas las llamadas las hace el worker (spec,
@@ -21,10 +22,9 @@ export type RefreshResult = "queued" | "active" | "cooldown";
 /** `fresh`: no hace falta refrescar (sincronizado hace poco, o el Riot ID no existe). */
 export type EnsureFreshResult = RefreshResult | "fresh";
 
-/** Identidad primaria del perfil: `lower(gameName)#lower(tagLine)`, sin espacios en los extremos. */
-export function normalizeRiotId(gameName: string, tagLine: string): string {
-  return `${gameName.trim().toLowerCase()}#${tagLine.trim().toLowerCase()}`;
-}
+// `normalizeRiotId` vive en `@/lib/riot-id` (módulo puro, también para el cliente); se re-exporta
+// aquí para no tocar a los consumidores del lado servidor (worker, página, scripts y tests).
+export { normalizeRiotId };
 
 // --- Señal de despertar -----------------------------------------------------------------
 // En `globalThis`: las rutas de Next e `instrumentation.ts` pueden cargar copias distintas de

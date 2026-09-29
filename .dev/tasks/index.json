@@ -39,14 +39,14 @@
     {
       "id": "T04",
       "title": "Capa de navegador (F6) y parser de entrada de Riot ID",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/2-perfil-y-album",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T04_capa-navegador.md",
       "created_at": "2026-09-29T20:30:00Z",
-      "updated_at": "2026-09-29T20:30:00Z"
+      "updated_at": "2026-09-29T19:42:43Z"
     },
     {
       "id": "T05",
