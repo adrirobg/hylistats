@@ -1,7 +1,7 @@
 # Task T03 — Fixtures reales anonimizadas
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -38,11 +38,20 @@ Script `scripts/record-fixtures.ts` que graba una vez respuestas reales de la Ri
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `tests/fixtures/` con `account.json`, `match-ids.json`, ≥ 5 `matches/*.json` (≥ 1 con 1º del jugador), `match-404.json`, `player-data.json` y `README.md`.
+- [ ] `tests/fixtures/` con `account.json`, `match-ids.json`, ≥ 5 `matches/*.json`, `match-404.json`, `player-data.json` y `README.md`. *(Ajuste del orquestador 2026-09-29: el criterio original pedía ≥ 1 partida con 1º del jugador; la muestra de 10 no tiene ninguno y se decidió no gastar más peticiones: los tests sintetizan el 1º en memoria sobre partidas reales y el recuento real lo cubre AC4 en el E2E.)*
 - [ ] Ningún puuid real ni Riot ID de terceros en los fixtures; la key no aparece en ningún fichero.
 - [ ] ≤ 15 peticiones a Riot en total, sin 429.
 - [ ] `lint`, `typecheck`, `test`, `build` en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- 14/15 peticiones (account, ids, 10 detalles, 404 real, player-data), todas 200 salvo el 404 esperado; sin 429.
+- Las 10 partidas más recientes (28–29 sep) no tienen ningún 1º del jugador (puestos 2–6). El worker propuso un script ad hoc para pedir una partida concreta con 1º; el clasificador de auto mode se lo denegó y el orquestador **no** lo ejecutó en su lugar: sin más peticiones, los tests sintetizan el 1º en memoria y el recuento real va al E2E (AC4).
+- Partidas guardadas compactas (1,34 MB en total). `player-data.json` recortado a los retos Arena; `602002` = 75 (MASTER).
+- Compañero recurrente `anon-puuid-013` en las 10 partidas (útil para el test de dedupe de T06).
+
 ## Evidencias <!-- MUST -->
+
+- Orquestador: comprobación independiente → 0 apariciones de la key en `tests/`, `scripts/`, `src/`; 0 tokens ≥ 60 caracteres en `tests/fixtures/`; todos los puuids `anon-puuid-*`; único Riot ID real `BEJITO MAMBO#1991`.
+- `npm run lint && npm run typecheck && npm test` → 28 tests OK (13 de fixtures).
+- Commit: `test(fixtures): fixtures reales anonimizadas de Riot`.
