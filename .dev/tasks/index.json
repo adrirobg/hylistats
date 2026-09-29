@@ -15,14 +15,14 @@
     {
       "id": "T02",
       "title": "Sistema visual base: tokens, fuentes, tema oscuro y layout raíz",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/2-perfil-y-album",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T02_sistema-visual.md",
       "created_at": "2026-09-29T20:30:00Z",
-      "updated_at": "2026-09-29T20:30:00Z"
+      "updated_at": "2026-09-29T19:28:42Z"
     },
     {
       "id": "T03",

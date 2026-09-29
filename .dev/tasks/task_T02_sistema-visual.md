@@ -1,7 +1,7 @@
 # Task T02 — Sistema visual base: tokens, fuentes, tema oscuro y layout raíz
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -59,13 +59,23 @@ La app usa el sistema visual del brief §6: tokens de color, Big Shoulders Displ
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Tokens del brief §6.1 (valores de la maqueta) disponibles como CSS vars y como utilidades Tailwind; un único tema oscuro.
-- [ ] Tres familias cargadas con `next/font` y expuestas como `font-display`, `font-body` y `font-mono`; Geist retirado.
-- [ ] Grano de fondo, `:focus-visible`, `tabular-nums` y `prefers-reduced-motion` globales.
-- [ ] Footer con el descargo intacto; noindex intacto.
-- [ ] `Box`, `Btn`, `Chip` y `Notice` en `src/components/hy/`.
-- [ ] Los cuatro checks en verde.
+- [x] Tokens del brief §6.1 (valores de la maqueta) disponibles como CSS vars y como utilidades Tailwind; un único tema oscuro.
+- [x] Tres familias cargadas con `next/font` y expuestas como `font-display`, `font-body` y `font-mono`; Geist retirado.
+- [x] Grano de fondo, `:focus-visible`, `tabular-nums` y `prefers-reduced-motion` globales.
+- [x] Footer con el descargo intacto; noindex intacto.
+- [x] `Box`, `Btn`, `Chip` y `Notice` en `src/components/hy/`.
+- [x] Los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- Big Shoulders variable con `axes: ["opsz"]`; `opsz 72` (Display) fijado en `@theme` (`--font-display--font-variation-settings`). Solo lo recibe la utilidad `font-display`.
+- **`text-muted` no es texto atenuado** (en shadcn `muted` es superficie): usar `text-muted-foreground`. `text-faint` = `--text-faint`.
+- `tabular-nums` no funciona en Big Shoulders (sin `tnum`): cifras en columnas en body o mono.
+- `<html class="dark">` mantiene las variantes `dark:` de `src/components/ui/`.
+- Orquestador: `@source not "../../.dev"` para que la maqueta y las specs no generen utilidades.
+
 ## Evidencias <!-- MUST -->
+
+- Subagente: `curl /` 200 con `npm run dev`; computed styles (fondo `#0f1013`, texto `#ece6d9`, body 16/1,45, grano, contenedor 1480 px) y captura de `Box`/`Btn`/`Chip`/`Notice` en una página temporal ya borrada.
+- Checks (orquestador, 2026-09-29): `npm run lint` OK (79 ficheros) · `npm run typecheck` OK · `npm test` 24 ficheros, 313 tests en verde · `npm run build` OK.
+- Commit: ver `git log` (`feat(ui): sistema visual base …`).
