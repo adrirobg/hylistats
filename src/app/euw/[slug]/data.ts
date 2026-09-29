@@ -1,15 +1,21 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { ACTIVE_SYNC_JOB_STATUSES, profiles, syncJobs } from "@/db/schema";
+import { type AlbumEntry, buildAlbum } from "@/domain/album";
 import { getProfileStats, type ProfileChallenge } from "@/domain/queries";
 import type { StatsSummary, VerifiedChampion } from "@/domain/stats";
 import { getKeyStatus } from "@/lib/admin/key-service";
 import { getSeasonStart } from "@/lib/config";
+import type { ChampionCatalog } from "@/lib/ddragon";
 import { normalizeRiotId } from "@/worker/queue";
 
 // Carga de datos de `/euw/{nombre}-{tag}`, separada de la página para poder probarla contra la
 // BD. Devuelve una lista blanca explícita: ni el `puuid` (ni siquiera se lee del perfil) ni los
-// compañeros (van en #3) llegan a la página.
+// compañeros (van en #3) llegan a la página. El catálogo de Data Dragon se inyecta (la página pasa
+// `getChampionCatalog()`, que es server-only y usa la red): así esta carga se prueba sin red.
+
+/** Sin catálogo (por defecto): el álbum solo trae los campeones jugados, sin retratos. */
+const EMPTY_CATALOG: ChampionCatalog = { version: null, champions: [] };
 
 /** Progreso del job activo. Fases: `pending` -> resolviendo, `listing` -> listando, `fetching` -> descargando. */
 export type SyncProgress = { kind: "backfill" | "incremental" } & (
@@ -40,6 +46,8 @@ export interface ProfileView {
   paused: boolean;
   summary: StatsSummary;
   verifiedChampions: VerifiedChampion[];
+  /** Todos los campeones del catálogo más los jugados ausentes de él, con su estado de dominio. */
+  album: AlbumEntry[];
   challenge: ProfileChallenge;
 }
 
@@ -122,13 +130,15 @@ async function loadLastJobError(
 /**
  * Todo lo que pinta la página de un Riot ID. El perfil se busca por `riotIdNorm`
  * (`lower(nombre)#lower(tag)`), no por el nombre canónico. `seasonStart` sale de `SEASON_START`
- * salvo que se pase otro (tests).
+ * salvo que se pase otro (tests). `catalog` es el catálogo de campeones (o su promesa: la página
+ * lo pide antes para que se cargue en paralelo con la BD); sin él, el álbum sale sin retratos.
  */
 export async function loadProfilePage(
   db: Db,
   gameName: string,
   tagLine: string,
   seasonStart: Date = getSeasonStart(),
+  catalog: ChampionCatalog | Promise<ChampionCatalog> = EMPTY_CATALOG,
 ): Promise<ProfilePageData> {
   const [profile] = await db
     .select({
@@ -151,11 +161,12 @@ export async function loadProfilePage(
     };
   }
 
-  const [stats, sync, lastJobError, key] = await Promise.all([
+  const [stats, sync, lastJobError, key, championCatalog] = await Promise.all([
     getProfileStats(db, profile.id, seasonStart),
     loadSyncProgress(db, profile.id),
     loadLastJobError(db, profile.id),
     getKeyStatus(db),
+    catalog,
   ]);
   if (!stats) return unregistered; // borrado entre las dos consultas
 
@@ -171,6 +182,7 @@ export async function loadProfilePage(
     paused: key.status === "invalid",
     summary: stats.summary,
     verifiedChampions: stats.verifiedChampions,
+    album: buildAlbum(championCatalog, stats.playerRows),
     challenge: stats.challenge,
   };
 }

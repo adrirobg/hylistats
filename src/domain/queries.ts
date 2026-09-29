@@ -126,6 +126,11 @@ export interface ProfileStats {
   /** Epoch en ms de la última partida de la temporada; `null` sin partidas. */
   lastGameAt: number | null;
   verifiedChampions: VerifiedChampion[];
+  /**
+   * Partidas del jugador en la temporada (cronológicas): la materia prima del álbum (`buildAlbum`).
+   * Uso interno de la capa de carga; la página recibe el álbum ya construido, no estas filas.
+   */
+  playerRows: PlayerMatchRow[];
   teammates: TeammateSummary[];
   challenge: ProfileChallenge;
 }
@@ -159,6 +164,7 @@ export async function getProfileStats(
     summary: computeSummary(playerRows),
     lastGameAt: lastGameAt(playerRows),
     verifiedChampions: verified,
+    playerRows,
     teammates: profile.puuid
       ? computeTeammates(teammateRows, profile.puuid).map(toTeammateSummary)
       : [],

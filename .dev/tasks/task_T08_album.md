@@ -1,7 +1,7 @@
 # Task T08 — Álbum: cromos, bandas, filtros, búsqueda, orden, vista y URL
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -73,12 +73,26 @@ Todo el estado vive en la URL: `?vista`, `?filtro`, `?q` y `?orden`. En esta tas
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] El álbum lista todos los campeones del catálogo (y los jugados ausentes) con retratos de Data Dragon por `championId` ↔ `key`.
-- [ ] Los 4 estados y el objetivo se distinguen por forma y por color, según la maqueta.
-- [ ] Filtros, búsqueda (`/`), orden y vista funcionan y se reflejan en la URL (`?filtro`, `?q`, `?orden`, `?vista`) sin perder `?tab`.
-- [ ] Vista lista y vacíos útiles; sin scroll horizontal en 375 px.
-- [ ] `album-view` probado; los cuatro checks en verde.
+- [x] El álbum lista todos los campeones del catálogo (y los jugados ausentes) con retratos de Data Dragon por `championId` ↔ `key`.
+- [x] Los 4 estados y el objetivo se distinguen por forma y por color, según la maqueta.
+- [x] Filtros, búsqueda (`/`), orden y vista funcionan y se reflejan en la URL (`?filtro`, `?q`, `?orden`, `?vista`) sin perder `?tab`.
+- [x] Vista lista y vacíos útiles; sin scroll horizontal en 375 px.
+- [x] `album-view` probado; los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- `page.tsx` lanza `getChampionCatalog()` sin esperar y pasa la promesa a `loadProfilePage(..., catalog)`; `data.ts` hace `buildAlbum(catalogo, stats.playerRows)` → `ProfileView.album`. El `fetch` de Data Dragon se cachea (`.next/dev/cache/fetch-cache`: `versions.json` y `champion.json`).
+- Payload RSC ~76 kB sin comprimir, repetido por el polling (3 s con job, 30 s sin él). Aceptable para el prototipo; se puede aligerar reconstruyendo `portraitUrl` en cliente.
+- `album-view.ts`: `parseAlbumParams`, `albumSearch` (conserva `?tab`), `resolveFiltro` (fuera de "mi perfil", `objetivos`/`null` → `todos`), `effectiveState`, `matchesQuery`, `albumSections`, textos del cromo. Entiende `?filtro=sin-ganar` de T07.
+- Hueco T09: comentario "T09" en `AlbumCard` (`album-card.tsx`), junto a la diana (`absolute top-1 left-1`); `Album` ya calcula `norm`, `mine`, `targets` y `manual`.
+- Desviaciones menores: rejilla móvil `minmax(64px,1fr)` (4 columnas a 375) con retrato a celda completa; en lista < 640 px la columna Estado se pliega bajo el nombre y "Partidas" pasa a "Part."; `Notice` extra si Data Dragon falla.
+
 ## Evidencias <!-- MUST -->
+
+- Navegador integrado (orquestador, 2026-09-30) contra `hylistats_test`, "mi perfil" con `targets [103,17,1,53,22]` y `manual [1,2,53,350]`:
+  - `?filtro=todos` (1440 px): bandas Objetivos sin ganar 3 (anillo naranja + diana), Jugados sin ganar 4, Sin jugar 162, Ganados 4 (Annie/Olaf/Yuumi manuales con lápiz y borde azul discontinuo; Blitzcrank verificado con sello "1º" y borde dorado; Blitzcrank manual+verificado cuenta como ganado una vez). 173/173 retratos de Data Dragon cargados (lazy), sin rotos.
+  - Por defecto con objetivos: filtro "Objetivos sin ganar". `/` enfoca el buscador; "kaisa" → `?tab=campeones&filtro=todos&q=kaisa` y "Kai'Sa, sin jugar".
+  - `?orden=intentos&vista=lista`: una sección "Todos", tabla Campeón/Estado/Partidas/1º/Top 3/Medio/Último ordenada por partidas.
+  - 375 px: `scrollWidth` 375 en álbum y en lista (lista sin Top 3 ni Medio).
+- Checks (orquestador): `npm run lint` OK (113 ficheros) · `npm run typecheck` OK · `npm test` 34 ficheros, 587 tests en verde · `npm run build` OK.
+- Commit: ver `git log` (`feat(ui): álbum …`).

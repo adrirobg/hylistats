@@ -207,6 +207,7 @@ describe("getProfileStats", () => {
       summary: { games: 0, firsts: 0, avgPlacement: null },
       lastGameAt: null,
       verifiedChampions: [],
+      playerRows: [],
       teammates: [],
       challenge: {
         value: null,
@@ -237,6 +238,7 @@ describe("getProfileStats", () => {
 
     // 10 partidas reales [5,3,3,3,5,6,4,4,2,2] + la sintética con puesto 1 (#1: 3º -> 1º).
     // Suma = 37 + 1 = 38 -> media 38/11.
+    expect(stats.playerRows).toHaveLength(11); // las filas que alimentan el álbum
     expect(stats.summary.games).toBe(11);
     expect(stats.summary.firsts).toBe(1);
     expect(stats.summary.top3).toBe(6);

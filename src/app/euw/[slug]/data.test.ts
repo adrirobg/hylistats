@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDb } from "@/db";
 import { profiles, settings, syncJobs } from "@/db/schema";
 import { storeMatch } from "@/domain/ingest";
+import type { ChampionCatalog } from "@/lib/ddragon";
 import { getTestDb, truncateAll } from "../../../../tests/helpers/db";
 import {
   loadMatchFixtures,
@@ -283,6 +284,92 @@ describe("loadProfilePage", () => {
       level: "MASTER",
       checkedAt,
       comparison: { status: "diff", diff: -74 },
+    });
+  });
+
+  describe("álbum", () => {
+    const BLITZCRANK = {
+      championId: 53,
+      ddId: "Blitzcrank",
+      name: "Blitzcrank",
+      portraitUrl: "https://cdn.test/Blitzcrank.png",
+    };
+    const AHRI = {
+      championId: 103,
+      ddId: "Ahri",
+      name: "Ahri",
+      portraitUrl: "https://cdn.test/Ahri.png",
+    };
+    const catalog: ChampionCatalog = {
+      version: "16.19.1",
+      champions: [AHRI, BLITZCRANK],
+    };
+
+    /** Perfil con las 10 partidas reales y un 1º sintético de Blitzcrank. */
+    async function seedProfileWithFirst() {
+      await storeAll();
+      await storeVariant(fixtures[1], "EUW1_TEST_FIRST", (j) => {
+        j.info.gameCreation = 1_790_700_000_000;
+        promoteTrioToFirst(j, SELF_PUUID);
+      });
+      await insertProfile();
+    }
+
+    async function loadWith(
+      catalogOrPromise: ChampionCatalog | Promise<ChampionCatalog>,
+    ) {
+      const data = await loadProfilePage(
+        db,
+        "BEJITO MAMBO",
+        "1991",
+        seasonStart,
+        catalogOrPromise,
+      );
+      if (data.kind !== "profile") throw new Error(`kind: ${data.kind}`);
+      return data.album;
+    }
+
+    it("catálogo inyectado (también como promesa): catálogo completo más los jugados ausentes", async () => {
+      await seedProfileWithFirst();
+      const album = await loadWith(Promise.resolve(catalog));
+
+      // Blitzcrank está verificado y con retrato; Ahri está en el catálogo pero no se ha jugado.
+      expect(album.find((e) => e.championId === 53)).toMatchObject({
+        ddId: "Blitzcrank",
+        portraitUrl: "https://cdn.test/Blitzcrank.png",
+        state: "won",
+        firsts: 1,
+        firstWinMatchId: "EUW1_TEST_FIRST",
+        firstWinAt: 1_790_700_000_000,
+      });
+      expect(album.find((e) => e.championId === 103)).toMatchObject({
+        state: "none",
+        games: 0,
+      });
+      // Los demás campeones jugados no están en el catálogo de prueba: salen igualmente, sin retrato.
+      const absent = album.filter((e) => e.ddId === null);
+      expect(absent.length).toBeGreaterThan(0);
+      expect(
+        absent.every((e) => e.state === "played" && e.portraitUrl === null),
+      ).toBe(true);
+      expect(album).toHaveLength(2 + absent.length);
+    });
+
+    it("sin catálogo: solo los campeones jugados, sin retratos, y los verificados coinciden con la lista", async () => {
+      await seedProfileWithFirst();
+      const data = await loadProfile();
+      expect(data.album.every((e) => e.portraitUrl === null)).toBe(true);
+      expect(data.album.every((e) => e.games > 0)).toBe(true);
+      expect(
+        data.album.filter((e) => e.state === "won").map((e) => e.championId),
+      ).toEqual(data.verifiedChampions.map((c) => c.championId));
+    });
+
+    it("perfil sin partidas: el álbum es el catálogo entero, sin jugar", async () => {
+      await insertProfile();
+      const album = await loadWith(catalog);
+      expect(album.map((e) => e.championId)).toEqual([103, 53]);
+      expect(album.every((e) => e.state === "none")).toBe(true);
     });
   });
 

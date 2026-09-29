@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { Box } from "@/components/hy/box";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDb } from "@/db";
-import { ARENA_GOD_THRESHOLD } from "@/lib/config";
+import { ARENA_GOD_THRESHOLD, getSeasonStart } from "@/lib/config";
+import { getChampionCatalog } from "@/lib/ddragon";
 import { formatDateTime, formatDecimal, formatPercent } from "@/lib/format";
 import { parseProfileSlug, profileSlug } from "@/lib/riot-id";
 import { cn } from "@/lib/utils";
+import { Album } from "./album";
 import { ArenaGodBar } from "./arena-god";
 import { AutoRefresh } from "./auto-refresh";
 import { Cabin } from "./cabin";
@@ -32,9 +35,17 @@ export default async function ProfilePage({
   const riotId = parseProfileSlug(slug);
   if (!riotId) notFound();
 
+  // El catálogo de campeones se pide a la vez que la BD (`getChampionCatalog` nunca lanza: sin
+  // Data Dragon el álbum sale sin retratos).
   const [query, data] = await Promise.all([
     searchParams,
-    loadProfilePage(getDb(), riotId.gameName, riotId.tagLine),
+    loadProfilePage(
+      getDb(),
+      riotId.gameName,
+      riotId.tagLine,
+      getSeasonStart(),
+      getChampionCatalog(),
+    ),
   ]);
   // Las actions identifican el perfil por el Riot ID de la URL (`riotIdNorm`), no por el canónico.
   const actionSlug = profileSlug(riotId.gameName, riotId.tagLine);
@@ -172,7 +183,6 @@ function ChampionsPanel({ data }: { data: ProfileView }) {
       aria-labelledby="tab-campeones"
       className="grid gap-4"
     >
-      {/* T08: el álbum (filtros, bandas de cromos, vista lista) sustituye a lo que hay aquí. */}
       {empty === "syncing" && <AlbumSkeleton />}
       {empty === "never" && (
         <Empty>
@@ -187,7 +197,15 @@ function ChampionsPanel({ data }: { data: ProfileView }) {
         </Empty>
       )}
       {empty === null && (
-        <VerifiedChampions champions={data.verifiedChampions} />
+        // `Album` lee `?vista`, `?filtro`, `?q` y `?orden` con `useSearchParams`.
+        <Suspense fallback={<AlbumSkeleton />}>
+          <Album
+            gameName={data.gameName}
+            tagLine={data.tagLine}
+            album={data.album}
+            nowMs={Date.now()}
+          />
+        </Suspense>
       )}
     </div>
   );
@@ -205,48 +223,6 @@ function AlbumSkeleton() {
         <Skeleton key={i} className="aspect-square" />
       ))}
     </div>
-  );
-}
-
-/**
- * Lista provisional de campeones verificados (la de iter-01 con los tokens nuevos) para no perder
- * información hasta que T08 (álbum) la sustituya. La comparación con el contador oficial vive
- * ahora en la barra Arena God (`arena-god.tsx`).
- */
-function VerifiedChampions({
-  champions,
-}: {
-  champions: ProfileView["verifiedChampions"];
-}) {
-  return (
-    <section className="grid gap-3">
-      <h2 className="font-display text-[17px] font-bold tracking-[0.12em] text-place-1 uppercase">
-        Campeones ganados verificados
-      </h2>
-      {champions.length === 0 ? (
-        <Empty>Todavía ninguno.</Empty>
-      ) : (
-        <ul className="grid gap-1.5">
-          {champions.map((champion) => (
-            <li
-              key={champion.championId}
-              className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 rounded-md bg-surface-1 px-3 py-2"
-            >
-              <span className="font-medium [overflow-wrap:anywhere]">
-                {champion.championName}
-              </span>
-              <span className="font-mono text-sm text-muted-foreground">
-                {champion.firsts} × 1º
-              </span>
-              <span className="col-span-2 font-mono text-xs text-faint [overflow-wrap:anywhere]">
-                último {formatDateTime(champion.lastWinAt)} ·{" "}
-                {champion.lastWinMatchId}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
   );
 }
 
