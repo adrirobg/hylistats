@@ -29,7 +29,7 @@
     {
       "id": "T03",
       "title": "Fixtures reales anonimizadas",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/1-motor-de-datos",
       "worktree": null,
@@ -38,12 +38,12 @@
       ],
       "artifact_path": ".dev/tasks/task_T03_fixtures.md",
       "created_at": "2026-09-29T15:05:00Z",
-      "updated_at": "2026-09-29T15:17:45Z"
+      "updated_at": "2026-09-29T15:30:02Z"
     },
     {
       "id": "T04",
       "title": "Cliente Riot con limitador de dos ventanas",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:sonnet",
       "branch": "feat/1-motor-de-datos",
       "worktree": null,
@@ -53,7 +53,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T04_cliente-riot.md",
       "created_at": "2026-09-29T15:05:00Z",
-      "updated_at": "2026-09-29T15:05:00Z"
+      "updated_at": "2026-09-29T15:30:02Z"
     },
     {
       "id": "T05",
@@ -118,7 +118,7 @@
     {
       "id": "T09",
       "title": "noindex y descargo de Riot",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:haiku",
       "branch": "feat/1-motor-de-datos",
       "worktree": null,
@@ -127,7 +127,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T09_noindex-descargo.md",
       "created_at": "2026-09-29T15:05:00Z",
-      "updated_at": "2026-09-29T15:05:00Z"
+      "updated_at": "2026-09-29T15:31:56Z"
     },
     {
       "id": "T10",

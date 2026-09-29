@@ -1,7 +1,7 @@
 # Task T04 — Cliente Riot con limitador de dos ventanas
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -47,4 +47,16 @@ Prohibido llamar a la Riot API real en esta task y leer `.env.local`. Todo con `
 
 ## Notas de implementacion <!-- MAY -->
 
+- Añadido `RiotSchemaError` (200 con cuerpo no JSON o que no cumple Zod; sin reintento).
+- Puuid enmascarado en mensajes de error (`by-puuid/:puuid/ids`, `player-data/:puuid`); errores de red descritos por `name`/`cause.code` (el `message` de Node puede citar la cabecera con la key).
+- 429 → `limiter.blockUntil` del host entero (Retry-After acotado a 5 min); backoff `min(30 s, 1 s·2^(n-1))` con jitter.
+- Key releída con `getKey()` en cada intento, tras `acquire`. `validateKey`: prioridad 0, 2 intentos; 401/403 → `invalid`, resto → `error`.
+- `getMatchIds` valida `count` 0..100 y que `startTime` esté en segundos antes de gastar petición.
+- Métricas cuentan peticiones HTTP reales (incluidos reintentos). Singletons en `globalThis.__hylistatsRiot`.
+- `tests/helpers/riot.ts`: reloj falso y lectura de fixtures para T05/T06.
+
 ## Evidencias <!-- MUST -->
+
+- Orquestador: `npm run lint && npm run typecheck && npm test` → 9 ficheros, 110 tests OK (80 nuevos: limitador con reloj falso, cliente con fetch falso y fixtures, key BD→entorno, singletons, fuga de key en errores/métricas).
+- La key real de `.env.local` cumple `KEY_SHAPE` (comprobado sin imprimirla).
+- Commit: `feat(riot): cliente Riot con limitador de dos ventanas por host`.
