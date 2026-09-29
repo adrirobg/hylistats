@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import type { SyncProgress } from "./data";
 import { LocalMenu } from "./local-menu";
 import type { RefreshSnapshot } from "./refresh-outcome";
-import { useRefresh } from "./use-refresh";
+import { REFRESH_BUTTON_ID, useRefresh } from "./use-refresh";
 import { dataAgePhrase, initials, whenPhrase } from "./view-model";
 
 // Header de perfil (brief §4.1, `.hdr` de la maqueta): identidad, ★ favorito, «mi perfil»,
@@ -183,6 +183,7 @@ export function ProfileHeader({
           <form action={refresh.formAction}>
             <input type="hidden" name="slug" value={slug} />
             <Btn
+              id={REFRESH_BUTTON_ID}
               type="submit"
               onClick={refresh.markPress}
               disabled={refresh.busy}

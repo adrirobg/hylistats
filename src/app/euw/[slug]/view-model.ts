@@ -132,3 +132,21 @@ export function emptyState(input: {
   if (input.syncing) return "syncing";
   return input.lastSyncedAt === null ? "never" : "empty";
 }
+
+// --- URL ---------------------------------------------------------------------------------
+
+/** Parámetro y valor del filtro del álbum «sin ganar» (lo lee T08); «Marcar a mano» lo activa. */
+export const FILTER_PARAM = "filtro";
+export const FILTER_UNWON = "sin-ganar";
+
+/** Ruta con `key=value` puesto en la query actual, conservando el resto (`?tab`…). */
+export function withSearchParam(
+  pathname: string,
+  search: string,
+  key: string,
+  value: string,
+): string {
+  const params = new URLSearchParams(search);
+  params.set(key, value);
+  return `${pathname}?${params}`;
+}

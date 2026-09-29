@@ -9,6 +9,7 @@ import {
   syncBandModel,
   syncEtaMinutes,
   whenPhrase,
+  withSearchParam,
 } from "./view-model";
 
 const MINUTE = 60_000;
@@ -178,5 +179,35 @@ describe("emptyState", () => {
     expect(emptyState({ games: 0, syncing: false, lastSyncedAt: 1 })).toBe(
       "empty",
     );
+  });
+});
+
+describe("withSearchParam", () => {
+  it("añade el parámetro a una query vacía", () => {
+    expect(withSearchParam("/euw/Foo-EUW", "", "filtro", "sin-ganar")).toBe(
+      "/euw/Foo-EUW?filtro=sin-ganar",
+    );
+  });
+
+  it("conserva los demás parámetros", () => {
+    expect(
+      withSearchParam(
+        "/euw/Foo-EUW",
+        "?tab=campeones&q=ahri",
+        "filtro",
+        "sin-ganar",
+      ),
+    ).toBe("/euw/Foo-EUW?tab=campeones&q=ahri&filtro=sin-ganar");
+  });
+
+  it("sustituye el valor si ya existe, sin duplicarlo", () => {
+    expect(
+      withSearchParam(
+        "/p",
+        "filtro=todos&tab=campeones",
+        "filtro",
+        "sin-ganar",
+      ),
+    ).toBe("/p?filtro=sin-ganar&tab=campeones");
   });
 });

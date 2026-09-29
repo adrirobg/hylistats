@@ -2,10 +2,11 @@ import { notFound } from "next/navigation";
 import { Box } from "@/components/hy/box";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDb } from "@/db";
-import type { ProfileChallenge } from "@/domain/queries";
+import { ARENA_GOD_THRESHOLD } from "@/lib/config";
 import { formatDateTime, formatDecimal, formatPercent } from "@/lib/format";
 import { parseProfileSlug, profileSlug } from "@/lib/riot-id";
 import { cn } from "@/lib/utils";
+import { ArenaGodBar } from "./arena-god";
 import { AutoRefresh } from "./auto-refresh";
 import { Cabin } from "./cabin";
 import { loadProfilePage, type ProfileView } from "./data";
@@ -108,9 +109,17 @@ function ProfileCabin({
         />
       }
       band={band && <SyncBand model={band} />}
-      // T07: barra Arena God de tres capas y aviso de descuadre (`data.challenge`,
-      // `data.verifiedChampions`); ocupa la franja `arena-god` de `Cabin`.
-      god={null}
+      god={
+        <ArenaGodBar
+          gameName={data.gameName}
+          tagLine={data.tagLine}
+          verifiedIds={data.verifiedChampions.map((c) => c.championId)}
+          official={data.challenge.value}
+          checkedAt={data.challenge.checkedAt?.getTime() ?? null}
+          goal={ARENA_GOD_THRESHOLD}
+          nowMs={Date.now()}
+        />
+      }
       tabs={<Tabs active={tab} />}
       main={<ChampionsPanel data={data} />}
       rail={<RailPlaceholders summary={data.summary} />}
@@ -178,10 +187,7 @@ function ChampionsPanel({ data }: { data: ProfileView }) {
         </Empty>
       )}
       {empty === null && (
-        <VerifiedChampions
-          champions={data.verifiedChampions}
-          challenge={data.challenge}
-        />
+        <VerifiedChampions champions={data.verifiedChampions} />
       )}
     </div>
   );
@@ -202,46 +208,21 @@ function AlbumSkeleton() {
   );
 }
 
-/** El contador llega como float (75.0) pero es entero. */
-const formatCounter = (value: number) =>
-  Number.isInteger(value) ? String(value) : value.toFixed(1);
-
-function challengeStatus({ comparison }: ProfileChallenge): string {
-  switch (comparison.status) {
-    case "match":
-      return "cuadra";
-    case "diff": {
-      const diff = comparison.diff ?? 0;
-      return `diferencia de ${diff > 0 ? "+" : ""}${diff}: la lista verificada solo ve el historial Match-V5 de esta temporada`;
-    }
-    case "unknown":
-      return "contador no disponible";
-  }
-}
-
 /**
  * Lista provisional de campeones verificados (la de iter-01 con los tokens nuevos) para no perder
- * información hasta que T07 (barra + aviso) y T08 (álbum) la sustituyan.
+ * información hasta que T08 (álbum) la sustituya. La comparación con el contador oficial vive
+ * ahora en la barra Arena God (`arena-god.tsx`).
  */
 function VerifiedChampions({
   champions,
-  challenge,
 }: {
   champions: ProfileView["verifiedChampions"];
-  challenge: ProfileChallenge;
 }) {
-  const counter =
-    challenge.value === null
-      ? "602002"
-      : `602002 = ${formatCounter(challenge.value)}${challenge.level ? ` (${challenge.level})` : ""}`;
   return (
     <section className="grid gap-3">
       <h2 className="font-display text-[17px] font-bold tracking-[0.12em] text-place-1 uppercase">
         Campeones ganados verificados
       </h2>
-      <p className="text-sm text-muted-foreground">
-        {`${champions.length} verificados vs ${counter}: ${challengeStatus(challenge)}`}
-      </p>
       {champions.length === 0 ? (
         <Empty>Todavía ninguno.</Empty>
       ) : (

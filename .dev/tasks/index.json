@@ -83,7 +83,7 @@
     {
       "id": "T07",
       "title": "Barra Arena God de tres capas y aviso de descuadre",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/2-perfil-y-album",
       "worktree": null,
@@ -92,7 +92,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T07_barra-arena-god.md",
       "created_at": "2026-09-29T20:30:00Z",
-      "updated_at": "2026-09-29T20:30:00Z"
+      "updated_at": "2026-09-29T23:24:14Z"
     },
     {
       "id": "T08",

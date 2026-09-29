@@ -1,7 +1,7 @@
 # Task T07 — Barra Arena God de tres capas y aviso de descuadre
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -69,12 +69,27 @@ Lleva además la meta de 60 y el texto "N verificados + M manuales · oficial O 
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `arenaGodState` cubre los 4 casos de §4.3 (con las dos variantes de `ahead`), manuales redundantes y escala (tests).
-- [ ] La barra pinta tres capas + meta + escala con `aria-label` completo; el aviso usa azul acero, nunca rojo.
-- [ ] Las acciones de cada caso funcionan (Sincronizar/Reintentar → refresco; Marcar a mano → filtro en la URL + guía; Qué significa).
-- [ ] Manuales solo en "mi perfil".
-- [ ] Los cuatro checks en verde.
+- [x] `arenaGodState` cubre los 4 casos de §4.3 (con las dos variantes de `ahead`), manuales redundantes y escala (tests).
+- [x] La barra pinta tres capas + meta + escala con `aria-label` completo; el aviso usa azul acero, nunca rojo.
+- [x] Las acciones de cada caso funcionan (Sincronizar/Reintentar → refresco; Marcar a mano → filtro en la URL + guía; Qué significa).
+- [x] Manuales solo en "mi perfil".
+- [x] Los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- `arenaGodState` devuelve además `excess: "verified" | "manual" | null` para las dos variantes de `ahead`; `diff = official − total` con signo. Textos y botones por caso en `src/domain/arena-god.ts` (`arenaGodMessage`, `arenaGodActions(status, mine)`).
+- [Sincronizar]/[Reintentar] hacen `.click()` sobre el botón Actualizar del header (`REFRESH_BUTTON_ID`): reutilizan `useRefresh` (progreso, toast y vigilancia). `requestSubmit()` no dispararía `markPress`.
+- [Marcar a mano] (solo "mi perfil") pone `?filtro=sin-ganar` con `withSearchParam` (`view-model.ts`, `FILTER_PARAM`/`FILTER_UNWON`) y muestra el toast que cita «Marcar como ganado a mano» (T09 debe usar ese texto literal).
+- [Qué significa] y `?` abren un panel en línea (no toast): desviación menor de la maqueta para que el texto no desaparezca.
+- La UI ya no muestra `challenge.level`; `compareWithChallenge` sigue para `/api/health` y tests.
+
 ## Evidencias <!-- MUST -->
+
+- Navegador integrado (orquestador, 2026-09-30) contra `hylistats_test`, con `manual: [1, 2, 53]` en "mi perfil" (53 = Blitzcrank, ya verificado):
+  - `missing` (oficial 75): "3 de 60 · 1 verificado + 2 manuales · oficial 75", escala 0–80 con marca "60 · Arena God", "Faltan 72 campeones…", [Sincronizar] [Marcar a mano] [Qué significa]. [Marcar a mano] → `?filtro=sin-ganar` + toast guía.
+  - `match` (oficial 3): "✓ Cuadra con el contador oficial.", sin banner; `aria-label` "1 verificado, 2 manuales, contador oficial 3, objetivo 60".
+  - `ahead` manuales (oficial 2): "Tus marcas manuales (2) hacen que aquí haya más victorias (3)… Revísalas."
+  - `ahead` verificados (oficial 0): "Aquí hay más victorias verificadas (1)… Puede que el contador de Riot aún no se haya actualizado."
+  - `unknown` (NULL): "No se pudo leer el contador oficial (hace 5 min)." + [Reintentar]. 375 px sin scroll horizontal.
+- Checks (orquestador): `npm run lint` OK (109 ficheros) · `npm run typecheck` OK · `npm test` 33 ficheros, 533 tests en verde · `npm run build` OK.
+- Commit: ver `git log` (`feat(ui): barra Arena God …`).

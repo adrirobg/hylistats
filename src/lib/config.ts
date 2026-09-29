@@ -11,6 +11,12 @@ export const ARENA_QUEUE_IDS = [1750, 1740] as const;
 /** Challenge 602002 "Adapt to All Situations" (Arena God): campeones distintos con 1º puesto. */
 export const CHALLENGE_ARENA_GOD = 602002;
 
+/**
+ * Meta de la barra Arena God: campeones ganados que pide el nivel MASTER de 602002 (thresholds
+ * del `config` verificados en I1 §7.2: IRON 3 … MASTER 60).
+ */
+export const ARENA_GOD_THRESHOLD = 60;
+
 /** Inicio de la temporada de Arena por defecto (patch 26.10, mayo 2026). */
 export const DEFAULT_SEASON_START = "2026-05-12T00:00:00Z";
 

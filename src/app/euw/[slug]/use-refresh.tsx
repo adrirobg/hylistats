@@ -13,6 +13,12 @@ import {
   startWatch,
 } from "./refresh-outcome";
 
+/**
+ * `id` del botón Actualizar del header. La barra Arena God lo pulsa (`.click()`) desde
+ * [Sincronizar] y [Reintentar]: así comparte la barra de progreso, el toast y la vigilancia.
+ */
+export const REFRESH_BUTTON_ID = "refresh-profile";
+
 /** Mientras se espera un job que aún no se ve en la página, se relee cada 3 s (como el polling). */
 const WATCH_POLL_MS = 3_000;
 /** Tope de la vigilancia: si en 90 s no pasa nada, se deja de esperar el resultado. */
