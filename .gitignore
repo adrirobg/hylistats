@@ -1,1 +1,6 @@
 .dev/context.md
+
+# Secretos
+.env
+.env.local
+.env*.local
