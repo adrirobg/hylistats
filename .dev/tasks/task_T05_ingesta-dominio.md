@@ -1,7 +1,7 @@
 # Task T05 — Ingesta de partidas y dominio de stats
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -45,4 +45,15 @@ Sin llamadas a la Riot API ni lectura de `.env.local`.
 
 ## Notas de implementacion <!-- MAY -->
 
+- `ProfileStats.teammates` usa `TeammateSummary` (sin `puuid`, lista blanca); `computeTeammates` conserva `puuid` como interno.
+- `getTeammateRows` filtra en SQL por el `playerSubteamId` del jugador (3 filas por partida en vez de 18).
+- `getSeasonStart` valida estrictamente (fechas desbordadas, horas sin zona). `getProfileStats(db, id, seasonStart?)` para tests con fecha fija.
+- Sin `server-only` en `src/domain` ni `config.ts` (los importa el worker).
+- Helper `tests/helpers/matches.ts` (`variantOf`, `promoteTrioToFirst`) para sintetizar 1º puestos sobre partidas reales.
+
 ## Evidencias <!-- MUST -->
+
+- Cifras de los fixtures (tests): 10 partidas, puestos `[5,3,3,3,5,6,4,4,2,2]` → 0 primeros, top3 5, media 3,7; trío ganador real → 10 primeros / 9 campeones distintos (Lulu ×2); compañeros 20 = 10×2; `602002` = 75 MASTER.
+- `storeMatch` idempotente (2 veces y 3 en paralelo → 1 `matches` + 18 `participants`); `rawGz` descomprime al JSON original; filtro de temporada y cola probado.
+- Orquestador: `npm run lint && npm run typecheck && npm test` → 13 ficheros, 168 tests OK.
+- Commit: `feat(domain): ingesta de partidas y stats de temporada`.
