@@ -1,7 +1,7 @@
 # Task T02 — Esquema de BD, migraciones y db:reset
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -43,4 +43,14 @@ Esquema Drizzle con `profiles`, `matches`, `participants`, `sync_jobs`, `match_f
 
 ## Notas de implementacion <!-- MAY -->
 
+- Estados como `text(..., { enum })` (validados en TS, sin CHECK en BD); constantes exportadas (`ACTIVE_SYNC_JOB_STATUSES`…).
+- `db:migrate:test` usa `--test` en `scripts/migrate.ts` (evita que el shell expanda `DATABASE_URL_TEST` antes de cargar `.env.local`).
+- `closeDb()` añadido para cerrar el pool en scripts/tests. `getTestDb()` se niega a operar si `DATABASE_URL` no acaba en `_test`.
+- `key_kind` de stack §7.1 no se añade (fuera del issue, ver spec "No incluye").
+
 ## Evidencias <!-- MUST -->
+
+- Migraciones `drizzle/0000_thick_gambit.sql` + `0001_seed_settings.sql` aplicadas a `hylistats` y `hylistats_test` (idempotentes).
+- `db:reset -- --yes` probado: vacía perfiles/partidas y conserva `settings`; sin `--yes` aborta.
+- Orquestador: `npx vitest run tests/db tests/smoke.test.ts` → 15 tests OK; `biome check` de los ficheros de T02 limpio. Build sin BD comprobado por el worker (`DATABASE_URL` a puerto inexistente → compila).
+- Commit: `feat(db): esquema Drizzle, migraciones y db:reset`.

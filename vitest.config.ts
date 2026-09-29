@@ -15,6 +15,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    // Aplica las migraciones a la BD de tests antes de ejecutar nada.
+    globalSetup: ["./tests/global-setup.ts"],
     // Los tests con BD comparten una única base de datos: se ejecutan en serie.
     fileParallelism: false,
     // Los tests no cargan `.env.local` (no ven la key de Riot) y nunca usan la BD de desarrollo.
