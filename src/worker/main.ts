@@ -137,6 +137,7 @@ function withSuccessHook(riot: RiotApi, onSuccess: () => void): RiotApi {
     getMatchIds: track(riot.getMatchIds.bind(riot)),
     getMatch: track(riot.getMatch.bind(riot)),
     getPlayerData: track(riot.getPlayerData.bind(riot)),
+    getSummonerByPuuid: track(riot.getSummonerByPuuid.bind(riot)),
     validateKey: riot.validateKey.bind(riot),
   };
 }

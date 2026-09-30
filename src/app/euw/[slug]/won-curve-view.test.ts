@@ -3,6 +3,7 @@ import {
   championsLabel,
   countAxis,
   curveDomain,
+  thresholdLabel,
   xTicks,
 } from "./won-curve-view";
 
@@ -100,5 +101,12 @@ describe("championsLabel", () => {
     expect(championsLabel(1)).toBe("1 campeón");
     expect(championsLabel(0)).toBe("0 campeones");
     expect(championsLabel(23)).toBe("23 campeones");
+  });
+});
+
+describe("thresholdLabel", () => {
+  it("la línea de meta conserva el umbral 60 con el nombre nuevo", () => {
+    expect(thresholdLabel(60)).toBe("Deidad de Arena · 60");
+    expect(thresholdLabel(60)).not.toMatch(/arena god/i);
   });
 });

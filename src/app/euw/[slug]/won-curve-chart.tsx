@@ -21,11 +21,12 @@ import {
   championsLabel,
   countAxis,
   curveDomain,
+  thresholdLabel,
   xTicks,
 } from "./won-curve-view";
 
 // Curva de campeones ganados acumulados (brief §3.3, `renderChart` de la maqueta, D4): línea
-// escalonada en oro con el umbral de Arena God como línea horizontal. Es cliente porque recharts
+// escalonada en oro con el umbral de Deidad de Arena como línea horizontal. Es cliente porque recharts
 // mide el contenedor; los datos llegan preparados del servidor (`summaryTab.curve`). La gráfica
 // es solo una ayuda visual: su equivalente en texto (`wonSummary`) va a su lado, así que el dibujo
 // se oculta a los lectores de pantalla y no ofrece el foco por teclado (`accessibilityLayer`).
@@ -43,7 +44,7 @@ const TICK = { fill: "var(--text-muted)" } as const;
 interface WonCurveChartProps {
   /** La curva del servidor (`wonCurve`): no vacía. */
   curve: CurvePoint[];
-  /** Meta: campeones que pide Arena God. */
+  /** Meta: campeones que pide Deidad de Arena. */
   threshold: number;
   /** Hora del servidor (ms): decide si las fechas llevan el año, igual en servidor y navegador. */
   nowMs: number;
@@ -97,7 +98,7 @@ export function WonCurveChart({ curve, threshold, nowMs }: WonCurveChartProps) {
           strokeWidth={1.5}
           strokeDasharray="4 4"
           label={{
-            value: `Arena God · ${threshold}`,
+            value: thresholdLabel(threshold),
             position: "insideBottomRight",
             fill: "var(--place-1)",
             fontSize: 12,

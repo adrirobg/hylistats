@@ -1,11 +1,14 @@
 "use client";
 
-import { RefreshCw, Star } from "lucide-react";
+import { Crown, RefreshCw, Star } from "lucide-react";
+import Image from "next/image";
 import { useCallback, useEffect, useMemo } from "react";
+import { Badge } from "@/components/hy/badge";
 import { Btn } from "@/components/hy/btn";
 import { Chip } from "@/components/hy/chip";
 import { Notice } from "@/components/hy/notice";
 import { ToastRegion } from "@/components/hy/toast";
+import { DEITY_CONDITION, DEITY_NAME } from "@/domain/arena-god";
 import type { LocalState } from "@/lib/local-store";
 import { normalizeRiotId } from "@/lib/riot-id";
 import {
@@ -45,6 +48,11 @@ export interface ProfileHeaderProps {
   /** Forma canónica de Riot. */
   gameName: string;
   tagLine: string;
+  /**
+   * Icono de invocador (Data Dragon) o `null` si el perfil aún no lo tiene: entonces (y si la
+   * imagen no carga) queda el placeholder con las iniciales.
+   */
+  iconUrl: string | null;
   /** Hora del servidor (ms): el primer render coincide con el HTML del servidor. */
   nowMs: number;
   lastGameAt: number | null;
@@ -59,6 +67,8 @@ export interface ProfileHeaderProps {
    * rotación (`ProfileView.arenaQuiet`); `null` si no hay nada que decir.
    */
   arenaQuietSince: number | null;
+  /** Badge «Deidad de Arena» conseguido (`ProfileView.arenaGod.reached`, decidido en el dominio). */
+  arenaDeity: boolean;
   games: number;
   champions: RefreshSnapshot["champions"];
 }
@@ -69,6 +79,7 @@ export function ProfileHeader({
   slug,
   gameName,
   tagLine,
+  iconUrl,
   nowMs,
   lastGameAt,
   lastSyncedAt,
@@ -76,6 +87,7 @@ export function ProfileHeader({
   lastJobErrorAt,
   paused,
   arenaQuietSince,
+  arenaDeity,
   games,
   champions,
 }: ProfileHeaderProps) {
@@ -128,9 +140,27 @@ export function ProfileHeader({
         <div className="flex min-w-0 flex-1 items-center gap-3.5">
           <div
             aria-hidden="true"
-            className="grid size-11 flex-none place-items-center rounded-lg border border-won-deep bg-[radial-gradient(circle_at_30%_30%,#6b5a3a,#2a2418)] font-display text-lg font-extrabold text-place-1 @max-[640px]:size-9 @max-[640px]:text-base"
+            className={cn(
+              "relative grid size-11 flex-none place-items-center overflow-hidden border border-won-deep bg-[radial-gradient(circle_at_30%_30%,#6b5a3a,#2a2418)] font-display text-lg font-extrabold text-place-1 @max-[640px]:size-9 @max-[640px]:text-base",
+              iconUrl === null ? "rounded-lg" : "rounded-full",
+            )}
           >
             {initials(gameName)}
+            {iconUrl !== null && (
+              // Decorativo (el nombre va al lado): `alt` vacío. Sin clave, si la imagen falla
+              // quedan las iniciales de debajo, como en `PortraitImage`.
+              <Image
+                src={iconUrl}
+                alt=""
+                width={88}
+                height={88}
+                draggable={false}
+                onError={(event) => {
+                  event.currentTarget.hidden = true;
+                }}
+                className="absolute inset-0 size-full object-cover"
+              />
+            )}
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
@@ -172,6 +202,13 @@ export function ProfileHeader({
               <Chip className="@max-[640px]:hidden">
                 Arena · temporada actual
               </Chip>
+              {arenaDeity && (
+                <Badge
+                  title={DEITY_NAME}
+                  description={DEITY_CONDITION}
+                  emblem={<Crown size={12} />}
+                />
+              )}
             </div>
           </div>
         </div>

@@ -27,7 +27,11 @@ import {
 } from "@/lib/riot/errors";
 import { PRIORITY } from "@/lib/riot/limiter";
 import { getTestDb, truncateAll } from "../../tests/helpers/db";
-import { createFakeRiot, type FakeRiot } from "../../tests/helpers/fake-riot";
+import {
+  createFakeRiot,
+  FAKE_PROFILE_ICON_ID,
+  type FakeRiot,
+} from "../../tests/helpers/fake-riot";
 import {
   type FixtureJson,
   loadMatchFixtures,
@@ -187,6 +191,7 @@ describe("backfill", () => {
     expect(fake.matchCalls()).toEqual(IDS_DESC);
     expect(fake.count("account")).toBe(1);
     expect(fake.count("playerData")).toBe(1);
+    expect(fake.count("summoner")).toBe(1);
     expect(
       fake.calls.filter((c) => c.method === "matchIds").map((c) => c.query),
     ).toEqual([
@@ -473,7 +478,7 @@ describe("re-backfill de temporada (sync:season)", () => {
 
     const delta = fake.calls.slice(before);
     // Sin Account-V1 (el perfil ya tiene puuid): un listado por cola desde el inicio de la
-    // temporada, solo las 3 nuevas en detalle y el contador 602002 al cerrar.
+    // temporada, solo las 3 nuevas en detalle y, al cerrar, el contador 602002 y el icono.
     expect(delta.map((c) => c.method)).toEqual([
       "matchIds",
       "matchIds",
@@ -481,6 +486,7 @@ describe("re-backfill de temporada (sync:season)", () => {
       "match",
       "match",
       "playerData",
+      "summoner",
     ]);
     expect(delta.slice(0, 2).map((c) => c.query)).toEqual([
       { start: 0, count: 100, queue: 1750, startTime: SEASON_START_S },
@@ -536,11 +542,12 @@ describe("AC5 refresco incremental", () => {
     let before = fake.calls.length;
     await drain(worker);
     let delta = fake.calls.slice(before);
-    // 1 de ids por cola + el contador 602002 (otro host); ningún detalle.
+    // 1 de ids por cola + el contador 602002 y el icono (otro host); ningún detalle.
     expect(delta.map((c) => c.method)).toEqual([
       "matchIds",
       "matchIds",
       "playerData",
+      "summoner",
     ]);
     const [lastEnd] = await db
       .select({ max: sql<string>`max(${matches.gameEndTimestamp})` })
@@ -601,6 +608,7 @@ describe("AC5 refresco incremental", () => {
       ["matchIds", PRIORITY.list],
       ["match", PRIORITY.detail],
       ["playerData", PRIORITY.list],
+      ["summoner", PRIORITY.list],
     ]);
   });
 
@@ -1018,5 +1026,95 @@ describe("errores en el detalle", () => {
       attempts: 0,
     });
     expect(fake.count("matchIds")).toBe(3); // el fallo + una por cola
+  });
+});
+
+describe("icono de invocador (Summoner-V4 al cerrar)", () => {
+  it("guarda el profileIconId en el perfil", async () => {
+    const { fake, worker } = setup();
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+    expect((await getProfile(profile.id)).profileIconId).toBeNull();
+
+    expect(await drain(worker)).toMatchObject({ result: "idle" });
+
+    expect((await getProfile(profile.id)).profileIconId).toBe(
+      FAKE_PROFILE_ICON_ID,
+    );
+    expect(await lastJob(profile.id)).toMatchObject({
+      status: "done",
+      lastError: null,
+    });
+    expect(fake.count("summoner", SELF_PUUID)).toBe(1);
+  });
+
+  it("un 500 persistente no rompe el job: termina, anota 'summoner' y el perfil sigue sin icono", async () => {
+    const { fake, worker } = setup();
+    fake.failWith = (call) =>
+      call.method === "summoner"
+        ? new RiotRetryableError({
+            host: "euw1",
+            path: "/lol/summoner/v4/summoners/by-puuid/:puuid",
+            status: 500,
+          })
+        : undefined;
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+
+    expect(await drain(worker)).toMatchObject({ result: "idle" });
+
+    const job = await lastJob(profile.id);
+    expect(job).toMatchObject({ status: "done", fetched: 10 });
+    expect(job.lastError).toContain("summoner");
+    expect(job.lastError).not.toContain("player-data");
+    const row = await getProfile(profile.id);
+    expect(row.profileIconId).toBeNull();
+    // Lo demás del cierre sigue en pie: el contador 602002 y `lastSyncedAt`.
+    expect(row.lastSyncedAt).not.toBeNull();
+    expect(row.challengeValue).not.toBeNull();
+  });
+
+  it("un fallo posterior no borra el icono que ya había", async () => {
+    const { fake, worker, clock } = setup();
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+    await drain(worker);
+    expect((await getProfile(profile.id)).profileIconId).toBe(
+      FAKE_PROFILE_ICON_ID,
+    );
+
+    fake.failWith = (call) =>
+      call.method === "summoner"
+        ? new RiotRetryableError({ host: "euw1", path: "/x", status: 500 })
+        : undefined;
+    clock.advance(REFRESH_COOLDOWN_MS);
+    expect(
+      await requestRefresh(db, profile.id, {
+        interactive: true,
+        now: new Date(clock.now()),
+      }),
+    ).toBe("queued");
+    await drain(worker);
+
+    expect((await lastJob(profile.id)).lastError).toContain("summoner");
+    expect((await getProfile(profile.id)).profileIconId).toBe(
+      FAKE_PROFILE_ICON_ID,
+    );
+  });
+
+  it("un error de auth en Summoner-V4 se propaga: pausa y el job no se cierra", async () => {
+    const { fake, worker } = setup();
+    fake.failWith = (call) =>
+      call.method === "summoner"
+        ? new RiotAuthError({
+            host: "euw1",
+            path: "/lol/summoner/v4/summoners/by-puuid/:puuid",
+            status: 403,
+          })
+        : undefined;
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+
+    expect((await drain(worker)).result).toBe("paused");
+
+    expect((await readSettings()).keyStatus).toBe("invalid");
+    expect((await lastJob(profile.id)).status).not.toBe("done");
+    expect((await getProfile(profile.id)).profileIconId).toBeNull();
   });
 });

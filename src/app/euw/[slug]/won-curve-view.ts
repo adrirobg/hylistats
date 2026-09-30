@@ -2,6 +2,7 @@
 // sin React ni recharts: el dominio de los ejes, dónde caen las marcas y los rótulos. El
 // componente (`won-curve-chart.tsx`) solo las pinta.
 
+import { DEITY_NAME } from "@/domain/arena-god";
 import type { CurvePoint } from "@/domain/summary";
 import { formatDecimal } from "@/lib/format";
 
@@ -56,4 +57,9 @@ export function countAxis(
 /** «1 campeón» / «23 campeones»: lo que dice el tooltip de cada punto. */
 export function championsLabel(count: number): string {
   return `${formatDecimal(count, 0)} ${count === 1 ? "campeón" : "campeones"}`;
+}
+
+/** Etiqueta de la línea de meta de la curva: «Deidad de Arena · 60» (el umbral no cambia de nombre). */
+export function thresholdLabel(threshold: number): string {
+  return `${DEITY_NAME} · ${threshold}`;
 }

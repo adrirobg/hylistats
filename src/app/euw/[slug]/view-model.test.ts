@@ -69,18 +69,20 @@ describe("parseProfileTab", () => {
     expect(parseProfileTab(["otra", "resumen"])).toBe("campeones");
   });
 
-  it("acepta las cuatro pestañas; si se repite, manda la primera", () => {
+  it("acepta todas las pestañas; si se repite, manda la primera", () => {
     for (const tab of PROFILE_TABS) expect(parseProfileTab(tab)).toBe(tab);
+    expect(parseProfileTab("estadisticas")).toBe("estadisticas");
     expect(parseProfileTab(["companeros", "x"])).toBe("companeros");
     expect(parseProfileTab(["partidas", "resumen"])).toBe("partidas");
   });
 });
 
 describe("pestañas: etiquetas e ids", () => {
-  it("cuatro pestañas en el orden de la barra, con su etiqueta visible", () => {
+  it("cinco pestañas en el orden de la barra, con su etiqueta visible", () => {
     expect(PROFILE_TABS.map((tab) => TAB_LABEL[tab])).toEqual([
       "Campeones",
       "Resumen",
+      "Estadísticas",
       "Compañeros",
       "Partidas",
     ]);
@@ -99,6 +101,7 @@ describe("tabHref", () => {
     expect(tabHref(PATH, "", "campeones")).toBe(PATH);
     expect(tabHref(PATH, "", "resumen")).toBe(`${PATH}?tab=resumen`);
     expect(tabHref(PATH, "", "companeros")).toBe(`${PATH}?tab=companeros`);
+    expect(tabHref(PATH, "", "estadisticas")).toBe(`${PATH}?tab=estadisticas`);
     expect(tabHref(PATH, "", "partidas")).toBe(`${PATH}?tab=partidas`);
   });
 
@@ -238,7 +241,9 @@ describe("tabHref y los parámetros de Partidas", () => {
 describe("tabForKey", () => {
   it("las flechas mueven el foco a la vecina y dan la vuelta en los extremos", () => {
     expect(tabForKey("campeones", "ArrowRight")).toBe("resumen");
-    expect(tabForKey("resumen", "ArrowRight")).toBe("companeros");
+    expect(tabForKey("resumen", "ArrowRight")).toBe("estadisticas");
+    expect(tabForKey("estadisticas", "ArrowRight")).toBe("companeros");
+    expect(tabForKey("companeros", "ArrowLeft")).toBe("estadisticas");
     expect(tabForKey("partidas", "ArrowRight")).toBe("campeones");
     expect(tabForKey("resumen", "ArrowLeft")).toBe("campeones");
     expect(tabForKey("campeones", "ArrowLeft")).toBe("partidas");

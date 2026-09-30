@@ -89,6 +89,8 @@ describe("buildAlbum: estados y cifras", () => {
       lastPlayedAt: t(50),
       firstWinAt: t(10),
       firstWinMatchId: "m-ahri-1",
+      heat: "neutral",
+      heatAdjustedAvg: expect.any(Number),
     });
   });
 
@@ -122,6 +124,49 @@ describe("buildAlbum: estados y cifras", () => {
       lastPlayedAt: null,
       firstWinAt: null,
       firstWinMatchId: null,
+      heat: "neutral",
+      heatAdjustedAvg: null,
+    });
+  });
+
+  it("heat: 🔥/❄️ solo en jugados sin 1º y con ≥5 partidas; el resto, neutral", () => {
+    // Ahri ya ganado (1 partida), Aatrox 6 partidas en 6º, Fiddlesticks 6 en 2º, Zed sin jugar.
+    // Global = (1 + 36 + 12) / 13 ≈ 3,77.
+    const rows = [
+      row(103, 1, 1),
+      ...Array.from({ length: 6 }, (_, i) => row(266, 6, 10 + i)),
+      ...Array.from({ length: 6 }, (_, i) => row(9, 2, 30 + i)),
+    ];
+    const heated = buildAlbum(CATALOG, rows);
+    expect(entryOf(heated, 266)).toMatchObject({ heat: "cold" });
+    expect(entryOf(heated, 266).heatAdjustedAvg).toBeGreaterThan(4);
+    expect(entryOf(heated, 9)).toMatchObject({ heat: "hot" });
+    expect(entryOf(heated, 103)).toMatchObject({ heat: "neutral" }); // ya ganado
+    expect(entryOf(heated, 238)).toMatchObject({
+      heat: "neutral",
+      heatAdjustedAvg: null,
+    });
+  });
+
+  it("usa el frío/calor que se le pasa", () => {
+    const heat = {
+      globalAvg: 3,
+      byChampion: new Map([
+        [
+          238,
+          {
+            state: "hot" as const,
+            games: 7,
+            avg: 2,
+            adjustedAvg: 2.4,
+            reason: null,
+          },
+        ],
+      ]),
+    };
+    expect(entryOf(buildAlbum(CATALOG, [], heat), 238)).toMatchObject({
+      heat: "hot",
+      heatAdjustedAvg: 2.4,
     });
   });
 
@@ -190,6 +235,8 @@ describe("buildAlbum: campeones fuera del catálogo o del rango", () => {
       lastPlayedAt: t(20),
       firstWinAt: t(20),
       firstWinMatchId: rows[1].matchId,
+      heat: "neutral",
+      heatAdjustedAvg: expect.any(Number),
     });
     expect(album.map((e) => e.name)).toEqual([
       "Aatrox",

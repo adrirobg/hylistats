@@ -60,8 +60,8 @@ import { matchHref as buildMatchHref } from "./view-model";
 // celdas de 64 px como mínimo (4 columnas a 375 px) y la lista oculta Top 3 y Medio; nada hace
 // scroll horizontal.
 //
-// Interacción (T09, brief §4.4 y §7): en «mi perfil» cada cromo lleva la diana y el menú ⋯ (las
-// acciones de `actions`), y `o` conmuta el objetivo del cromo enfocado. Las flechas, `Home` y `End`
+// Interacción (T09, brief §4.4 y §7): en «mi perfil» cada cromo lleva la diana y la marca manual
+// del menú ⋯ (las acciones de `actions`; el ⋯ con los builds sale en todos), y `o` conmuta el objetivo del cromo enfocado. Las flechas, `Home` y `End`
 // recorren los cromos también en perfiles ajenos. Un 1º nuevo entre dos renders sella su cromo
 // (`use-stamped.ts`). El cromo verificado enlaza a la partida de su primer 1º. Un clic o Enter en
 // un cromo (o una fila de la lista) abre el panel del campeón, `?campeon=` (`champion-panel.tsx`).

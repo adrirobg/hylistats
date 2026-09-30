@@ -3,6 +3,7 @@
 // efectivo de cada cromo, la búsqueda y las bandas. El componente (`album.tsx`) solo las pinta.
 
 import type { AlbumEntry } from "@/domain/album";
+import type { HeatState } from "@/domain/heat";
 import { formatDateTime } from "@/lib/format";
 import { FILTER_PARAM } from "./view-model";
 
@@ -27,6 +28,7 @@ export const ORDENES = [
   "intentos",
   "mejor",
   "reciente",
+  "calor",
 ] as const;
 export type Orden = (typeof ORDENES)[number];
 
@@ -199,7 +201,46 @@ function compareNullable(
   return (a - b) * direction;
 }
 
-const ORDER: Record<Orden, (a: AlbumEntry, b: AlbumEntry) => number> = {
+/**
+ * Frío/calor que se muestra: F16 solo marca campeones sin 1º y una marca manual de «ganado» dice
+ * justo lo contrario (`computeHeat` solo ve las partidas verificadas), así que un `manual` es
+ * siempre neutral.
+ */
+export function effectiveHeat(
+  entry: Pick<AlbumEntry, "heat">,
+  state: CardState,
+): HeatState {
+  return state === "manual" ? "neutral" : entry.heat;
+}
+
+/** 🔥 primero, después los neutrales y al final ❄️. */
+const HEAT_RANK: Record<HeatState, number> = { hot: 0, neutral: 1, cold: 2 };
+
+/**
+ * Orden «Frío/calor»: 🔥 (media ajustada menor, o sea mejor, primero), después los neutrales con
+ * el criterio de `estado` (`neutralBand`: banda del cromo y, dentro de ella, por nombre) y al final
+ * ❄️ (media ajustada menor primero, así la peor queda la última). Empates por nombre y `championId`.
+ * `heatOf` es el frío/calor efectivo de cada entrada (un ganado a mano es neutral).
+ */
+function byHeat(
+  heatOf: (entry: AlbumEntry) => HeatState,
+  neutralBand: (entry: AlbumEntry) => number,
+) {
+  return (a: AlbumEntry, b: AlbumEntry): number => {
+    const rank = HEAT_RANK[heatOf(a)] - HEAT_RANK[heatOf(b)];
+    if (rank !== 0) return rank;
+    if (heatOf(a) === "neutral")
+      return neutralBand(a) - neutralBand(b) || byName(a, b);
+    return (
+      compareNullable(a.heatAdjustedAvg, b.heatAdjustedAvg, 1) || byName(a, b)
+    );
+  };
+}
+
+const ORDER: Record<
+  Exclude<Orden, "calor">,
+  (a: AlbumEntry, b: AlbumEntry) => number
+> = {
   estado: byName, // dentro de cada banda
   alfabetico: byName,
   intentos: (a, b) => b.games - a.games || byName(a, b),
@@ -238,6 +279,7 @@ export const ORDEN_LABEL: Record<Orden, string> = {
   intentos: "Más intentados",
   mejor: "Mejor puesto",
   reciente: "Último jugado",
+  calor: "Frío/calor",
 };
 
 const EMPTY_TARGETS_NONE =
@@ -290,6 +332,20 @@ export function albumSections(
   const none = visible.filter((e) => stateOf(e) === "none");
   const won = visible.filter(isWon);
 
+  // Banda que `estado` daría a un cromo con «Todos»: objetivos, jugados, sin jugar y ganados. Con
+  // un filtro concreto `estado` es una sola lista por nombre: sin bandas.
+  const neutralBand = (entry: AlbumEntry) => {
+    if (filtro !== "todos") return 0;
+    if (isWon(entry)) return 3;
+    if (isTarget(entry)) return 0;
+    return stateOf(entry) === "played" ? 1 : 2;
+  };
+  const sorted = sortSection(
+    params.orden === "calor"
+      ? byHeat((entry) => effectiveHeat(entry, stateOf(entry)), neutralBand)
+      : ORDER[params.orden],
+  );
+
   const section = (
     key: Filtro,
     entries: AlbumEntry[],
@@ -306,9 +362,7 @@ export function albumSections(
 
   if (filtro === "todos") {
     if (params.orden !== "estado") {
-      return [
-        sorted(params.orden)(section("todos", visible, "Nada por aquí.")),
-      ];
+      return [sorted(section("todos", visible, "Nada por aquí."))];
     }
     const noTargets = (e: AlbumEntry) => !isTarget(e);
     return [
@@ -316,7 +370,7 @@ export function albumSections(
       section("sin-ganar", played.filter(noTargets), "Nada por aquí."),
       section("sin-jugar", none.filter(noTargets), "Has jugado todos."),
       section("ganados", won, "Aún sin victorias."),
-    ].map(sorted(params.orden));
+    ].map(sorted);
   }
 
   const single: Record<Exclude<Filtro, "todos">, AlbumSection> = {
@@ -325,14 +379,14 @@ export function albumSections(
     "sin-jugar": section("sin-jugar", none, "Has jugado todos."),
     ganados: section("ganados", won, "Aún sin victorias esta temporada."),
   };
-  return [sorted(params.orden)(single[filtro])];
+  return [sorted(single[filtro])];
 }
 
 /** Ordena las entradas de una sección (copia: las entradas de origen no se tocan). */
-function sorted(orden: Orden) {
+function sortSection(compare: (a: AlbumEntry, b: AlbumEntry) => number) {
   return (section: AlbumSection): AlbumSection => ({
     ...section,
-    entries: [...section.entries].sort(ORDER[orden]),
+    entries: [...section.entries].sort(compare),
   });
 }
 
@@ -340,8 +394,15 @@ function sorted(orden: Orden) {
 
 type CardData = Pick<
   AlbumEntry,
-  "name" | "games" | "firsts" | "bestPlacement" | "firstWinAt"
+  "name" | "games" | "firsts" | "bestPlacement" | "firstWinAt" | "heat"
 >;
+
+/** Nombre visible de la marca de frío/calor (F16); `null` si el cromo no la lleva. */
+export const HEAT_LABEL: Record<HeatState, string | null> = {
+  hot: "Modo diablo",
+  cold: "Nevera",
+  neutral: null,
+};
 
 /** Dato secundario bajo el nombre (`subTxt` de la maqueta). */
 export function cardSub(entry: CardData, state: CardState): string {
@@ -390,6 +451,8 @@ export function cardLabel(
       parts.push("sin jugar");
       break;
   }
+  const heat = HEAT_LABEL[effectiveHeat(entry, state)];
+  if (heat !== null) parts.push(heat.toLowerCase());
   if (isTarget) parts.push("objetivo");
   return parts.join(", ");
 }

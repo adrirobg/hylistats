@@ -3,10 +3,22 @@ import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { AlbumEntry } from "@/domain/album";
+import type { HeatState } from "@/domain/heat";
 import { formatDecimal, formatPercent, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { type CardPart, manualActionFor } from "./album-interaction";
-import { type CardState, cardLabel, cardSub, cardTitle } from "./album-view";
+import {
+  type CardPart,
+  cardMenuContent,
+  manualActionFor,
+} from "./album-interaction";
+import {
+  type CardState,
+  cardLabel,
+  cardSub,
+  cardTitle,
+  effectiveHeat,
+  HEAT_LABEL,
+} from "./album-view";
 import { CardMenu } from "./card-menu";
 import { initials } from "./view-model";
 
@@ -14,7 +26,8 @@ import { initials } from "./view-model";
 // Las tres dimensiones se distinguen por forma además de por color: sello «1º» (verificado), lápiz
 // (manual), diana (objetivo) y saturación del retrato (jugado / sin jugar). El estado que llega ya
 // es el efectivo (`effectiveState`); aquí solo se pinta. Solo en «mi perfil» (`actions`) el cromo
-// lleva los controles: botón de diana y menú ⋯ (T09); en un perfil ajeno queda la capa verificada.
+// lleva la diana y la marca manual; el menú ⋯ sale en todos los cromos, también en un perfil ajeno,
+// con los enlaces de builds (T08).
 // El cromo verificado enlaza a la partida de su primer 1º (F7): el sello «1º» en la vista álbum y
 // «ver partida» en la lista (`matchHref`). Un clic (o Enter) en el cromo, o en la fila de la lista,
 // abre el panel del campeón (`?campeon=`, `opener`): los controles de dentro (diana, ⋯, sello y
@@ -119,6 +132,26 @@ export function TargetGlyph({ size = 14 }: { size?: number }) {
   );
 }
 
+/**
+ * Marca de frío/calor (F16) en la esquina inferior izquierda del retrato: la superior izquierda es
+ * la diana, la superior derecha el sello o el lápiz y la inferior derecha el ⋯. El neutral no
+ * pinta nada. El texto accesible es el nombre visible ("Modo diablo" / "Nevera").
+ */
+function HeatMark({ heat }: { heat: HeatState }) {
+  const label = HEAT_LABEL[heat];
+  if (label === null) return null;
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className="absolute bottom-1 left-1 grid size-[22px] place-items-center rounded-full bg-[rgba(15,16,19,.72)] text-[12px] leading-none"
+    >
+      {heat === "hot" ? "🔥" : "❄️"}
+    </span>
+  );
+}
+
 /** Lo que el cromo puede pedir a «mi perfil» (`album.tsx` lo cablea al almacén del navegador). */
 export interface CardActions {
   /** `part`: qué parte del cromo recupera el foco si el cambio lo mueve de banda. */
@@ -142,7 +175,7 @@ export interface AlbumCardProps {
   target: boolean;
   /** Es un 1º nuevo: durante unos instantes el cromo se «sella» (`.stamp`). */
   stamp?: boolean;
-  /** `null` fuera de «mi perfil» (D12): ni diana, ni menú, ni atajo `o`. */
+  /** `null` fuera de «mi perfil» (D12): ni diana, ni marca manual, ni atajo `o` (el ⋯ solo con builds). */
   actions: CardActions | null;
   /** Enlace a una partida (`matchHref`): con él, el sello del cromo verificado abre su primer 1º. */
   matchHref?: (matchId: string) => string;
@@ -192,7 +225,11 @@ export function AlbumCard({
   matchHref,
   opener,
 }: AlbumCardProps) {
-  const manualAction = manualActionFor(state);
+  const menu = cardMenuContent(
+    entry.ddId,
+    entry.name,
+    actions ? manualActionFor(state) : "none",
+  );
   const sealClass =
     "absolute -top-1.5 -right-1.5 grid size-[30px] -rotate-12 place-items-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#F6D88A,var(--place-1)_55%,var(--won-deep))] font-display text-[13px] font-extrabold text-[#231906] shadow-[0_2px_6px_rgba(0,0,0,.5)] group-[.stamp]:animate-seal-in";
   return (
@@ -270,13 +307,14 @@ export function AlbumCard({
             </span>
           )
         )}
-        {/* Un verificado no ofrece marca manual: sin nada que ofrecer, no hay menú. */}
-        {actions && manualAction !== "none" && (
+        <HeatMark heat={effectiveHeat(entry, state)} />
+        {/* El ⋯ va en todos los cromos (builds); la marca manual solo en «mi perfil» y sin verificar. */}
+        {menu && (
           <CardMenu
             name={entry.name}
-            action={manualAction}
+            content={menu}
             onConfirm={() =>
-              actions.setManual(entry.championId, manualAction === "mark")
+              actions?.setManual(entry.championId, menu.manual === "mark")
             }
           />
         )}

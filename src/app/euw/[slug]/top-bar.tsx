@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/hy/logo";
 
 /**
  * Rótulo «hylistats» sobre la cabina. Enlaza a `/?inicio`: un enlace a `/` redirigiría de vuelta
@@ -9,8 +10,9 @@ export function TopBar() {
     <header className="flex items-center justify-between py-4">
       <Link
         href="/?inicio"
-        className="font-display text-[28px] leading-none font-extrabold tracking-[0.02em] uppercase"
+        className="inline-flex items-center gap-2.5 font-display text-[28px] leading-none font-extrabold tracking-[0.02em] uppercase"
       >
+        <Logo />
         hylistats
       </Link>
     </header>

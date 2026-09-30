@@ -4,6 +4,8 @@ import { closeDb } from "@/db";
 import { matches, matchFetch, profiles, settings, syncJobs } from "@/db/schema";
 import { arenaGodState, officialPhrase } from "@/domain/arena-god";
 import { storeMatch } from "@/domain/ingest";
+import { getRecordRows } from "@/domain/queries";
+import { computeRecords } from "@/domain/records";
 import {
   ARENA_GOD_THRESHOLD,
   ARENA_QUEUE_IDS,
@@ -179,6 +181,42 @@ describe("loadProfilePage", () => {
       gameName: "Bejito Mambo",
       tagLine: "1991",
       seasonStart,
+    });
+  });
+
+  describe("icono de invocador", () => {
+    const loadWith = (catalog?: ChampionCatalog) =>
+      loadProfilePage(
+        db,
+        "BEJITO MAMBO",
+        "1991",
+        { tab: "campeones" },
+        seasonStart,
+        catalog,
+      );
+
+    it("con icono guardado y versión de Data Dragon: la URL del icono", async () => {
+      await insertProfile({ profileIconId: 7176 });
+      const data = await loadWith({ version: "16.19.1", champions: [] });
+      expect(data).toMatchObject({
+        kind: "profile",
+        profileIconUrl:
+          "https://ddragon.leagueoflegends.com/cdn/16.19.1/img/profileicon/7176.png",
+      });
+    });
+
+    it("sin icono guardado: null (la cabecera usa el placeholder)", async () => {
+      await insertProfile();
+      const data = await loadWith({ version: "16.19.1", champions: [] });
+      expect(data).toMatchObject({ kind: "profile", profileIconUrl: null });
+    });
+
+    it("con icono pero sin catálogo (sin versión): null", async () => {
+      await insertProfile({ profileIconId: 7176 });
+      expect(await loadWith()).toMatchObject({
+        kind: "profile",
+        profileIconUrl: null,
+      });
     });
   });
 
@@ -835,6 +873,61 @@ describe("loadProfilePage", () => {
     }
   });
 
+  describe("badge y meta de la barra (arenaGod)", () => {
+    /** Catálogo de `n` campeones sintéticos. */
+    const catalogOf = (n: number): ChampionCatalog => ({
+      version: "16.19.1",
+      champions: Array.from({ length: n }, (_, i) => ({
+        championId: 1000 + i,
+        ddId: `Champ${i}`,
+        name: `Champ ${i}`,
+        portraitUrl: null,
+      })),
+    });
+
+    async function loadGod(
+      challengeValue: number | null,
+      catalog: ChampionCatalog,
+    ) {
+      await storeAll(); // pocos verificados: la condición sale del contador oficial
+      await insertProfile({ challengeValue });
+      const data = await loadProfilePage(
+        db,
+        "BEJITO MAMBO",
+        "1991",
+        { tab: "campeones" },
+        seasonStart,
+        catalog,
+      );
+      if (data.kind !== "profile") throw new Error(`kind: ${data.kind}`);
+      return data.arenaGod;
+    }
+
+    it("oficial 60 y catálogo de 172: badge y meta en el tamaño del catálogo (Dios de Arena)", async () => {
+      expect(await loadGod(60, catalogOf(172))).toEqual({
+        reached: true,
+        goal: 172,
+        name: "Dios de Arena",
+      });
+    });
+
+    it("oficial 59: sin badge, la meta sigue en 60 (Deidad de Arena)", async () => {
+      expect(await loadGod(59, catalogOf(172))).toEqual({
+        reached: false,
+        goal: ARENA_GOD_THRESHOLD,
+        name: "Deidad de Arena",
+      });
+    });
+
+    it("badge con el catálogo caído (vacío): la meta se queda en 60", async () => {
+      expect(await loadGod(75, { version: null, champions: [] })).toEqual({
+        reached: true,
+        goal: ARENA_GOD_THRESHOLD,
+        name: "Deidad de Arena",
+      });
+    });
+  });
+
   describe("álbum", () => {
     const BLITZCRANK = {
       championId: 53,
@@ -1109,6 +1202,7 @@ describe("loadProfilePage", () => {
     const OWN_KEYS: Record<ProfileTab, readonly (keyof ProfileView)[]> = {
       campeones: [], // el álbum es común: header, barra Arena God y raíl dependen de él
       resumen: ["summaryTab"],
+      estadisticas: ["records"],
       companeros: ["teammates"],
       partidas: ["matches", "matchDetail"],
     };
@@ -1178,6 +1272,80 @@ describe("loadProfilePage", () => {
       });
     });
   });
+  describe("estadisticas (records)", () => {
+    it("solo la pestaña Estadísticas trae los récords", async () => {
+      await storeAll();
+      await insertProfile();
+      expect(await loadProfile("estadisticas")).toHaveProperty("records");
+      for (const tab of PROFILE_TABS) {
+        if (tab === "estadisticas") continue;
+        expect(await loadProfile(tab)).not.toHaveProperty("records");
+      }
+    });
+
+    it("sin partidas: los récords de ninguna partida", async () => {
+      await insertProfile();
+      const data = await loadProfile("estadisticas");
+      expect(data.records).toEqual(computeRecords([]));
+      expect(data.records?.records.damage).toBeNull();
+      expect(data.records?.deathlessWins).toEqual({ count: 0, matches: [] });
+    });
+
+    it("un perfil sin puuid todavía (resolviéndose) no rompe la pestaña", async () => {
+      await insertProfile({ puuid: null, status: "resolving" });
+      const data = await loadProfile("estadisticas");
+      expect(data.records).toEqual(computeRecords([]));
+    });
+
+    it("son los récords de las partidas del perfil dentro de la temporada, sin puuid", async () => {
+      await storeAll();
+      await insertProfile();
+      const data = await loadProfile("estadisticas");
+      const expected = computeRecords(
+        await getRecordRows(db, SELF_PUUID, seasonStart),
+      );
+      expect(data.records).toEqual(expected);
+      expect(data.records?.records.kills).not.toBeNull();
+      expect(data.records?.records.damage?.matchId).toMatch(/^EUW1_/);
+      expect(hasKeyDeep(data, "puuid")).toBe(false);
+      expect(JSON.stringify(data)).not.toContain(SELF_PUUID);
+    });
+
+    it("una temporada posterior deja fuera las partidas anteriores", async () => {
+      await storeAll();
+      await insertProfile();
+      const data = await loadProfilePage(
+        db,
+        "BEJITO MAMBO",
+        "1991",
+        { tab: "estadisticas" },
+        new Date("2027-01-01T00:00:00Z"),
+      );
+      expect(data.kind === "profile" && data.records).toEqual(
+        computeRecords([]),
+      );
+    });
+
+    it("un 1º añade la racha, el campeón con más 1º y la victoria a la primera", async () => {
+      await storeAll();
+      await storeVariant(fixtures[1], "EUW1_TEST_STATS_WIN", (j) => {
+        j.info.gameCreation = 1_790_700_000_000;
+        promoteTrioToFirst(j, SELF_PUUID);
+      });
+      await insertProfile();
+      const { records } = await loadProfile("estadisticas");
+      expect(records?.longestWinStreak).toMatchObject({
+        length: 1,
+        toMatchId: "EUW1_TEST_STATS_WIN",
+        ongoing: true,
+      });
+      expect(records?.topChampion).toMatchObject({
+        championId: 53,
+        firsts: 1,
+      });
+    });
+  });
+
   describe("resumen (summaryTab)", () => {
     const FIRST_AT = 1_790_700_000_000;
     const TRY_AT = FIRST_AT + 3_600_000;
@@ -1364,6 +1532,17 @@ describe("loadProfilePage", () => {
             gameCreation: 1790633861469,
           },
         ],
+        // 3 partidas (< 5): neutral por pocas partidas; la media global sale de todas las del jugador.
+        heat: {
+          champion: {
+            state: "neutral",
+            games: 3,
+            avg: 8 / 3,
+            adjustedAvg: 3.3125,
+            reason: "few-games",
+          },
+          globalAvg: 3.7,
+        },
       });
     });
 
@@ -1398,6 +1577,23 @@ describe("loadProfilePage", () => {
       }
     });
 
+    it("el frío/calor del cromo y el del panel salen de las mismas filas, en todas las pestañas", async () => {
+      await storeAll();
+      await insertProfile();
+      for (const tab of PROFILE_TABS) {
+        const data = await loadChampion("thresh", tab, catalog);
+        const entry = data.album.find((e) => e.championId === 412);
+        // Thresh: 3 partidas (< 5), así que neutral, pero con su media ajustada.
+        expect(entry).toMatchObject({
+          heat: "neutral",
+          heatAdjustedAvg: 3.3125,
+        });
+        expect(data.champion?.heat?.champion.adjustedAvg).toBe(
+          entry?.heatAdjustedAvg,
+        );
+      }
+    });
+
     it("no altera lo común: con ?campeon la vista es la misma salvo la clave champion", async () => {
       await storeAll();
       await insertProfile();
@@ -1423,6 +1619,7 @@ describe("loadProfilePage", () => {
         championId: 103,
         distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
         recent: [],
+        heat: null,
       });
     });
 

@@ -10,6 +10,7 @@ import {
   type ArenaGodAction,
   type ArenaGodState,
   arenaGodActions,
+  arenaGodHeading,
   arenaGodLabel,
   arenaGodMessage,
   arenaGodState,
@@ -41,8 +42,10 @@ export interface ArenaGodBarProps {
   official: number | null;
   /** Instante (ms) en que se consultó el contador; `null` si nunca. */
   checkedAt: number | null;
-  /** Meta de la barra (`ARENA_GOD_THRESHOLD`). */
+  /** Meta de la barra: 60 o, con el badge conseguido, el catálogo (`arenaGodGoal`). */
   goal: number;
+  /** Nombre de esa meta: «Deidad de Arena» o «Dios de Arena» (`arenaGodGoal`). */
+  goalName: string;
   /** Hora del servidor (ms): el primer render coincide con el HTML del servidor. */
   nowMs: number;
 }
@@ -58,6 +61,7 @@ export function ArenaGodBar({
   official,
   checkedAt,
   goal,
+  goalName,
   nowMs,
 }: ArenaGodBarProps) {
   const router = useRouter();
@@ -126,7 +130,7 @@ export function ArenaGodBar({
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1.5">
         <div className="flex items-center gap-2">
           <h2 className="font-display text-[15px] font-bold tracking-[0.12em] text-muted-foreground uppercase">
-            Arena God · temporada actual
+            {arenaGodHeading(goalName)}
           </h2>
           <button
             type="button"
@@ -148,7 +152,7 @@ export function ArenaGodBar({
         </p>
       </div>
 
-      <Bar state={state} />
+      <Bar state={state} goalName={goalName} />
 
       <Notice
         role="status"
@@ -199,7 +203,7 @@ function edgeClass(percent: number): string {
   return "-translate-x-1/2";
 }
 
-function Bar({ state }: { state: ArenaGodState }) {
+function Bar({ state, goalName }: { state: ArenaGodState; goalName: string }) {
   const { verified, manual, official, goal, scaleMax, ticks } = state;
   const at = (value: number) => (value / scaleMax) * 100;
   const officialAt = official === null ? null : at(official);
@@ -261,9 +265,9 @@ function Bar({ state }: { state: ArenaGodState }) {
             style={{ left: `${at(tick)}%` }}
           >
             {tick}
-            {/* En pantallas estrechas el nombre chocaría con el tick anterior («4060 · Arena God»). */}
+            {/* En pantallas estrechas el nombre chocaría con el tick anterior («4060 · Deidad de Arena»). */}
             {tick === goal && (
-              <span className="@max-[480px]:hidden"> · Arena God</span>
+              <span className="@max-[480px]:hidden"> · {goalName}</span>
             )}
           </span>
         ))}

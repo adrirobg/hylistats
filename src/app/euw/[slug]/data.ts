@@ -28,12 +28,16 @@ import {
   type RecentGame,
   recentForm,
 } from "@/domain/album";
+import { type ArenaGodGoal, arenaGodGoal } from "@/domain/arena-god";
+import { computeHeat } from "@/domain/heat";
 import { getProfileMatches } from "@/domain/matches";
 import {
   getProfileStats,
+  getRecordRows,
   type ProfileChallenge,
   type TeammateSummary,
 } from "@/domain/queries";
+import { computeRecords, type Records } from "@/domain/records";
 import type {
   PlayerMatchRow,
   StatsSummary,
@@ -52,7 +56,7 @@ import {
   ARENA_QUIET_DAYS,
   getSeasonStart,
 } from "@/lib/config";
-import type { ChampionCatalog } from "@/lib/ddragon";
+import { type ChampionCatalog, profileIconUrl } from "@/lib/ddragon";
 import { EMPTY_GAME_DATA, type GameData } from "@/lib/game-data";
 import { classifyRetry } from "@/lib/riot/errors";
 import { normalizeRiotId } from "@/worker/queue";
@@ -174,7 +178,7 @@ export interface SummaryTabData {
   curve: CurvePoint[];
   /** Los tres grupos de campeones destacados, de hasta 8 chips cada uno. */
   highlights: Highlights;
-  /** Meta de la curva: los campeones que pide el nivel MASTER del challenge (Arena God). */
+  /** Meta de la curva: los campeones que pide el nivel MASTER del challenge (`ARENA_GOD_THRESHOLD`, «Deidad de Arena»). */
   threshold: number;
 }
 
@@ -187,6 +191,11 @@ export interface ProfileView {
   gameName: string;
   tagLine: string;
   seasonStart: Date;
+  /**
+   * Icono de invocador en Data Dragon (versión del catálogo); `null` si el perfil aún no lo tiene
+   * o el catálogo no cargó: la cabecera pinta entonces el placeholder con las iniciales.
+   */
+  profileIconUrl: string | null;
   lastSyncedAt: Date | null;
   /** Epoch en ms de la última partida de la temporada; `null` sin partidas. */
   lastGameAt: number | null;
@@ -217,6 +226,11 @@ export interface ProfileView {
   form: RecentGame[];
   challenge: ProfileChallenge;
   /**
+   * Badge «Deidad de Arena» y meta de la barra (`arenaGodGoal`): se decide en el servidor con los
+   * verificados y el contador oficial, y el mismo valor llega a la cabecera y a la barra.
+   */
+  arenaGod: ArenaGodGoal;
+  /**
    * Los `RAIL_TEAMMATES` (5) compañeros con más partidas juntos, sin mínimo, para la caja del raíl:
    * el raíl se pinta en todas las pestañas. Cifras ya formateadas y sin `puuid`.
    */
@@ -246,6 +260,11 @@ export interface ProfileView {
   matchDetail?: MatchDetailView;
   /** Curva de campeones ganados y destacados (`tab === "resumen"`). */
   summaryTab?: SummaryTabData;
+  /**
+   * Récords, victorias especiales, rachas, días y campeones de la temporada (`tab === "estadisticas"`).
+   * Son solo identificadores y cifras: los nombres y retratos salen del álbum, que ya viaja.
+   */
+  records?: Records;
 }
 
 export type ProfilePageData =
@@ -481,6 +500,7 @@ export async function loadProfilePage(
       tagLine: profiles.tagLine,
       status: profiles.status,
       lastSyncedAt: profiles.lastSyncedAt,
+      profileIconId: profiles.profileIconId,
     })
     .from(profiles)
     .where(eq(profiles.riotIdNorm, normalizeRiotId(gameName, tagLine)))
@@ -511,12 +531,20 @@ export async function loadProfilePage(
     now.getTime(),
   );
 
-  const album = buildAlbum(championCatalog, stats.playerRows);
+  // Frío/calor sobre las filas que ya están cargadas (comunes a todas las pestañas): lo usan el
+  // cromo (vía el álbum) y el panel de campeón, sin consultas nuevas.
+  const heat = computeHeat(stats.playerRows);
+  const album = buildAlbum(championCatalog, stats.playerRows, heat);
   // La forma nombra a cada campeón como el álbum (catálogo o, sin él, la partida más reciente).
   const displayName = new Map(album.map((e) => [e.championId, e.name]));
 
   const championEntry =
     view.campeon === undefined ? null : findChampionBySlug(album, view.campeon);
+
+  const records =
+    view.tab === "estadisticas"
+      ? await loadRecords(db, profile.id, seasonStart)
+      : null;
 
   const partidas =
     view.tab === "partidas"
@@ -536,6 +564,10 @@ export async function loadProfilePage(
     gameName: profile.gameName,
     tagLine: profile.tagLine,
     seasonStart,
+    profileIconUrl: profileIconUrl(
+      championCatalog.version,
+      profile.profileIconId,
+    ),
     lastSyncedAt: profile.lastSyncedAt,
     lastGameAt: stats.lastGameAt,
     sync,
@@ -550,10 +582,16 @@ export async function loadProfilePage(
       championName: displayName.get(game.championId) ?? game.championName,
     })),
     challenge: stats.challenge,
+    // N es el tamaño del catálogo que ya se cargó para el álbum: no se pide otra vez.
+    arenaGod: arenaGodGoal({
+      verified: stats.verifiedChampions.length,
+      official: stats.challenge.value,
+      championTotal: championCatalog.champions.length,
+    }),
     railTeammates: railTeammates(stats.teammates, RAIL_TEAMMATES),
     // La clave solo existe con `?campeon` válido: `...null` no añade nada.
     ...(championEntry && {
-      champion: championPanelData(championEntry, stats.playerRows),
+      champion: championPanelData(championEntry, stats.playerRows, heat),
     }),
     // Ídem para las claves de cada pestaña: `...false` no añade nada.
     ...(view.tab === "companeros" && {
@@ -574,11 +612,31 @@ export async function loadProfilePage(
         threshold: ARENA_GOD_THRESHOLD,
       },
     }),
+    ...(records && { records }),
     ...(partidas && {
       matches: partidas.matches,
       ...(partidas.matchDetail && { matchDetail: partidas.matchDetail }),
     }),
   };
+}
+
+/**
+ * Datos propios de Estadísticas: `computeRecords` sobre las partidas del perfil dentro de la
+ * temporada. Resuelve el `puuid` aquí dentro (como `getProfileMatches`), así que no sale de este
+ * módulo; un perfil sin `puuid` todavía (resolviéndose) da los récords de ninguna partida.
+ */
+async function loadRecords(
+  db: Db,
+  profileId: number,
+  seasonStart: Date,
+): Promise<Records> {
+  const [profile] = await db
+    .select({ puuid: profiles.puuid })
+    .from(profiles)
+    .where(eq(profiles.id, profileId))
+    .limit(1);
+  if (!profile?.puuid) return computeRecords([]);
+  return computeRecords(await getRecordRows(db, profile.puuid, seasonStart));
 }
 
 /**
