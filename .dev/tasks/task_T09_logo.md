@@ -1,7 +1,7 @@
 # Task T09 — Logo: 3 propuestas SVG, elección y aplicación
 
 **Owner**: orchestrator
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -24,10 +24,18 @@ Tres propuestas de logo en SVG con capturas sobre la cabecera en `.dev/research/
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] 3 propuestas SVG + capturas en `.dev/research/logo/`.
-- [ ] Elección registrada del supervisor.
-- [ ] Logo en la cabecera y favicon; checks en verde.
+- [x] 3 propuestas SVG + capturas en `.dev/research/logo/`.
+- [x] Elección registrada del supervisor.
+- [x] Logo en la cabecera y favicon; checks en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- Propuestas en `.dev/research/logo/`: `propuesta-{a,b,c}.svg`, una nota por propuesta en `README.md`, `preview.html` con los SVG embebidos y la captura `propuestas-cabecera.jpg`. La captura muestra el rótulo de la cabecera a 64, 32 y 16 px, en pestaña clara y en oscura.
+- El supervisor eligió en esta sesión (2026-09-30) la **A · Sello 1º**.
+- Aplicación:
+  - `src/components/hy/logo.tsx`: SVG decorativo con los colores `--place-1` y `--background`, montado junto al rótulo en `top-bar.tsx` y en la landing (`src/app/page.tsx`).
+  - Favicon en `src/app/icon.svg`, según la convención de `app-icons.md` de Next 16. Se retira `src/app/favicon.ico`, que era el de serie de create-next-app.
+- Navegador integrado:
+  - La landing y `/euw/Hylimichi-EUW` muestran el sello junto a «HYLISTATS» (`aplicado-perfil.jpg`).
+  - `<link rel="icon" href="/icon.svg?…" type="image/svg+xml">` se sirve como `image/svg+xml`.
+- `npm run lint && npm run typecheck && npm test && npm run build` en verde: 50 ficheros y 1108 tests, con la ruta `/icon.svg` estática en el build.

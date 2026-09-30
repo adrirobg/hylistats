@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="hylistats">
+  <!-- Propuesta C · Podio: 2º, 1º y 3º como barras de estadística; la del 1º, la más alta. -->
+  <path d="M3 14.5a1.5 1.5 0 0 1 1.5-1.5h5a1.5 1.5 0 0 1 1.5 1.5V28H3Z" fill="#E8B64C" fill-opacity=".55"/>
+  <path d="M12 5.5A1.5 1.5 0 0 1 13.5 4h5A1.5 1.5 0 0 1 20 5.5V28h-8Z" fill="#E8B64C"/>
+  <path d="M21 19.5a1.5 1.5 0 0 1 1.5-1.5h5a1.5 1.5 0 0 1 1.5 1.5V28h-8Z" fill="#E8B64C" fill-opacity=".55"/>
+  <path d="M16.9 7.6V14.6H15.3V9.9L13.9 10.5V9.1L16 7.6Z" fill="#0F1013"/>
+</svg>

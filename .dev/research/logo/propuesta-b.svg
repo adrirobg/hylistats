@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="hylistats">
+  <!-- Propuesta B · Cromo: dos cromos del álbum, el de delante pegado (borde y sello dorados). -->
+  <rect x="3.5" y="7" width="15" height="21" rx="2.5" fill="none" stroke="#E8B64C" stroke-opacity=".45" stroke-width="2" transform="rotate(-10 11 17.5)"/>
+  <rect x="12" y="3.5" width="16" height="23" rx="2.5" fill="#0F1013" stroke="#E8B64C" stroke-width="2.4"/>
+  <circle cx="23.2" cy="8.6" r="2.6" fill="#E8B64C"/>
+  <rect x="15" y="20.5" width="10" height="2.4" rx="1.2" fill="#E8B64C"/>
+</svg>

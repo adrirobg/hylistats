@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { Chip } from "@/components/hy/chip";
+import { Logo } from "@/components/hy/logo";
 import { ProfileLists } from "@/components/landing/profile-lists";
 import { RedirectToMyProfile } from "@/components/landing/redirect-to-my-profile";
 import { RiotIdSearch } from "@/components/landing/riot-id-search";
@@ -10,7 +11,8 @@ export default function Home() {
   return (
     <main className="flex flex-1 flex-col">
       <header className="flex items-center justify-between py-4">
-        <h1 className="font-display text-[28px] leading-none font-extrabold tracking-[0.02em] uppercase">
+        <h1 className="inline-flex items-center gap-2.5 font-display text-[28px] leading-none font-extrabold tracking-[0.02em] uppercase">
+          <Logo />
           hylistats
         </h1>
         {/* Región fija (F10): etiqueta, sin selector. */}
