@@ -12,6 +12,8 @@ import { Album } from "./album";
 import { ArenaGodBar } from "./arena-god";
 import { AutoRefresh } from "./auto-refresh";
 import { Cabin } from "./cabin";
+import { ChampionPanel } from "./champion-panel";
+import { CHAMPION_PARAM } from "./champion-panel-view";
 import { loadProfilePage, type ProfileView } from "./data";
 import { FormStrip } from "./form-strip";
 import { ProfileHeader } from "./header";
@@ -45,7 +47,8 @@ export default async function ProfilePage({
   if (!riotId) notFound();
 
   // `?tab` decide qué datos se cargan (solo los de la pestaña activa); `?min` y `?orden` cuántos
-  // compañeros, y `?q`, `?puesto`, `?companero`, `?n` y `?partida` qué partidas. El catálogo de
+  // compañeros, y `?q`, `?puesto`, `?companero`, `?n` y `?partida` qué partidas. `?campeon` abre el
+  // panel de campeón sobre cualquier pestaña. El catálogo de
   // campeones se pide a la vez que la BD (`getChampionCatalog` nunca lanza: sin Data Dragon el
   // álbum sale sin retratos). Los nombres e iconos de objetos y augments solo se piden con
   // `?partida`, cuando hay un detalle que pintar (`getGameData` tampoco lanza).
@@ -57,7 +60,12 @@ export default async function ProfilePage({
     getDb(),
     riotId.gameName,
     riotId.tagLine,
-    { tab, teammates: parseTeammateParams(queryParams(query)), matches },
+    {
+      tab,
+      teammates: parseTeammateParams(queryParams(query)),
+      matches,
+      campeon: queryParams(query).get(CHAMPION_PARAM) ?? undefined,
+    },
     getSeasonStart(),
     catalog,
     tab === "partidas" && matches.partida !== null
@@ -68,12 +76,14 @@ export default async function ProfilePage({
   const actionSlug = profileSlug(riotId.gameName, riotId.tagLine);
 
   return (
-    <main className="flex flex-1 flex-col">
+    // `tabIndex={-1}`: a él vuelve el foco al cerrar el panel de campeón abierto por URL.
+    <main tabIndex={-1} className="flex flex-1 flex-col outline-none">
       <TopBar />
       {data.kind === "profile" ? (
         <>
           <AutoRefresh slug={actionSlug} active={data.sync !== null} />
           <ProfileCabin data={data} slug={actionSlug} />
+          <ChampionSheet data={data} />
         </>
       ) : (
         <div className="mx-auto w-full max-w-[640px] px-1.5 pt-4 sm:pt-10">
@@ -156,6 +166,34 @@ function ActivePanel({ data }: { data: ProfileView }) {
     case "resumen":
       return <PendingPanel tab={data.tab} />;
   }
+}
+
+// --- Panel de campeón ----------------------------------------------------------------------
+
+/**
+ * Panel de campeón (`?campeon=`, sobre cualquier pestaña): se monta una vez, fuera del panel de la
+ * pestaña. Solo llega el campeón pedido (`data.champion`) y su entrada del álbum, no el álbum
+ * entero. Dentro va en portal sobre `<body>`. `ChampionPanel` lee `?…` con `useSearchParams`.
+ */
+function ChampionSheet({ data }: { data: ProfileView }) {
+  const { champion } = data;
+  const entry = champion
+    ? data.album.find((e) => e.championId === champion.championId)
+    : undefined;
+  if (!champion || !entry) return null;
+  return (
+    <Suspense fallback={null}>
+      <ChampionPanel
+        // Otro campeón (Atrás, otro cromo) es otra hoja: su estado de «abierta» empieza de cero.
+        key={champion.championId}
+        gameName={data.gameName}
+        tagLine={data.tagLine}
+        entry={entry}
+        data={champion}
+        nowMs={Date.now()}
+      />
+    </Suspense>
+  );
 }
 
 // --- Pestaña Campeones (main) ------------------------------------------------------------

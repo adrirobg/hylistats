@@ -207,6 +207,18 @@ export function withSearchParam(
   return `${pathname}?${params}`;
 }
 
+/** Ruta con `key` quitado de la query actual, conservando el resto (`?tab`…). */
+export function withoutSearchParam(
+  pathname: string,
+  search: string,
+  key: string,
+): string {
+  const params = new URLSearchParams(search);
+  params.delete(key);
+  const query = params.toString();
+  return query === "" ? pathname : `${pathname}?${query}`;
+}
+
 const TAB_PARAM = "tab";
 
 /**

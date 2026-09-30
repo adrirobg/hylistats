@@ -432,6 +432,28 @@ describe("matchRows", () => {
     // Sin el campeón en el álbum: el nombre de la partida y sin retrato.
     expect(rows[3]).toMatchObject({ championName: "Nuevo", portraitUrl: null });
   });
+
+  it("championSlug: el del álbum (id de Data Dragon o, sin él, el nombre) para abrir el panel", () => {
+    const rows = matchRows(
+      [
+        row(),
+        row({ matchId: "EUW1_2", championId: 62, championName: "Wukong" }),
+        row({ matchId: "EUW1_3", championId: 200, championName: "Bel'Veth" }),
+        row({ matchId: "EUW1_4", championId: 999, championName: "Nuevo" }), // ni en el álbum
+      ],
+      [
+        entry(103, "Ahri (catálogo)", "Ahri"),
+        entry(62, "Wukong", "MonkeyKing"),
+        entry(200, "Bel'Veth", null),
+      ],
+    );
+    expect(rows.map((r) => r.championSlug)).toEqual([
+      "ahri",
+      "monkeyking",
+      "bel'veth",
+      "nuevo",
+    ]);
+  });
 });
 
 describe("textos de la fila", () => {
@@ -449,7 +471,12 @@ describe("textos de la fila", () => {
   });
 
   it("matchRowLabel: campeón, puesto, «nuevo 1º», compañeros, duración y hace cuánto", () => {
-    const base = { ...row(), portraitUrl: null, newFirst: false };
+    const base = {
+      ...row(),
+      portraitUrl: null,
+      championSlug: "ahri",
+      newFirst: false,
+    };
     expect(matchRowLabel(base, NOW)).toBe(
       "Ahri, 1º, con Hylimichi y TheCIutch, 22 min, hace 2 h",
     );
@@ -585,6 +612,7 @@ describe("matchDetailView", () => {
       championName: "Ahri",
       placement: 5,
       portraitUrl: "https://cdn.test/Ahri.png",
+      championSlug: "ahri",
       newFirst: true,
       trio: [{ gameName: "Hylimichi", tagLine: "EUW" }],
     });

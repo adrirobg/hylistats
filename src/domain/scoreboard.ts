@@ -97,9 +97,12 @@ export interface DistributionSegment {
   tone: PlaceTone;
 }
 
-/** Los seis segmentos de la barra apilada, del 1º al 6º; vacío si no hay partidas. */
+/**
+ * Los seis segmentos de la barra apilada, del 1º al 6º; vacío si no hay partidas. Solo necesita la
+ * distribución: vale para el resumen del perfil y para el de un campeón.
+ */
 export function distributionSegments(
-  summary: StatsSummary,
+  summary: Pick<StatsSummary, "distribution">,
 ): DistributionSegment[] {
   const total = PLACEMENTS.reduce((sum, p) => sum + summary.distribution[p], 0);
   if (total === 0) return [];

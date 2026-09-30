@@ -16,7 +16,9 @@ import { initials } from "./view-model";
 // es el efectivo (`effectiveState`); aquí solo se pinta. Solo en «mi perfil» (`actions`) el cromo
 // lleva los controles: botón de diana y menú ⋯ (T09); en un perfil ajeno queda la capa verificada.
 // El cromo verificado enlaza a la partida de su primer 1º (F7): el sello «1º» en la vista álbum y
-// «ver partida» en la lista (`matchHref`).
+// «ver partida» en la lista (`matchHref`). Un clic (o Enter) en el cromo, o en la fila de la lista,
+// abre el panel del campeón (`?campeon=`, `opener`): los controles de dentro (diana, ⋯, sello y
+// «ver partida») paran su clic para no abrirlo.
 
 /** Retrato: borde y filtro por estado (`.s-won`, `.s-manual`, `.s-played` y `.s-none`). */
 const PORTRAIT_STATE: Record<CardState, string> = {
@@ -124,6 +126,14 @@ export interface CardActions {
   setManual: (championId: number, on: boolean) => void;
 }
 
+/** Cómo se abre el panel de un campeón (`album.tsx` lo cablea a la URL). */
+export interface ChampionOpener {
+  /** URL del panel (`?campeon={slug}`), conservando el resto de la query. */
+  href: (entry: AlbumEntry) => string;
+  /** Abre el panel sin saltar de scroll. */
+  open: (entry: AlbumEntry) => void;
+}
+
 export interface AlbumCardProps {
   entry: AlbumEntry;
   /** Estado efectivo: `manual` solo en «mi perfil»; un verificado es siempre `won`. */
@@ -136,6 +146,8 @@ export interface AlbumCardProps {
   actions: CardActions | null;
   /** Enlace a una partida (`matchHref`): con él, el sello del cromo verificado abre su primer 1º. */
   matchHref?: (matchId: string) => string;
+  /** Abre el panel del campeón con un clic o Enter en el cromo. */
+  opener?: ChampionOpener;
 }
 
 /** Diana de la esquina: visible en hover, foco o si ya es objetivo. Conmuta sin abrir nada. */
@@ -155,7 +167,7 @@ function TargetButton({
       aria-pressed={target}
       aria-label={`${target ? "Quitar objetivo" : "Marcar como objetivo"}: ${name}`}
       onClick={(event) => {
-        // El clic no debe llegar al cromo (el panel de campeón de #3 se abrirá desde ahí).
+        // El clic no debe llegar al cromo: abriría el panel del campeón.
         event.stopPropagation();
         onToggle();
       }}
@@ -178,22 +190,36 @@ export function AlbumCard({
   stamp = false,
   actions,
   matchHref,
+  opener,
 }: AlbumCardProps) {
   const manualAction = manualActionFor(state);
   const sealClass =
     "absolute -top-1.5 -right-1.5 grid size-[30px] -rotate-12 place-items-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#F6D88A,var(--place-1)_55%,var(--won-deep))] font-display text-[13px] font-extrabold text-[#231906] shadow-[0_2px_6px_rgba(0,0,0,.5)] group-[.stamp]:animate-seal-in";
   return (
-    // Focusable para el teclado y los lectores aunque aún no abra nada (el panel de campeón es #3).
-    // `data-champion-id` permite reponer el foco y recorrer los cromos con las flechas (`album.tsx`).
+    // Focusable para el teclado y los lectores: Enter (con el foco en el propio cromo, no en sus
+    // botones) o un clic abren el panel del campeón. `data-champion-id` permite reponer el foco y
+    // recorrer los cromos con las flechas (`album.tsx`).
     <li
       // biome-ignore lint/a11y/noNoninteractiveTabindex: el cromo se recorre con Tab y lleva su descripción completa en aria-label.
       tabIndex={0}
       data-champion-id={entry.championId}
       aria-label={cardLabel(entry, state, target)}
       title={cardTitle(entry, state)}
+      onClick={opener && (() => opener.open(entry))}
+      onKeyDown={
+        opener &&
+        ((event) => {
+          if (event.key !== "Enter" || event.target !== event.currentTarget) {
+            return;
+          }
+          event.preventDefault();
+          opener.open(entry);
+        })
+      }
       className={cn(
         // `scroll-mt`: al enfocar con las flechas o `o`, el cromo no debe quedar bajo el header pegajoso.
         "group relative grid min-w-0 scroll-mt-24 gap-[5px] rounded-lg",
+        opener && "cursor-pointer",
         stamp && "stamp",
       )}
     >
@@ -209,7 +235,7 @@ export function AlbumCard({
               href={matchHref(entry.firstWinMatchId)}
               aria-label={`Ver la partida del primer 1º con ${entry.name}`}
               title="Ver la partida del primer 1º"
-              // El clic no debe llegar al cromo (el panel de campeón de #3 se abrirá desde ahí).
+              // El clic no debe llegar al cromo: abriría el panel del campeón.
               onClick={(event) => event.stopPropagation()}
               className={sealClass}
             >
@@ -336,11 +362,17 @@ export function AlbumTable({
   rows,
   now,
   matchHref,
+  opener,
 }: {
   rows: AlbumRow[];
   now: number;
   /** Enlace a una partida (`matchHref`): con él, «Ganado» lleva «ver partida». */
   matchHref?: (matchId: string) => string;
+  /**
+   * Abre el panel del campeón: el nombre es un enlace (el teclado y el clic medio) y un clic en
+   * cualquier otra parte de la fila también lo abre.
+   */
+  opener?: ChampionOpener;
 }) {
   return (
     <div className="overflow-x-auto rounded-lg border border-line">
@@ -382,8 +414,21 @@ export function AlbumTable({
               <tr
                 key={entry.championId}
                 title={cardTitle(entry, state)}
+                onClick={
+                  opener &&
+                  ((event) => {
+                    // Los enlaces y botones de la fila (el nombre, «ver partida») hacen lo suyo.
+                    if (
+                      event.target instanceof Element &&
+                      event.target.closest("a, button")
+                    )
+                      return;
+                    opener.open(entry);
+                  })
+                }
                 className={cn(
                   "border-b border-line last:border-b-0",
+                  opener && "cursor-pointer hover:bg-surface-1",
                   state === "none" && "text-faint",
                 )}
               >
@@ -396,9 +441,21 @@ export function AlbumTable({
                       size="row"
                     />
                     <span className="min-w-0">
-                      <span className="block [overflow-wrap:break-word]">
-                        {entry.name}
-                      </span>
+                      {opener ? (
+                        <Link
+                          // Sin prefetch: cada vista con el panel es dinámica y hay una fila por campeón.
+                          prefetch={false}
+                          scroll={false}
+                          href={opener.href(entry)}
+                          className="block [overflow-wrap:break-word] hover:underline"
+                        >
+                          {entry.name}
+                        </Link>
+                      ) : (
+                        <span className="block [overflow-wrap:break-word]">
+                          {entry.name}
+                        </span>
+                      )}
                       {/* En pantallas estrechas el estado baja bajo el nombre: la columna no cabe. */}
                       <span
                         className={cn(

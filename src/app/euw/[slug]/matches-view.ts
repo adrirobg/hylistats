@@ -16,6 +16,7 @@ import { formatDecimal, formatRelative } from "@/lib/format";
 import type { GameData, GameIcon } from "@/lib/game-data";
 import { normalizeRiotId, type RiotId, toRiotId } from "@/lib/riot-id";
 import { MAX_QUERY_LENGTH, matchesQuery, type ParamSource } from "./album-view";
+import { championSlug } from "./champion-panel-view";
 import { MATCH_PARAM, matchHref } from "./view-model";
 
 // --- URL ---------------------------------------------------------------------------------
@@ -271,6 +272,8 @@ export function selectedCompanionValue(
 export interface MatchRowData extends MatchListRow {
   /** Retrato del catálogo; `null` sin catálogo o si el campeón no está en él. */
   portraitUrl: string | null;
+  /** `?campeon` que abre el panel del campeón de la fila (el del álbum). */
+  championSlug: string;
   /** Es el primer 1º del jugador con este campeón: la partida que lo verifica en el álbum. */
   newFirst: boolean;
 }
@@ -303,6 +306,16 @@ const firstWinIds = (album: readonly Pick<AlbumEntry, "firstWinMatchId">[]) =>
 const championIndex = (album: readonly AlbumEntry[]) =>
   new Map(album.map((entry) => [entry.championId, entry]));
 
+/** Slug del panel de un campeón; si no está en el álbum, el del nombre de la partida. */
+const slugFor = (
+  champions: ReadonlyMap<number, AlbumEntry>,
+  championId: number,
+  fallbackName: string,
+) => {
+  const entry = champions.get(championId);
+  return entry ? championSlug(entry) : fallbackName.toLowerCase();
+};
+
 /**
  * Filas de la lista con el nombre de visualización y el retrato del catálogo (el álbum) y la marca
  * «nuevo 1º». Sin el campeón en el álbum se queda con el nombre de la partida y sin retrato.
@@ -317,6 +330,7 @@ export function matchRows(
     ...row,
     championName: champions.get(row.championId)?.name ?? row.championName,
     portraitUrl: champions.get(row.championId)?.portraitUrl ?? null,
+    championSlug: slugFor(champions, row.championId, row.championName),
     newFirst: firstWins.has(row.matchId),
   }));
 }
@@ -366,6 +380,7 @@ export function matchDetailView(
         .filter((p) => !p.isSelf)
         .map(({ gameName, tagLine }) => ({ gameName, tagLine })),
       portraitUrl: champions.get(detail.championId)?.portraitUrl ?? null,
+      championSlug: slugFor(champions, detail.championId, detail.championName),
       newFirst: firstWinIds(album).has(detail.matchId),
     },
     teams,

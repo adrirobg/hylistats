@@ -20,6 +20,7 @@ import {
   tabHref,
   tabId,
   whenPhrase,
+  withoutSearchParam,
   withSearchParam,
 } from "./view-model";
 
@@ -402,6 +403,31 @@ describe("withSearchParam", () => {
         "sin-ganar",
       ),
     ).toBe("/p?filtro=sin-ganar&tab=campeones");
+  });
+});
+
+describe("withoutSearchParam", () => {
+  it("quita el parámetro y conserva el resto, en su orden", () => {
+    expect(
+      withoutSearchParam(
+        "/euw/Foo-EUW",
+        "?tab=partidas&campeon=ahri&partida=EUW1_1",
+        "campeon",
+      ),
+    ).toBe("/euw/Foo-EUW?tab=partidas&partida=EUW1_1");
+  });
+
+  it("sin más parámetros queda la ruta limpia, sin `?`", () => {
+    expect(withoutSearchParam("/euw/Foo-EUW", "campeon=ahri", "campeon")).toBe(
+      "/euw/Foo-EUW",
+    );
+  });
+
+  it("si el parámetro no está, deja la query como estaba", () => {
+    expect(withoutSearchParam("/p", "tab=partidas", "campeon")).toBe(
+      "/p?tab=partidas",
+    );
+    expect(withoutSearchParam("/p", "", "campeon")).toBe("/p");
   });
 });
 

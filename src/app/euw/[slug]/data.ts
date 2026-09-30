@@ -24,6 +24,11 @@ import type { ChampionCatalog } from "@/lib/ddragon";
 import { EMPTY_GAME_DATA, type GameData } from "@/lib/game-data";
 import { normalizeRiotId } from "@/worker/queue";
 import {
+  type ChampionPanelData,
+  championPanelData,
+  findChampionBySlug,
+} from "./champion-panel-view";
+import {
   type Companion,
   championIdsForQuery,
   companionsForSelect,
@@ -73,6 +78,11 @@ export interface ProfileViewParams {
   teammates?: TeammateParams;
   /** Filtros, bloques y partida abierta de Partidas (`?q`, `?puesto`…); sin ellos, los de por defecto. */
   matches?: MatchParams;
+  /**
+   * Slug de `?campeon` (el panel de campeón, sobre cualquier pestaña), tal cual llega de la URL:
+   * aquí se resuelve contra el álbum sin distinguir mayúsculas. Un slug que no existe no abre nada.
+   */
+  campeon?: string;
 }
 
 /** La pestaña Partidas: la lista (con filtros y bloques) y lo que necesita el selector de compañero. */
@@ -123,6 +133,13 @@ export interface ProfileView {
    * el raíl se pinta en todas las pestañas. Cifras ya formateadas y sin `puuid`.
    */
   railTeammates: RailTeammate[];
+
+  /**
+   * Panel de campeón abierto (`?campeon` válido, sobre cualquier pestaña): la distribución y las
+   * últimas partidas de ese campeón. Las cifras salen del álbum. Sin `?campeon`, o con uno que no
+   * existe, no hay clave: el payload no crece.
+   */
+  champion?: ChampionPanelData;
 
   // Datos propios de cada pestaña: solo se rellenan (y solo existe la clave) si es la activa. Todo
   // lo que llega aquí se serializa en cada `router.refresh()`, así que no se añade lo que no se pinta.
@@ -271,6 +288,9 @@ export async function loadProfilePage(
   // La forma nombra a cada campeón como el álbum (catálogo o, sin él, la partida más reciente).
   const displayName = new Map(album.map((e) => [e.championId, e.name]));
 
+  const championEntry =
+    view.campeon === undefined ? null : findChampionBySlug(album, view.campeon);
+
   const partidas =
     view.tab === "partidas"
       ? await loadMatches(
@@ -303,7 +323,11 @@ export async function loadProfilePage(
     })),
     challenge: stats.challenge,
     railTeammates: railTeammates(stats.teammates, RAIL_TEAMMATES),
-    // La clave solo existe en su pestaña: `...false` no añade nada.
+    // La clave solo existe con `?campeon` válido: `...null` no añade nada.
+    ...(championEntry && {
+      champion: championPanelData(championEntry, stats.playerRows),
+    }),
+    // Ídem para las claves de cada pestaña: `...false` no añade nada.
     ...(view.tab === "companeros" && {
       teammates: teammatesAtLeast(
         stats.teammates,

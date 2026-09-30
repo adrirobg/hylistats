@@ -10,6 +10,7 @@ import { SegButton, Segmented } from "@/components/hy/segmented";
 import { ToastRegion, useToast } from "@/components/hy/toast";
 import { formatRelative } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
+import { championHref } from "./champion-panel-view";
 import type { MatchesData } from "./data";
 import { MatchDetail } from "./match-detail";
 import { ChampionThumb, PlaceChip } from "./match-parts";
@@ -44,7 +45,8 @@ import {
 // en la que verifica al campeón. Todo el estado vive en la URL (`?q`, `?puesto`, `?companero`,
 // `?n` y `?partida`; lógica en `matches-view.ts`); lo único local es el texto del buscador mientras
 // dura el debounce. Cada fila es un enlace que abre o cierra su partida (`?partida`) sin saltar; el
-// detalle 6×3 llega del servidor solo para la abierta.
+// detalle 6×3 llega del servidor solo para la abierta. El nombre y el retrato del campeón de la fila
+// abren su panel (`?campeon=`, `champion-panel.tsx`) sin abrir ni cerrar la partida.
 //
 // Rangos (container queries sobre `.app`, como la cabina): por debajo de 640 px la duración y el
 // «hace cuánto» bajan bajo el nombre y la fila cabe en 375 px; nada hace scroll horizontal.
@@ -162,6 +164,7 @@ export function MatchesPanel({ matches, detail, nowMs }: MatchesPanelProps) {
         row.matchId,
         row.matchId === openId,
       )}
+      championUrl={championHref(pathname, search, row.championSlug)}
       now={now}
       onCopyLink={() => copyLink(row.matchId)}
     />
@@ -312,6 +315,7 @@ function MatchItem({
   open,
   detail,
   href,
+  championUrl,
   now,
   inList,
   onCopyLink,
@@ -322,6 +326,8 @@ function MatchItem({
   detail: MatchDetailView | null;
   /** Abre esta partida, o la cierra si ya está abierta. */
   href: string;
+  /** Abre el panel del campeón de la fila (`?campeon=`), sin tocar la partida abierta. */
+  championUrl: string;
   now: number;
   /** Está en la lista (no en el bloque aparte de arriba): si además está abierta, el scroll la trae a la vista. */
   inList: boolean;
@@ -335,35 +341,57 @@ function MatchItem({
       // `scroll-mt`: al traerla a la vista, la fila no debe quedar bajo el header pegajoso.
       className="scroll-mt-24 rounded-lg border border-line bg-surface-1"
     >
-      <Link
-        // Sin prefetch: cada vista de la partida es dinámica y consulta la BD, y la lista trae 50.
-        prefetch={false}
-        scroll={false}
-        href={href}
-        aria-expanded={open}
-        aria-controls={open && detail ? detailId : undefined}
-        aria-label={matchRowLabel(row, now)}
-        className="grid grid-cols-[40px_30px_minmax(0,1fr)_auto_16px] items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-surface-2 @max-[640px]:grid-cols-[36px_28px_minmax(0,1fr)_16px] @max-[640px]:gap-2.5 @max-[640px]:px-2.5"
-      >
-        <ChampionThumb
-          championId={row.championId}
-          name={row.championName}
-          portraitUrl={row.portraitUrl}
-          size="row"
+      {/* Un enlace dentro de otro no vale: la fila es un enlace estirado sobre todo su contenido
+          (`absolute inset-0`, con el nombre accesible entero) y el retrato y el nombre del campeón
+          son enlaces aparte, por encima (`z-10`), que abren su panel. El del retrato queda fuera del
+          orden del teclado: el nombre ya lleva al mismo sitio. */}
+      <div className="relative grid grid-cols-[40px_30px_minmax(0,1fr)_auto_16px] items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-surface-2 @max-[640px]:grid-cols-[36px_28px_minmax(0,1fr)_16px] @max-[640px]:gap-2.5 @max-[640px]:px-2.5">
+        <Link
+          // Sin prefetch: cada vista de la partida es dinámica y consulta la BD, y la lista trae 50.
+          prefetch={false}
+          scroll={false}
+          href={href}
+          aria-expanded={open}
+          aria-controls={open && detail ? detailId : undefined}
+          aria-label={matchRowLabel(row, now)}
+          // El tooltip del trío (con los tags) va aquí: el enlace estirado tapa el texto de debajo.
+          title={row.trio.length > 0 ? trioTitle(row.trio) : undefined}
+          className="absolute inset-0 rounded-lg"
         />
+        <Link
+          prefetch={false}
+          scroll={false}
+          href={championUrl}
+          tabIndex={-1}
+          aria-hidden="true"
+          className="relative z-10 rounded-md"
+        >
+          <ChampionThumb
+            championId={row.championId}
+            name={row.championName}
+            portraitUrl={row.portraitUrl}
+            size="row"
+          />
+        </Link>
         <PlaceChip
           placement={row.placement}
           className="size-[30px] text-[15px] @max-[640px]:size-7"
         />
         <span className="min-w-0">
           <span className="flex items-center gap-2">
-            <b className="min-w-0 truncate font-medium">{row.championName}</b>
+            <b className="min-w-0 truncate font-medium">
+              <Link
+                prefetch={false}
+                scroll={false}
+                href={championUrl}
+                className="relative z-10 hover:underline"
+              >
+                {row.championName}
+              </Link>
+            </b>
             {row.newFirst && <NewFirst />}
           </span>
-          <span
-            title={trioTitle(row.trio)}
-            className="block truncate text-[13px] text-muted-foreground"
-          >
+          <span className="block truncate text-[13px] text-muted-foreground">
             {trioText(row.trio)}
           </span>
           {/* Sin sitio a la derecha, la duración y el «hace cuánto» bajan bajo el nombre. */}
@@ -381,7 +409,7 @@ function MatchItem({
           size={16}
           className={open ? "rotate-180 text-foreground" : "text-faint"}
         />
-      </Link>
+      </div>
       {open && detail && (
         <MatchDetail id={detailId} detail={detail} onCopyLink={onCopyLink} />
       )}

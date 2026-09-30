@@ -33,6 +33,14 @@ export function formatRelative(ms: number, now: number): string {
   if (elapsed < 2 * DAY) return "ayer";
   const days = Math.floor(elapsed / DAY);
   if (days < RELATIVE_LIMIT_DAYS) return `hace ${days} d`;
+  return formatShortDate(ms, now);
+}
+
+/**
+ * Fecha corta en UTC ("12 ene"), con el año si no es el de `now` ("12 ene 2025"). Sirve para
+ * decir cuándo pasó algo sin depender de cuánto hace ("1º el 12 ene").
+ */
+export function formatShortDate(ms: number, now: number): string {
   const sameYear =
     new Date(ms).getUTCFullYear() === new Date(now).getUTCFullYear();
   return (sameYear ? SHORT_DATE : SHORT_DATE_YEAR).format(ms);

@@ -1,7 +1,7 @@
 # Task T06 — Panel de campeón (`?campeon=`) con stats personales y enlaces externos
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -81,13 +81,43 @@ En perfiles ajenos no se muestran ni el objetivo ni el marcado manual (D12).
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `?campeon={slug}` abre el panel por URL directa sobre cualquier pestaña; Esc/✕ lo cierran quitando el parámetro y devuelven el foco.
-- [ ] Hoja lateral en escritorio y hoja inferior por debajo de 640 px, en portal, sin scroll horizontal.
-- [ ] Estado, stats, distribución, últimas partidas enlazadas y "ver partida" del primer 1º.
-- [ ] Objetivo y marcado manual (con confirmación) solo en "mi perfil"; en perfil ajeno no aparecen.
-- [ ] `championLinks` con los 5 sitios y los casos límite probados; enlaces en pestaña nueva con `noopener`.
-- [ ] Los cuatro checks en verde.
+- [x] `?campeon={slug}` abre el panel por URL directa sobre cualquier pestaña; Esc/✕ lo cierran quitando el parámetro y devuelven el foco.
+- [x] Hoja lateral en escritorio y hoja inferior por debajo de 640 px, en portal, sin scroll horizontal.
+- [x] Estado, stats, distribución, últimas partidas enlazadas y "ver partida" del primer 1º.
+- [x] Objetivo y marcado manual (con confirmación) solo en "mi perfil"; en perfil ajeno no aparecen.
+- [x] `championLinks` con los 5 sitios y los casos límite probados; enlaces en pestaña nueva con `noopener`.
+- [x] Los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- **Enlaces** (`src/lib/champion-links.ts`): `championLinks(ddId, name)` aplica la tabla verificada tal cual: op.gg `lower`, LoLalytics `lower` con `MonkeyKing` → `wukong`, METAsrc `kebab` con 5 excepciones, u.gg `lower` y Blitz `ddId`. Sin `ddId` devuelve `[]`. Cada enlace lleva `ariaLabel` "… (se abre en otra pestaña)".
+- **Lógica pura** (`champion-panel-view.ts`): `championSlug`, `findChampionBySlug`, `championHref`/`closeChampionHref`, `panelMatchHref` (va a la partida sin `?campeon`), `championPanelData`, `championFigures` y `championStatus`.
+- **Panel** (`champion-panel.tsx`): `Dialog` de Base UI en portal a `body`.
+  - Abrir es una navegación normal (Atrás lo cierra) y cerrar va con `router.replace({ scroll: false })`.
+  - El foco vuelve al origen, o al `main` (`tabIndex=-1`) si se abrió por URL.
+  - La confirmación del marcado manual va en línea, en dos pasos, con `manualCopy`.
+- **Carga**: `ProfileView.champion?` = `{ championId, distribution, recent (≤ 10) }`, calculado con `playerRows` y solo con un `?campeon` válido, en cualquier pestaña. La página solo pasa al cliente la entrada del álbum de ese campeón.
+- **Apertura**:
+  - Cromo: clic o Enter.
+  - Vista lista: nombre como `Link` y clic en la fila.
+  - Partidas: la fila es un enlace estirado, con nombre y retrato del campeón como enlaces aparte encima.
+- **Refactors**: `use-profile-local.ts` (`mine`/`targets`/`manual`, compartido con el álbum), `distribution-bar.tsx` (sacado de `scoreboard.tsx`), `formatShortDate` y `withoutSearchParam`.
+- **Detalle de texto**: "Aún no has jugado a X esta temporada" sale igual en perfiles ajenos, como fijaba la task. Queda para el pulido de UI.
+
 ## Evidencias <!-- MUST -->
+
+- **Checks (orquestador)**:
+  - `npm run lint`: OK, 148 ficheros;
+  - `npm run typecheck`: OK;
+  - `npm test`: 43 ficheros y 843 tests en verde (+51);
+  - `npm run build`: OK.
+- **Navegador integrado** (orquestador, `hylistats-testdb`, semilla `synced 30000`):
+  - **Por URL directa, 1440 px** (`/euw/Jugador%20Uno-EUW?tab=partidas&campeon=blitzcrank`):
+    - `role=dialog` fuera del `@container` (portal), rect 1005–1425 × 0–900 (420 px a la derecha), foco en "Cerrar panel";
+    - texto "Ganado · verificado ✓ · 1º el 30 sept · ver partida · partidas 2 · 1º 1 · top 3 100% · puesto medio 2,00", distribución y últimas;
+    - 5 enlaces `target=_blank rel="noopener noreferrer"`: `op.gg/lol/modes/arena/blitzcrank/build`, `lolalytics.com/lol/blitzcrank/arena/build/`, `metasrc.com/lol/arena/champions/blitzcrank/build`, `u.gg/lol/champions/arena/blitzcrank-arena-build` y `blitz.gg/lol/champions/Blitzcrank/arena`.
+  - **Esc**: la URL pasa a `?tab=partidas` (quita `campeon`, conserva la pestaña), el diálogo desaparece y el foco va al `MAIN`.
+  - **375 px, clic en el cromo de Blitzcrank**: URL `?campeon=blitzcrank`, hoja inferior 0–375 × 235–812 y `scrollWidth` 375.
+  - **"Mi perfil"**: tras "Este soy yo", `?campeon=thresh` muestra "Jugado sin ganar · mejor puesto 2º · Marcar como objetivo · Marcar como ganado a mano…". Sin "mi perfil" guardado no aparecen.
+  - **Perfil ajeno** (`Vacio Demo#EUW?campeon=ahri`, con "mi perfil" = Jugador Uno): header "Viendo el perfil de…" y panel sin objetivo ni marcado manual, con "Sin jugar", cifras "—" y los 5 enlaces.
+- **Commit**: ver `git log` (`feat(ui): panel de campeón con stats personales y enlaces externos`).

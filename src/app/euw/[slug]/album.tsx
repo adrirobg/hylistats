@@ -15,12 +15,15 @@ import { Btn } from "@/components/hy/btn";
 import { Notice } from "@/components/hy/notice";
 import { SegButton, Segmented } from "@/components/hy/segmented";
 import type { AlbumEntry } from "@/domain/album";
-import { type LocalState, profileData } from "@/lib/local-store";
-import { normalizeRiotId } from "@/lib/riot-id";
-import { localActions, useLocalStore } from "@/lib/use-local-store";
+import { localActions } from "@/lib/use-local-store";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
-import { AlbumCard, AlbumTable, type CardActions } from "./album-card";
+import {
+  AlbumCard,
+  AlbumTable,
+  type CardActions,
+  type ChampionOpener,
+} from "./album-card";
 import {
   type CardBox,
   type CardPart,
@@ -42,6 +45,8 @@ import {
   type Vista,
   withQuery,
 } from "./album-view";
+import { championHref, championSlug } from "./champion-panel-view";
+import { useProfileLocal } from "./use-profile-local";
 import { useStamped } from "./use-stamped";
 import { matchHref as buildMatchHref } from "./view-model";
 
@@ -58,7 +63,8 @@ import { matchHref as buildMatchHref } from "./view-model";
 // Interacción (T09, brief §4.4 y §7): en «mi perfil» cada cromo lleva la diana y el menú ⋯ (las
 // acciones de `actions`), y `o` conmuta el objetivo del cromo enfocado. Las flechas, `Home` y `End`
 // recorren los cromos también en perfiles ajenos. Un 1º nuevo entre dos renders sella su cromo
-// (`use-stamped.ts`). El cromo verificado enlaza a la partida de su primer 1º.
+// (`use-stamped.ts`). El cromo verificado enlaza a la partida de su primer 1º. Un clic o Enter en
+// un cromo (o una fila de la lista) abre el panel del campeón, `?campeon=` (`champion-panel.tsx`).
 
 export interface AlbumProps {
   /** Forma canónica de Riot: con ella se decide si el perfil es «mi perfil». */
@@ -73,36 +79,14 @@ export interface AlbumProps {
 /** Espera tras la última pulsación antes de escribir la búsqueda en la URL. */
 const DEBOUNCE_MS = 200;
 
-const selectMyProfile = (state: LocalState) => state.myProfile;
-/** Sin marcas: el mismo conjunto siempre, para que los `useMemo` no se invaliden. */
-const NO_IDS: ReadonlySet<number> = new Set();
-
 export function Album({ gameName, tagLine, album, nowMs }: AlbumProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const now = useNow(nowMs);
 
-  // «Mi perfil» se decide igual que en el header. Antes de leer `localStorage` (y en el servidor)
-  // el estado local es el vacío, así que ahí no hay ni objetivos ni marcas.
-  const norm = normalizeRiotId(gameName, tagLine);
-  const myProfile = useLocalStore(selectMyProfile);
-  const mine =
-    myProfile !== null &&
-    normalizeRiotId(myProfile.gameName, myProfile.tagLine) === norm;
-  const selectData = useCallback(
-    (state: LocalState) => profileData(state, norm),
-    [norm],
-  );
-  const localData = useLocalStore(selectData);
-  const targets = useMemo(
-    () => (mine ? new Set(localData.targets) : NO_IDS),
-    [mine, localData.targets],
-  );
-  const manual = useMemo(
-    () => (mine ? new Set(localData.manual) : NO_IDS),
-    [mine, localData.manual],
-  );
+  // «Mi perfil», objetivos y marcas manuales (los del navegador; vacíos en un perfil ajeno).
+  const { norm, mine, targets, manual } = useProfileLocal(gameName, tagLine);
 
   // --- Acciones de los cromos (solo «mi perfil») ---
   // Conmutar un objetivo o marcar a mano puede mudar el cromo de banda, y entonces React lo
@@ -150,6 +134,20 @@ export function Album({ gameName, tagLine, album, nowMs }: AlbumProps) {
   const matchHref = useCallback(
     (matchId: string) => buildMatchHref(pathname, search, matchId),
     [pathname, search],
+  );
+
+  // Un clic (o Enter) en un cromo, o en una fila de la lista, abre el panel del campeón: pone
+  // `?campeon` sin tocar el resto de la query. Es una navegación (Atrás lo cierra); el panel llega
+  // del servidor con los datos de ese campeón.
+  const opener = useMemo<ChampionOpener>(
+    () => ({
+      href: (entry) => championHref(pathname, search, championSlug(entry)),
+      open: (entry) =>
+        router.push(championHref(pathname, search, championSlug(entry)), {
+          scroll: false,
+        }),
+    }),
+    [router, pathname, search],
   );
 
   // --- URL y buscador ---
@@ -380,6 +378,7 @@ export function Album({ gameName, tagLine, album, nowMs }: AlbumProps) {
           stamped={stamped}
           actions={actions}
           matchHref={matchHref}
+          opener={opener}
           onShowAll={() => update({ filtro: "todos" })}
         />
       ))}
@@ -404,6 +403,7 @@ function Band({
   stamped,
   actions,
   matchHref,
+  opener,
   onShowAll,
 }: {
   section: AlbumSection;
@@ -414,6 +414,7 @@ function Band({
   stamped: ReadonlySet<number>;
   actions: CardActions | null;
   matchHref: (matchId: string) => string;
+  opener: ChampionOpener;
   onShowAll: () => void;
 }) {
   const titleId = useId();
@@ -457,7 +458,12 @@ function Band({
           )}
         </p>
       ) : vista === "lista" ? (
-        <AlbumTable rows={rows} now={now} matchHref={matchHref} />
+        <AlbumTable
+          rows={rows}
+          now={now}
+          matchHref={matchHref}
+          opener={opener}
+        />
       ) : (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-x-2.5 gap-y-3 @max-[640px]:grid-cols-[repeat(auto-fill,minmax(64px,1fr))]">
           {rows.map(({ entry, state, target }) => (
@@ -469,6 +475,7 @@ function Band({
               stamp={stamped.has(entry.championId)}
               actions={actions}
               matchHref={matchHref}
+              opener={opener}
             />
           ))}
         </ul>

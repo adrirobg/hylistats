@@ -652,6 +652,176 @@ describe("loadProfilePage", () => {
       });
     });
   });
+  describe("panel de campeón", () => {
+    // De las 10 partidas reales, Thresh (412) tiene tres: un 2º y otro 2º recientes y un 4º.
+    const THRESH = {
+      championId: 412,
+      ddId: "Thresh",
+      name: "Thresh",
+      portraitUrl: "https://cdn.test/Thresh.png",
+    };
+    const catalog: ChampionCatalog = {
+      version: "16.19.1",
+      champions: [THRESH],
+    };
+
+    async function loadChampion(
+      campeon: string | undefined,
+      tab: ProfileTab = "campeones",
+      withCatalog: ChampionCatalog | undefined = undefined,
+    ) {
+      const data = await loadProfilePage(
+        db,
+        "BEJITO MAMBO",
+        "1991",
+        { tab, campeon },
+        seasonStart,
+        withCatalog,
+      );
+      if (data.kind !== "profile") throw new Error(`kind: ${data.kind}`);
+      return data;
+    }
+
+    it("sin ?campeon no hay clave, en ninguna pestaña: el payload no crece", async () => {
+      await storeAll();
+      await insertProfile();
+      for (const tab of PROFILE_TABS) {
+        expect(await loadChampion(undefined, tab)).not.toHaveProperty(
+          "champion",
+        );
+      }
+    });
+
+    it("?campeon inexistente o vacío tampoco trae nada", async () => {
+      await storeAll();
+      await insertProfile();
+      expect(await loadChampion("nadie")).not.toHaveProperty("champion");
+      expect(await loadChampion("")).not.toHaveProperty("champion");
+    });
+
+    it("con ?campeon válido trae su distribución y sus últimas partidas, la más reciente primero", async () => {
+      await storeAll();
+      await insertProfile();
+      const { champion } = await loadChampion("thresh", "campeones", catalog);
+      expect(champion).toEqual({
+        championId: 412,
+        distribution: { 1: 0, 2: 2, 3: 0, 4: 1, 5: 0, 6: 0 },
+        recent: [
+          {
+            matchId: "EUW1_7998513907",
+            placement: 2,
+            championId: 412,
+            championName: "Thresh",
+            gameCreation: 1790682703953,
+          },
+          {
+            matchId: "EUW1_7998494554",
+            placement: 2,
+            championId: 412,
+            championName: "Thresh",
+            gameCreation: 1790680293890,
+          },
+          {
+            matchId: "EUW1_7998254564",
+            placement: 4,
+            championId: 412,
+            championName: "Thresh",
+            gameCreation: 1790633861469,
+          },
+        ],
+      });
+    });
+
+    it("el slug no distingue mayúsculas y, sin ddId, es el nombre en minúsculas", async () => {
+      await storeAll();
+      await insertProfile();
+      // Con catálogo: el id de Data Dragon en minúsculas.
+      expect(
+        (await loadChampion("THRESH", "campeones", catalog)).champion,
+      ).toMatchObject({
+        championId: 412,
+      });
+      // Sin catálogo (o campeón ausente de él): el nombre de la partida en minúsculas.
+      expect((await loadChampion("Thresh")).champion).toMatchObject({
+        championId: 412,
+      });
+      expect((await loadChampion("rakan")).champion).toMatchObject({
+        championId: 497,
+      });
+    });
+
+    it("existe sobre cualquier pestaña y es el mismo en todas", async () => {
+      await storeAll();
+      await insertProfile();
+      const base = (await loadChampion("thresh", "campeones", catalog))
+        .champion;
+      expect(base).toBeDefined();
+      for (const tab of PROFILE_TABS) {
+        expect((await loadChampion("thresh", tab, catalog)).champion).toEqual(
+          base,
+        );
+      }
+    });
+
+    it("no altera lo común: con ?campeon la vista es la misma salvo la clave champion", async () => {
+      await storeAll();
+      await insertProfile();
+      const { champion, ...withPanel } = await loadChampion("thresh");
+      expect(champion).toBeDefined();
+      expect(withPanel).toEqual(await loadChampion(undefined));
+    });
+
+    it("campeón sin partidas (solo en el catálogo): distribución a cero y sin recientes", async () => {
+      await storeAll();
+      await insertProfile();
+      const ahri = {
+        championId: 103,
+        ddId: "Ahri",
+        name: "Ahri",
+        portraitUrl: null,
+      };
+      const { champion } = await loadChampion("ahri", "campeones", {
+        version: "16.19.1",
+        champions: [ahri],
+      });
+      expect(champion).toEqual({
+        championId: 103,
+        distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
+        recent: [],
+      });
+    });
+
+    it("las recientes son como mucho 10, pero la distribución cuenta todas las partidas", async () => {
+      await storeAll();
+      for (let i = 0; i < 12; i += 1) {
+        await storeVariant(fixtures[1], `EUW1_TEST_LATE_${i}`, (j) => {
+          j.info.gameCreation = 1_790_800_000_000 + i * 60_000;
+        });
+      }
+      await insertProfile();
+      // Blitzcrank: 1 partida real más 12 variantes, todas en 3º.
+      const { champion } = await loadChampion("blitzcrank");
+      expect(champion?.recent).toHaveLength(10);
+      expect(champion?.recent[0].matchId).toBe("EUW1_TEST_LATE_11");
+      expect(champion?.distribution).toEqual({
+        1: 0,
+        2: 0,
+        3: 13,
+        4: 0,
+        5: 0,
+        6: 0,
+      });
+    });
+
+    it("no contiene puuid", async () => {
+      await storeAll();
+      await insertProfile();
+      const { champion } = await loadChampion("thresh");
+      expect(hasKeyDeep(champion, "puuid")).toBe(false);
+      expect(JSON.stringify(champion)).not.toContain(SELF_PUUID);
+    });
+  });
+
   describe("compañeros", () => {
     const gameNames = (list: { gameName: string }[] | undefined) =>
       list?.map((t) => t.gameName);
