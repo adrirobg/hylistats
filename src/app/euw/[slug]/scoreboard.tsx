@@ -11,10 +11,13 @@ import { DistributionBar } from "./distribution-bar";
 // `rail`: rejilla de cinco cifras de 30 px y la barra apilada (va en una `Box` del raíl).
 // `strip`: la misma información reducida a una franja de cifras en una fila (que se parte en dos
 // si no cabe), para cuando el raíl se oculta por debajo de 1100 px (`cabin.tsx`).
+// `full`: el marcador del Resumen (`.big-kpis` de la maqueta), a ancho de pestaña: cifras de 56 px
+// en una rejilla que reparte el ancho, la distribución con sus porcentajes a la vista y la
+// leyenda de qué es una victoria.
 
 interface ScoreboardProps {
   summary: StatsSummary;
-  variant: "rail" | "strip";
+  variant: "rail" | "strip" | "full";
 }
 
 export function Scoreboard({ summary, variant }: ScoreboardProps) {
@@ -40,6 +43,34 @@ export function Scoreboard({ summary, variant }: ScoreboardProps) {
           </div>
         ))}
       </dl>
+    );
+  }
+
+  if (variant === "full") {
+    return (
+      <>
+        <dl className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-4 @max-[640px]:grid-cols-[repeat(auto-fit,minmax(96px,1fr))] @max-[640px]:gap-3">
+          {figures.map((figure) => (
+            <div key={figure.key} className="flex min-w-0 flex-col-reverse">
+              <dt className="mt-1 text-[13px] text-muted-foreground">
+                {figure.label}
+              </dt>
+              <dd
+                className={cn(
+                  "font-display text-[56px] leading-none font-extrabold tracking-tight whitespace-nowrap tabular-nums @max-[640px]:text-[40px]",
+                  figure.gold && "text-place-1",
+                )}
+              >
+                {figure.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <DistributionBar summary={summary} detailed className="mt-4" />
+        <p className="mt-2.5 text-[13px] text-muted-foreground">
+          Victoria = 1º puesto (de 6 equipos)
+        </p>
+      </>
     );
   }
 

@@ -21,8 +21,9 @@ import { MatchesPanel } from "./matches-panel";
 import { parseMatchParams } from "./matches-view";
 import { NotFoundCard, UnregisteredCard } from "./profile-states";
 import { Scoreboard } from "./scoreboard";
+import { SummaryPanel } from "./summary-panel";
 import { SyncBand } from "./sync-band";
-import { PendingPanel, TabPanel } from "./tab-panel";
+import { TabPanel, Titled } from "./tab-panel";
 import { Tabs } from "./tabs";
 import { TeammatesPanel } from "./teammates-panel";
 import { RailTeammates } from "./teammates-rail";
@@ -148,14 +149,14 @@ function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
       }
       strip={<Scoreboard summary={data.summary} variant="strip" />}
       tabs={<Tabs active={data.tab} />}
-      main={<ActivePanel data={data} />}
+      main={<ActivePanel data={data} slug={slug} />}
       rail={<RailBoxes data={data} slug={slug} />}
     />
   );
 }
 
-/** Panel de la pestaña activa. Resumen es un esqueleto hasta T07. */
-function ActivePanel({ data }: { data: ProfileView }) {
+/** Panel de la pestaña activa. */
+function ActivePanel({ data, slug }: { data: ProfileView; slug: string }) {
   switch (data.tab) {
     case "campeones":
       return <ChampionsPanel data={data} />;
@@ -164,7 +165,7 @@ function ActivePanel({ data }: { data: ProfileView }) {
     case "partidas":
       return <MatchesTab data={data} />;
     case "resumen":
-      return <PendingPanel tab={data.tab} />;
+      return <SummaryTab data={data} slug={slug} />;
   }
 }
 
@@ -347,20 +348,47 @@ function MatchesSkeleton() {
   );
 }
 
-// --- Raíl --------------------------------------------------------------------------------
+// --- Pestaña Resumen (main) --------------------------------------------------------------
 
-/**
- * Título de una `Box` con nota (`hint`): a la vista son dos textos separados, como en la maqueta;
- * el « · » oculto hace que el encabezado se lea entero («Marcador · 1º = victoria»).
- */
-function Titled({ children }: { children: string }) {
+function SummaryTab({ data, slug }: { data: ProfileView; slug: string }) {
+  const empty = emptyState({
+    games: data.summary.games,
+    syncing: data.sync !== null,
+    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
+  });
   return (
-    <>
-      {children}
-      <span className="sr-only"> · </span>
-    </>
+    <TabPanel tab="resumen">
+      {empty === "syncing" && <SummarySkeleton />}
+      {(empty === "never" || empty === "empty") && (
+        <NoGames empty={empty} seasonStart={data.seasonStart} />
+      )}
+      {empty === null && data.summaryTab && (
+        <SummaryPanel
+          summary={data.summary}
+          form={data.form}
+          verifiedChampions={data.verifiedChampions}
+          album={data.album}
+          tab={data.summaryTab}
+          slug={slug}
+          nowMs={Date.now()}
+        />
+      )}
+    </TabPanel>
   );
 }
+
+/** Marcador, evolución y destacados por rellenar mientras llega el backfill (§5: esqueleto, no un vacío). */
+function SummarySkeleton() {
+  return (
+    <div aria-busy="true" className="grid gap-3">
+      <Skeleton className="h-28" />
+      <Skeleton className="h-56" />
+      <Skeleton className="h-36" />
+    </div>
+  );
+}
+
+// --- Raíl --------------------------------------------------------------------------------
 
 /**
  * Bloques del raíl (D2). A partir de 1100 px de contenedor el marcador vive aquí; por debajo lo

@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { type ProfileTab, panelId, tabId } from "./view-model";
 
@@ -30,17 +29,15 @@ export function TabPanel({
 }
 
 /**
- * Esqueleto de la pestaña cuyo contenido aún no existe (Resumen, T07): la forma aproximada, con
- * huecos. Cuando llegue, la pestaña lo sustituye por su panel.
+ * Título de una `Box` con nota (`hint`): a la vista son dos textos separados, como en la maqueta;
+ * el « · » oculto hace que el encabezado se lea entero («Marcador · 1º = victoria»). Lo comparten
+ * el raíl y los bloques del Resumen.
  */
-export function PendingPanel({ tab }: { tab: "resumen" }) {
+export function Titled({ children }: { children: string }) {
   return (
-    <TabPanel tab={tab}>
-      <div aria-busy="true" className="grid gap-3">
-        <Skeleton className="h-28" />
-        <Skeleton className="h-56" />
-        <Skeleton className="h-36" />
-      </div>
-    </TabPanel>
+    <>
+      {children}
+      <span className="sr-only"> · </span>
+    </>
   );
 }

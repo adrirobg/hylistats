@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDb } from "@/db";
 import { profiles, settings, syncJobs } from "@/db/schema";
 import { storeMatch } from "@/domain/ingest";
+import { ARENA_GOD_THRESHOLD } from "@/lib/config";
 import type { ChampionCatalog } from "@/lib/ddragon";
 import type { GameData, GameIcon } from "@/lib/game-data";
 import { getTestDb, truncateAll } from "../../../../tests/helpers/db";
@@ -652,6 +653,115 @@ describe("loadProfilePage", () => {
       });
     });
   });
+  describe("resumen (summaryTab)", () => {
+    const FIRST_AT = 1_790_700_000_000;
+    const TRY_AT = FIRST_AT + 3_600_000;
+
+    /**
+     * Las 10 partidas reales más dos 1º sintéticos: uno de Blitzcrank (que ya jugaba) y una partida
+     * de un campeón nuevo (999) que gana a la primera.
+     */
+    async function seedWithWins() {
+      await storeAll();
+      await storeVariant(fixtures[1], "EUW1_TEST_FIRST", (j) => {
+        j.info.gameCreation = FIRST_AT;
+        promoteTrioToFirst(j, SELF_PUUID);
+      });
+      await storeVariant(fixtures[1], "EUW1_TEST_TRY", (j) => {
+        j.info.gameCreation = TRY_AT;
+        promoteTrioToFirst(j, SELF_PUUID);
+        const self = j.info.participants.find(
+          (p) => p.puuid === SELF_PUUID,
+        ) as (typeof j.info.participants)[number] & {
+          championId: number;
+          championName: string;
+        };
+        self.championId = 999;
+        self.championName = "Nuevo";
+      });
+      await insertProfile();
+    }
+
+    it("solo la pestaña Resumen trae la curva y los destacados", async () => {
+      await seedWithWins();
+      expect(await loadProfile("resumen")).toHaveProperty("summaryTab");
+      for (const tab of PROFILE_TABS) {
+        if (tab === "resumen") continue;
+        expect(await loadProfile(tab)).not.toHaveProperty("summaryTab");
+      }
+    });
+
+    it("sin partidas: curva vacía, destacados vacíos y la meta de Arena God", async () => {
+      await insertProfile();
+      const data = await loadProfile("resumen");
+      expect(data.summaryTab).toEqual({
+        curve: [],
+        highlights: { firstTry: [], mostTriedUnwon: [], bestFirstRate: [] },
+        threshold: ARENA_GOD_THRESHOLD,
+      });
+    });
+
+    it("la curva cuenta los verificados: del inicio de temporada a «ahora», un escalón por primer 1º", async () => {
+      await seedWithWins();
+      const before = Date.now();
+      const data = await loadProfile("resumen");
+      const { curve } = data.summaryTab ?? { curve: [] };
+
+      expect(data.verifiedChampions.map((c) => c.championId).sort()).toEqual([
+        53, 999,
+      ]);
+      expect(curve).toHaveLength(4);
+      expect(curve.slice(0, 3)).toEqual([
+        { at: seasonStart.getTime(), count: 0 },
+        { at: FIRST_AT, count: 1 },
+        { at: TRY_AT, count: 2 },
+      ]);
+      // El último punto es «ahora» con el recuento final, que es el de campeones verificados.
+      expect(curve[3].at).toBeGreaterThanOrEqual(before);
+      expect(curve[3].count).toBe(data.verifiedChampions.length);
+    });
+
+    it("los destacados salen del álbum: el campeón ganado a la primera y los pendientes de ganar", async () => {
+      await seedWithWins();
+      const data = await loadProfile("resumen");
+      const { highlights } = data.summaryTab ?? {
+        highlights: { firstTry: [], mostTriedUnwon: [], bestFirstRate: [] },
+      };
+
+      // Blitzcrank ya había jugado antes de su 1º: solo el campeón nuevo es «a la primera».
+      expect(highlights.firstTry).toEqual([
+        {
+          championId: 999,
+          name: "Nuevo",
+          slug: "nuevo",
+          games: 1,
+          detail: "1º a la primera",
+          portraitUrl: null,
+        },
+      ]);
+      // Los pendientes son los jugados sin 1º, con más partidas primero; Thresh (3) encabeza.
+      const played = data.album.filter((e) => e.state === "played");
+      expect(highlights.mostTriedUnwon.map((c) => c.championId)).toEqual(
+        played
+          .sort(
+            (a, b) => b.games - a.games || a.name.localeCompare(b.name, "es"),
+          )
+          .slice(0, 8)
+          .map((e) => e.championId),
+      );
+      expect(highlights.mostTriedUnwon[0]).toMatchObject({
+        name: "Thresh",
+        slug: "thresh",
+        games: 3,
+        detail: "3 partidas",
+      });
+      // Nadie con 3+ partidas y algún 1º: Blitzcrank tiene un 1º pero pocas partidas.
+      expect(
+        data.album.filter((e) => e.games >= 3 && e.firsts > 0),
+      ).toHaveLength(highlights.bestFirstRate.length);
+    });
+  });
+
   describe("panel de campeón", () => {
     // De las 10 partidas reales, Thresh (412) tiene tres: un 2º y otro 2º recientes y un 4º.
     const THRESH = {

@@ -3,7 +3,12 @@
 // abierto, las cifras, el texto del estado y los enlaces internos. El componente (`champion-panel.tsx`)
 // solo las pinta.
 
-import { type AlbumEntry, type RecentGame, recentForm } from "@/domain/album";
+import {
+  type AlbumEntry,
+  championSlug,
+  type RecentGame,
+  recentForm,
+} from "@/domain/album";
 import { NO_FIGURE, type ScoreboardFigure } from "@/domain/scoreboard";
 import {
   computeSummary,
@@ -20,13 +25,9 @@ import { matchHref, withoutSearchParam, withSearchParam } from "./view-model";
 /** Parámetro que abre el panel sobre cualquier pestaña (`?campeon={slug}`). */
 export const CHAMPION_PARAM = "campeon";
 
-/**
- * Slug del campeón en la URL: el `id` de Data Dragon en minúsculas (`ahri`, `monkeyking`…) o, si
- * el campeón no está en el catálogo, su nombre en minúsculas.
- */
-export function championSlug(entry: Pick<AlbumEntry, "ddId" | "name">): string {
-  return (entry.ddId ?? entry.name).toLowerCase();
-}
+// El slug del campeón en la URL (`championSlug`) es del dominio del álbum; se reexporta aquí para
+// que las vistas del panel sigan importándolo de su sitio de siempre.
+export { championSlug };
 
 /**
  * El campeón del álbum que corresponde a `?campeon`, sin distinguir mayúsculas. `null` si no

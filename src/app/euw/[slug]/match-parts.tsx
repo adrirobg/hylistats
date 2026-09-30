@@ -4,8 +4,8 @@ import { CHIP_TEXT, placeTone, TONE_BG } from "@/domain/scoreboard";
 import { cn } from "@/lib/utils";
 import { initials } from "./view-model";
 
-// Piezas que comparten la fila de una partida y su detalle 6×3: el retrato del campeón y el chip
-// del puesto.
+// Piezas que comparten la fila de una partida y su detalle 6×3 (y los destacados del Resumen): el
+// retrato del campeón y el chip del puesto.
 
 /** Tono estable por campeón para el degradado de las iniciales (`--h` de la maqueta). */
 const hueOf = (championId: number) => (championId * 137) % 360;
@@ -15,6 +15,8 @@ const THUMB_SIZE = {
   row: "size-10 rounded-md text-sm @max-[640px]:size-9",
   // Jugador del detalle.
   player: "size-7 rounded text-[10px]",
+  // Chip de los destacados del Resumen (22 px, redondo como el de la maqueta).
+  chip: "size-[22px] rounded-full text-[9px]",
 } as const;
 
 /**

@@ -38,10 +38,19 @@ const isPlacement = (value: number) =>
   (PLACEMENTS as readonly number[]).includes(value);
 
 // Orden cronológico total y determinista (`gameCreation`, después `matchId`), como en `stats.ts`.
-const compareTime = (
+export const compareTime = (
   a: Pick<PlayerMatchRow, "gameCreation" | "matchId">,
   b: Pick<PlayerMatchRow, "gameCreation" | "matchId">,
 ) => a.gameCreation - b.gameCreation || a.matchId.localeCompare(b.matchId);
+
+/**
+ * Slug del campeón en la URL (`?campeon=`): el `id` de Data Dragon en minúsculas (`ahri`,
+ * `monkeyking`…) o, si el campeón no está en el catálogo, su nombre en minúsculas. Vive aquí, no
+ * en la vista del panel, porque los destacados del Resumen (`summary.ts`) también lo necesitan.
+ */
+export function championSlug(entry: Pick<AlbumEntry, "ddId" | "name">): string {
+  return (entry.ddId ?? entry.name).toLowerCase();
+}
 
 interface Acc {
   games: number;

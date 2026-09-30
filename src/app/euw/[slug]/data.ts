@@ -18,8 +18,14 @@ import type {
   StatsSummary,
   VerifiedChampion,
 } from "@/domain/stats";
+import {
+  type CurvePoint,
+  type Highlights,
+  highlights,
+  wonCurve,
+} from "@/domain/summary";
 import { getKeyStatus } from "@/lib/admin/key-service";
-import { getSeasonStart } from "@/lib/config";
+import { ARENA_GOD_THRESHOLD, getSeasonStart } from "@/lib/config";
 import type { ChampionCatalog } from "@/lib/ddragon";
 import { EMPTY_GAME_DATA, type GameData } from "@/lib/game-data";
 import { normalizeRiotId } from "@/worker/queue";
@@ -97,6 +103,22 @@ export interface MatchesData {
   companions: Companion[];
 }
 
+/**
+ * La pestaña Resumen: la curva de campeones ganados acumulados (D4) y los destacados. Lo demás
+ * que pinta (marcador, distribución y forma) es común y ya viaja en `ProfileView`.
+ */
+export interface SummaryTabData {
+  /**
+   * Un punto por instante en que sube el recuento, del inicio de temporada a «ahora»; `[]` si el
+   * jugador aún no ha ganado con ningún campeón. Como mucho ~175 puntos (uno por campeón).
+   */
+  curve: CurvePoint[];
+  /** Los tres grupos de campeones destacados, de hasta 8 chips cada uno. */
+  highlights: Highlights;
+  /** Meta de la curva: los campeones que pide el nivel MASTER del challenge (Arena God). */
+  threshold: number;
+}
+
 /** Perfil registrado y resuelto: lo que muestra la página completa. */
 export interface ProfileView {
   kind: "profile";
@@ -156,8 +178,8 @@ export interface ProfileView {
    * la URL pide una partida del perfil que está en la temporada: el detalle no viaja de otro modo.
    */
   matchDetail?: MatchDetailView;
-  /** Curva de campeones ganados y destacados (`tab === "resumen"`); el tipo lo define T07. */
-  summaryTab?: never;
+  /** Curva de campeones ganados y destacados (`tab === "resumen"`). */
+  summaryTab?: SummaryTabData;
 }
 
 export type ProfilePageData =
@@ -333,6 +355,18 @@ export async function loadProfilePage(
         stats.teammates,
         (view.teammates ?? DEFAULT_TEAMMATE_PARAMS).min,
       ),
+    }),
+    ...(view.tab === "resumen" && {
+      summaryTab: {
+        // Los verificados de dominio (sin marcas manuales) y las filas ya cargadas: sin consultas nuevas.
+        curve: wonCurve(
+          stats.verifiedChampions,
+          seasonStart.getTime(),
+          Date.now(),
+        ),
+        highlights: highlights(album, stats.playerRows),
+        threshold: ARENA_GOD_THRESHOLD,
+      },
     }),
     ...(partidas && {
       matches: partidas.matches,
