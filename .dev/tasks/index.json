@@ -39,7 +39,7 @@
     {
       "id": "T04",
       "title": "Pestaña Compañeros y top de compañeros en el raíl",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/3-companeros-partidas",
       "worktree": null,
@@ -49,7 +49,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T04_companeros-rail.md",
       "created_at": "2026-09-30T08:10:00Z",
-      "updated_at": "2026-09-30T08:10:00Z"
+      "updated_at": "2026-09-30T09:14:53Z"
     },
     {
       "id": "T05",

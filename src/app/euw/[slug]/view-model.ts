@@ -180,6 +180,21 @@ export function emptyState(input: {
 export const FILTER_PARAM = "filtro";
 export const FILTER_UNWON = "sin-ganar";
 
+/**
+ * `searchParams` de la página (un objeto, con `string[]` si la clave se repite) como fuente de
+ * `get`, igual que `URLSearchParams`: la primera aparición de cada clave, o `null`.
+ */
+export function queryParams(query: {
+  [key: string]: string | string[] | undefined;
+}): { get(key: string): string | null } {
+  return {
+    get(key) {
+      const value = query[key];
+      return (Array.isArray(value) ? value[0] : value) ?? null;
+    },
+  };
+}
+
 /** Ruta con `key=value` puesto en la query actual, conservando el resto (`?tab`…). */
 export function withSearchParam(
   pathname: string,

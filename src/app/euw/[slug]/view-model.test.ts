@@ -8,6 +8,7 @@ import {
   PROFILE_TABS,
   panelId,
   parseProfileTab,
+  queryParams,
   SECONDS_PER_MATCH,
   syncBandModel,
   syncEtaMinutes,
@@ -352,5 +353,21 @@ describe("withSearchParam", () => {
         "sin-ganar",
       ),
     ).toBe("/p?filtro=sin-ganar&tab=campeones");
+  });
+});
+
+describe("queryParams", () => {
+  it("lee la primera aparición de cada clave, o null", () => {
+    const source = queryParams({
+      tab: "companeros",
+      min: ["5", "10"],
+      orden: undefined,
+      vacio: [],
+    });
+    expect(source.get("tab")).toBe("companeros");
+    expect(source.get("min")).toBe("5");
+    expect(source.get("orden")).toBeNull();
+    expect(source.get("vacio")).toBeNull();
+    expect(source.get("otra")).toBeNull();
   });
 });

@@ -19,8 +19,16 @@ import { Scoreboard } from "./scoreboard";
 import { SyncBand } from "./sync-band";
 import { PendingPanel, TabPanel } from "./tab-panel";
 import { Tabs } from "./tabs";
+import { TeammatesPanel } from "./teammates-panel";
+import { RailTeammates } from "./teammates-rail";
+import { parseTeammateParams } from "./teammates-view";
 import { TopBar } from "./top-bar";
-import { emptyState, parseProfileTab, syncBandModel } from "./view-model";
+import {
+  emptyState,
+  parseProfileTab,
+  queryParams,
+  syncBandModel,
+} from "./view-model";
 
 // Depende de la BD y cambia con el worker: nunca se prerenderiza.
 export const dynamic = "force-dynamic";
@@ -33,15 +41,18 @@ export default async function ProfilePage({
   const riotId = parseProfileSlug(slug);
   if (!riotId) notFound();
 
-  // `?tab` decide qué datos se cargan (solo los de la pestaña activa). El catálogo de campeones se
-  // pide a la vez que la BD (`getChampionCatalog` nunca lanza: sin Data Dragon el álbum sale sin
-  // retratos).
-  const tab = parseProfileTab((await searchParams).tab);
+  // `?tab` decide qué datos se cargan (solo los de la pestaña activa) y `?min` cuántos compañeros.
+  // El catálogo de campeones se pide a la vez que la BD (`getChampionCatalog` nunca lanza: sin Data
+  // Dragon el álbum sale sin retratos).
+  const query = await searchParams;
   const data = await loadProfilePage(
     getDb(),
     riotId.gameName,
     riotId.tagLine,
-    { tab },
+    {
+      tab: parseProfileTab(query.tab),
+      teammates: parseTeammateParams(queryParams(query)),
+    },
     getSeasonStart(),
     getChampionCatalog(),
   );
@@ -125,13 +136,14 @@ function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
   );
 }
 
-/** Panel de la pestaña activa. Resumen, Compañeros y Partidas son esqueletos hasta T07, T04 y T05. */
+/** Panel de la pestaña activa. Resumen y Partidas son esqueletos hasta T07 y T05. */
 function ActivePanel({ data }: { data: ProfileView }) {
   switch (data.tab) {
     case "campeones":
       return <ChampionsPanel data={data} />;
-    case "resumen":
     case "companeros":
+      return <TeammatesTab data={data} />;
+    case "resumen":
     case "partidas":
       return <PendingPanel tab={data.tab} />;
   }
@@ -147,6 +159,26 @@ function Empty({ children }: { children: string }) {
   );
 }
 
+/** Por qué no hay partidas (§5): nunca un «No matches» mudo, sino el porqué y qué hacer. */
+function NoGames({
+  empty,
+  seasonStart,
+}: {
+  empty: "never" | "empty";
+  seasonStart: Date;
+}) {
+  return empty === "never" ? (
+    <Empty>
+      Todavía no hay datos de este perfil: la primera sincronización no ha
+      terminado. Pulsa Actualizar para reintentarla.
+    </Empty>
+  ) : (
+    <Empty>
+      {`No hay partidas de Arena desde el inicio de la temporada actual (${formatDateTime(seasonStart)}). Cuando juegues alguna, pulsa Actualizar.`}
+    </Empty>
+  );
+}
+
 function ChampionsPanel({ data }: { data: ProfileView }) {
   const empty = emptyState({
     games: data.summary.games,
@@ -156,17 +188,8 @@ function ChampionsPanel({ data }: { data: ProfileView }) {
   return (
     <TabPanel tab="campeones">
       {empty === "syncing" && <AlbumSkeleton />}
-      {empty === "never" && (
-        <Empty>
-          Todavía no hay datos de este perfil: la primera sincronización no ha
-          terminado. Pulsa Actualizar para reintentarla.
-        </Empty>
-      )}
-      {/* Nunca un «No matches» mudo (§5): el porqué y qué hacer. */}
-      {empty === "empty" && (
-        <Empty>
-          {`No hay partidas de Arena desde el inicio de la temporada actual (${formatDateTime(data.seasonStart)}). Cuando juegues alguna, pulsa Actualizar.`}
-        </Empty>
+      {(empty === "never" || empty === "empty") && (
+        <NoGames empty={empty} seasonStart={data.seasonStart} />
       )}
       {empty === null && (
         // `Album` lee `?vista`, `?filtro`, `?q` y `?orden` con `useSearchParams`.
@@ -198,6 +221,44 @@ function AlbumSkeleton() {
   );
 }
 
+// --- Pestaña Compañeros (main) -----------------------------------------------------------
+
+function TeammatesTab({ data }: { data: ProfileView }) {
+  const empty = emptyState({
+    games: data.summary.games,
+    syncing: data.sync !== null,
+    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
+  });
+  return (
+    <TabPanel tab="companeros">
+      {empty === "syncing" && <TeammatesSkeleton />}
+      {(empty === "never" || empty === "empty") && (
+        <NoGames empty={empty} seasonStart={data.seasonStart} />
+      )}
+      {empty === null && (
+        // `TeammatesPanel` lee `?min` y `?orden` con `useSearchParams`.
+        <Suspense fallback={<TeammatesSkeleton />}>
+          <TeammatesPanel teammates={data.teammates ?? []} nowMs={Date.now()} />
+        </Suspense>
+      )}
+    </TabPanel>
+  );
+}
+
+/** Controles y filas por rellenar mientras llega el backfill (§5: esqueleto, no un vacío). */
+function TeammatesSkeleton() {
+  return (
+    <div aria-busy="true" className="grid gap-3">
+      <Skeleton className="h-9 w-64 max-w-full" />
+      <Skeleton className="h-10" />
+      {Array.from({ length: 6 }, (_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: lista fija de marcadores sin identidad propia.
+        <Skeleton key={i} className="h-11" />
+      ))}
+    </div>
+  );
+}
+
 // --- Raíl --------------------------------------------------------------------------------
 
 /**
@@ -216,8 +277,8 @@ function Titled({ children }: { children: string }) {
 /**
  * Bloques del raíl (D2). A partir de 1100 px de contenedor el marcador vive aquí; por debajo lo
  * sustituye la franja bajo la barra Arena God (`strip`) y solo queda la forma, que el `Cabin`
- * deja al final del main. Todo sale de `data` en el servidor: sube en vivo con el `AutoRefresh`
- * durante el backfill.
+ * deja al final del main, seguida de los compañeros con más partidas. Todo sale de `data` en el
+ * servidor: sube en vivo con el `AutoRefresh` durante el backfill.
  */
 function RailBoxes({ data }: { data: ProfileView }) {
   return (
@@ -236,6 +297,13 @@ function RailBoxes({ data }: { data: ProfileView }) {
         titleAs="h2"
       >
         <FormStrip games={data.form} nowMs={Date.now()} />
+      </Box>
+      <Box
+        title={<Titled>Compañeros</Titled>}
+        hint="partidas juntos"
+        titleAs="h2"
+      >
+        <RailTeammates teammates={data.railTeammates} />
       </Box>
     </>
   );

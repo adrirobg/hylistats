@@ -1,7 +1,7 @@
 # Task T04 — Pestaña Compañeros y top de compañeros en el raíl
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -68,12 +68,41 @@
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Tabla con las 7 columnas de §3.4, `?min` (≥ 3 por defecto) y `?orden` en la URL, ⚠ y valores atenuados por debajo de 5.
-- [ ] Enlace al perfil del compañero (`/euw/{Nombre-TAG}`), ★ si es favorito, sin `puuid` en HTML ni URL.
-- [ ] Top 5 en el raíl con "⚠ pocas"; vacío de §5 con el umbral y la opción de bajarlo.
-- [ ] Lógica pura probada; los cuatro checks en verde.
-- [ ] (Orquestador) Sin scroll horizontal a 375, 960 y 1440 px; `?tab=companeros&min=5` abre así por URL directa.
+- [x] Tabla con las 7 columnas de §3.4, `?min` (≥ 3 por defecto) y `?orden` en la URL, ⚠ y valores atenuados por debajo de 5.
+- [x] Enlace al perfil del compañero (`/euw/{Nombre-TAG}`), ★ si es favorito, sin `puuid` en HTML ni URL.
+- [x] Top 5 en el raíl con "⚠ pocas"; vacío de §5 con el umbral y la opción de bajarlo.
+- [x] Lógica pura probada; los cuatro checks en verde.
+- [x] (Orquestador) Sin scroll horizontal a 375, 960 y 1440 px; `?tab=companeros&min=5` abre así por URL directa.
 
 ## Notas de implementacion <!-- MAY -->
 
+- **Lógica pura** en `teammates-view.ts`: `parseTeammateParams`/`teammateSearch` (`?min` 1|3|5|10, `?orden` con 6 valores y los valores por defecto omitidos en la URL), `teammatesAtLeast`, `sortTeammates` (desempates deterministas), `teammateRows`, `railTeammates`, `emptyMessage` y `canShowAll`.
+- **`?min` se filtra en el servidor**: `ProfileView.teammates` solo lleva los que pasan el mínimo, para no enviar cientos de compañeros de una partida en cada `router.refresh()`. El orden por columna lo aplica el cliente. `railTeammates` (5 filas formateadas, sin `puuid`) va siempre.
+- **Componentes**:
+  - `teammates-panel.tsx` (cliente): tabla con `th[aria-sort]` y botones, y lista de tarjetas por debajo de 640 px.
+  - `teammates-rail.tsx`, `teammate-parts.tsx` (`TeammateName` y `SmallSampleBadge`) y `tab-link.tsx`.
+  - `Segmented`/`SegButton` extraídos de `album.tsx` a `src/components/hy/segmented.tsx`.
+  - `NoGames` compartido para el vacío de §5.
+- **Desviaciones**:
+  - La columna Compañero no se ordena: no hay orden por nombre.
+  - La ★ solo sale en tabla y tarjetas, no en el raíl.
+  - Sin hover de fila, porque `text-faint` sobre `surface-2` baja a 4,05:1.
+  - "Ver todos (≥ 1)" puede mandar muchos compañeros: aceptado, no se pidió tope.
+
 ## Evidencias <!-- MUST -->
+
+- **Checks (orquestador)**:
+  - `npm run lint`: OK, 132 ficheros;
+  - `npm run typecheck`: OK;
+  - `npm test`: 38 ficheros y 693 tests en verde (+38);
+  - `npm run build`: OK.
+- **Navegador integrado** (orquestador, `hylistats-testdb`, semilla `synced 30000`):
+  - `/euw/Jugador%20Uno-EUW?tab=companeros` por URL directa:
+    - tabla con las 7 columnas y "1º = victoria";
+    - fila `Player013#ANON 11 · 1 · 9,1 % · 54,5 % · 3,45 · hace 26 min`;
+    - filas con menos de 5 partidas con "⚠ pocas" y cifras atenuadas.
+  - Raíl a 1440 px: tercera caja "Compañeros · partidas juntos" bajo Forma.
+  - Sin `anon-puuid` en el HTML.
+  - Sin scroll horizontal: `scrollWidth` ≤ `innerWidth` a 1440, 960 y 375 px. A 375 px se ven las tarjetas.
+  - `Vacio Demo#EUW?tab=companeros` muestra el vacío de §5: "No hay partidas de Arena desde el inicio de la temporada actual (2026-05-12 00:00 UTC)…".
+- **Commit**: ver `git log` (`feat(ui): pestaña Compañeros y top de compañeros en el raíl`).

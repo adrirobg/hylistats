@@ -17,6 +17,7 @@ import {
   type ProfilePageData,
   type ProfileView,
 } from "./data";
+import type { TeammateParams } from "./teammates-view";
 import { PROFILE_TABS, type ProfileTab } from "./view-model";
 
 const db = getTestDb();
@@ -67,13 +68,23 @@ async function load(
   gameName = "BEJITO MAMBO",
   tagLine = "1991",
   tab: ProfileTab = "campeones",
+  teammates?: TeammateParams,
 ) {
-  return loadProfilePage(db, gameName, tagLine, { tab }, seasonStart);
+  return loadProfilePage(
+    db,
+    gameName,
+    tagLine,
+    { tab, teammates },
+    seasonStart,
+  );
 }
 
 /** La variante `profile` de la carga (falla el test si es otra). */
-async function loadProfile(tab: ProfileTab = "campeones") {
-  const data = await load("BEJITO MAMBO", "1991", tab);
+async function loadProfile(
+  tab: ProfileTab = "campeones",
+  teammates?: TeammateParams,
+) {
+  const data = await load("BEJITO MAMBO", "1991", tab, teammates);
   if (data.kind !== "profile") throw new Error(`kind inesperado: ${data.kind}`);
   return data;
 }
@@ -615,14 +626,16 @@ describe("loadProfilePage", () => {
       }
     });
 
-    it("los compañeros no viajan fuera de su pestaña", async () => {
+    it("la lista de compañeros no viaja fuera de su pestaña; el top 5 del raíl, sí", async () => {
       await storeAll();
       await insertProfile();
       for (const tab of PROFILE_TABS) {
         if (tab === "companeros") continue;
         const data = await loadProfile(tab);
         expect(hasKeyDeep(data, "teammates")).toBe(false);
-        expect(JSON.stringify(data)).not.toContain("Player013");
+        // Player152 (1 partida) queda fuera del top 5 del raíl y solo saldría en la lista completa.
+        expect(JSON.stringify(data)).not.toContain("Player152");
+        expect(data.railTeammates).toHaveLength(5);
       }
     });
 
@@ -632,6 +645,142 @@ describe("loadProfilePage", () => {
         gameName: "Faker",
         tagLine: "KR1",
       });
+    });
+  });
+  describe("compañeros", () => {
+    const gameNames = (list: { gameName: string }[] | undefined) =>
+      list?.map((t) => t.gameName);
+    const params = (min: TeammateParams["min"]): TeammateParams => ({
+      min,
+      orden: "partidas",
+    });
+
+    // Las 10 partidas reales: Player013 juega las 10, Player046 cinco, Player115 dos y Player012,
+    // Player022 y Player152 una (ver `stats.test.ts`).
+    async function seedTeammates() {
+      await storeAll();
+      await insertProfile();
+    }
+
+    it("la pestaña trae los compañeros con al menos ?min partidas, los de mayor a menor", async () => {
+      await seedTeammates();
+      // Sin parámetros: el mínimo por defecto (3).
+      expect(gameNames((await loadProfile("companeros")).teammates)).toEqual([
+        "Player013",
+        "Player046",
+      ]);
+      const byMin = async (min: TeammateParams["min"]) =>
+        gameNames((await loadProfile("companeros", params(min))).teammates);
+      expect(await byMin(1)).toEqual([
+        "Player013",
+        "Player046",
+        "Player115",
+        "Player012",
+        "Player022",
+        "Player152",
+      ]);
+      expect(await byMin(3)).toEqual(["Player013", "Player046"]);
+      expect(await byMin(5)).toEqual(["Player013", "Player046"]); // 046: justo 5
+      expect(await byMin(10)).toEqual(["Player013"]);
+    });
+
+    it("cada compañero trae sus cifras y ningún puuid", async () => {
+      await seedTeammates();
+      const data = await loadProfile("companeros", params(1));
+      expect(data.teammates?.[0]).toEqual({
+        gameName: "Player013",
+        tagLine: "ANON",
+        games: 10,
+        firsts: 0,
+        top3: 5,
+        avgPlacement: 3.7,
+        lastPlayedAt: 1790682703953,
+      });
+      expect(hasKeyDeep(data, "puuid")).toBe(false);
+      expect(JSON.stringify(data)).not.toContain("anon-puuid");
+    });
+
+    it("si nadie llega al mínimo la lista sale vacía, pero existe", async () => {
+      await seedTeammates();
+      // Desde el 29-sep solo quedan dos partidas: 013 suma 2 juntos y los demás 1.
+      const data = await loadProfilePage(
+        db,
+        "BEJITO MAMBO",
+        "1991",
+        { tab: "companeros" },
+        new Date("2026-09-29T00:00:00Z"),
+      );
+      if (data.kind !== "profile") throw new Error(`kind: ${data.kind}`);
+      expect(data.teammates).toEqual([]);
+      expect(data.railTeammates.map((t) => t.games)).toEqual([2, 1, 1]);
+    });
+
+    it("el raíl trae el top 5 por partidas, sin mínimo, en todas las pestañas", async () => {
+      await seedTeammates();
+      const expected = [
+        {
+          key: "player013#anon",
+          gameName: "Player013",
+          tagLine: "ANON",
+          href: "/euw/Player013-ANON",
+          games: 10,
+          pct1: "0\u00a0%",
+          medio: "3,7",
+          small: false,
+        },
+        {
+          key: "player046#anon",
+          gameName: "Player046",
+          tagLine: "ANON",
+          href: "/euw/Player046-ANON",
+          games: 5,
+          pct1: "0\u00a0%",
+          medio: "4,4",
+          small: false,
+        },
+        {
+          key: "player115#anon",
+          gameName: "Player115",
+          tagLine: "ANON",
+          href: "/euw/Player115-ANON",
+          games: 2,
+          pct1: "0\u00a0%",
+          medio: "3,0",
+          small: true,
+        },
+        {
+          key: "player012#anon",
+          gameName: "Player012",
+          tagLine: "ANON",
+          href: "/euw/Player012-ANON",
+          games: 1,
+          pct1: "0\u00a0%",
+          medio: "2,0",
+          small: true,
+        },
+        {
+          key: "player022#anon",
+          gameName: "Player022",
+          tagLine: "ANON",
+          href: "/euw/Player022-ANON",
+          games: 1,
+          pct1: "0\u00a0%",
+          medio: "2,0",
+          small: true,
+        },
+      ];
+      for (const tab of PROFILE_TABS) {
+        const data = await loadProfile(tab, params(10));
+        // El mínimo de la tabla no afecta al raíl.
+        expect(data.railTeammates, tab).toEqual(expected);
+      }
+    });
+
+    it("sin partidas (o sin puuid) no hay compañeros ni en el raíl", async () => {
+      await insertProfile({ puuid: null, status: "resolving" });
+      const data = await loadProfile("companeros");
+      expect(data.railTeammates).toEqual([]);
+      expect(data.teammates).toEqual([]);
     });
   });
 });

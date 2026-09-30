@@ -30,7 +30,7 @@ interface CabinProps {
   /** Contenido de la pestaña activa (T08: el álbum). */
   main: ReactNode;
   /**
-   * Bloques del raíl (T10: marcador, forma). Por debajo de 1100 px el raíl cae bajo el main: lo
+   * Bloques del raíl (T10: marcador, forma; T04: compañeros). Por debajo de 1100 px el raíl cae bajo el main: lo
    * que ya salga en `strip` (el marcador) se oculta ahí con `@max-[1100px]:hidden`.
    */
   rail: ReactNode;

@@ -17,6 +17,14 @@ import { getKeyStatus } from "@/lib/admin/key-service";
 import { getSeasonStart } from "@/lib/config";
 import type { ChampionCatalog } from "@/lib/ddragon";
 import { normalizeRiotId } from "@/worker/queue";
+import {
+  DEFAULT_TEAMMATE_PARAMS,
+  RAIL_TEAMMATES,
+  type RailTeammate,
+  railTeammates,
+  type TeammateParams,
+  teammatesAtLeast,
+} from "./teammates-view";
 import type { ProfileTab } from "./view-model";
 
 // Carga de datos de `/euw/{nombre}-{tag}`, separada de la página para poder probarla contra la
@@ -39,10 +47,12 @@ export type SyncProgress = { kind: "backfill" | "incremental" } & (
 
 /**
  * Qué vista del perfil se pide (`?tab` y, en cada pestaña, sus filtros). Es un objeto para que las
- * pestañas añadan los suyos (`min`, `q`, `partida`…) sin cambiar la firma de `loadProfilePage`.
+ * pestañas añadan los suyos (`q`, `partida`…) sin cambiar la firma de `loadProfilePage`.
  */
 export interface ProfileViewParams {
   tab: ProfileTab;
+  /** Filtros de Compañeros (`?min`, `?orden`); sin ellos, los de por defecto. */
+  teammates?: TeammateParams;
 }
 
 /** Perfil registrado y resuelto: lo que muestra la página completa. */
@@ -76,10 +86,19 @@ export interface ProfileView {
    */
   form: RecentGame[];
   challenge: ProfileChallenge;
+  /**
+   * Los `RAIL_TEAMMATES` (5) compañeros con más partidas juntos, sin mínimo, para la caja del raíl:
+   * el raíl se pinta en todas las pestañas. Cifras ya formateadas y sin `puuid`.
+   */
+  railTeammates: RailTeammate[];
 
   // Datos propios de cada pestaña: solo se rellenan (y solo existe la clave) si es la activa. Todo
   // lo que llega aquí se serializa en cada `router.refresh()`, así que no se añade lo que no se pinta.
-  /** Compañeros de la temporada (`tab === "companeros"`). */
+  /**
+   * Compañeros de la temporada con al menos `?min` partidas juntos (`tab === "companeros"`), en el
+   * orden del dominio (más partidas primero); el orden por columna lo aplica el cliente. Filtrar
+   * aquí y no allí evita mandar los cientos de compañeros de una sola partida.
+   */
   teammates?: TeammateSummary[];
   /** Lista de partidas y detalle (`tab === "partidas"`); el tipo lo define T05. */
   matches?: never;
@@ -231,5 +250,13 @@ export async function loadProfilePage(
       championName: displayName.get(game.championId) ?? game.championName,
     })),
     challenge: stats.challenge,
+    railTeammates: railTeammates(stats.teammates, RAIL_TEAMMATES),
+    // La clave solo existe en su pestaña: `...false` no añade nada.
+    ...(view.tab === "companeros" && {
+      teammates: teammatesAtLeast(
+        stats.teammates,
+        (view.teammates ?? DEFAULT_TEAMMATE_PARAMS).min,
+      ),
+    }),
   };
 }

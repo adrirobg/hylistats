@@ -32,13 +32,13 @@ export function TabPanel({
 const ROWS = (count: number) => Array.from({ length: count }, (_, i) => i);
 
 /**
- * Esqueleto de las pestañas cuyo contenido aún no existe (Resumen, Compañeros y Partidas, T04–T07):
- * la forma aproximada de cada una, con huecos. Cada pestaña lo sustituye por su panel.
+ * Esqueleto de las pestañas cuyo contenido aún no existe (Resumen y Partidas, T05 y T07): la forma
+ * aproximada de cada una, con huecos. Cada pestaña lo sustituye por su panel.
  */
 export function PendingPanel({
   tab,
 }: {
-  tab: Exclude<ProfileTab, "campeones">;
+  tab: Exclude<ProfileTab, "campeones" | "companeros">;
 }) {
   return (
     <TabPanel tab={tab}>
@@ -48,15 +48,6 @@ export function PendingPanel({
             <Skeleton className="h-28" />
             <Skeleton className="h-56" />
             <Skeleton className="h-36" />
-          </>
-        )}
-        {tab === "companeros" && (
-          <>
-            <Skeleton className="h-9 w-64 max-w-full" />
-            <Skeleton className="h-10" />
-            {ROWS(6).map((i) => (
-              <Skeleton key={i} className="h-11" />
-            ))}
           </>
         )}
         {tab === "partidas" && (
