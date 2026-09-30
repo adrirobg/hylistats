@@ -1,7 +1,7 @@
 # Task T09 — Álbum: objetivos, marcado manual, atajos de teclado y sellado
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -58,12 +58,25 @@ Cuando llega un 1º nuevo durante la sincronización, el cromo se "sella" con un
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Diana en hover y foco, y `o` para conmutar objetivos, persistidos en la capa de navegador; el foco se conserva.
-- [ ] Marcar y desmarcar a mano con confirmación, solo en campeones no verificados.
-- [ ] Flechas, `Home` y `End` recorren el álbum; `Esc` cierra el menú.
-- [ ] Sellado de 1º nuevos sin animar el primer render y respetando `prefers-reduced-motion` (`newlyWon` probado).
-- [ ] Nada de esto en perfiles ajenos. Los cuatro checks en verde.
+- [x] Diana en hover y foco, y `o` para conmutar objetivos, persistidos en la capa de navegador; el foco se conserva.
+- [x] Marcar y desmarcar a mano con confirmación, solo en campeones no verificados.
+- [x] Flechas, `Home` y `End` recorren el álbum; `Esc` cierra el menú.
+- [x] Sellado de 1º nuevos sin animar el primer render y respetando `prefers-reduced-motion` (`newlyWon` probado).
+- [x] Nada de esto en perfiles ajenos. Los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- Lógica pura en `album-interaction.ts` (`manualActionFor`, `manualCopy`, `newlyWon`/`wonIds`, `navigateTo` por `getBoundingClientRect().top`). Menú ⋯ con `Popover` de `@base-ui/react` en portal (la cabina tiene `overflow-clip`).
+- Foco: las acciones anotan `{championId, part}` y `useLayoutEffect` enfoca `[data-champion-id]` tras el render (el cromo puede cambiar de banda).
+- Sellado: `useStamped` decide en el render (no en un efecto), sin animar el primer render ni con `prefers-reduced-motion`; `stamp` 700 ms. Keyframes en `globals.css` (`@theme`), con `scale`/`rotate` en vez de `transform`.
+- Pendiente menor (no se sobrediseña): si un cromo sale de la vista al conmutar, el foco cae en `body`; ~3 paradas de Tab por cromo (roving tabindex, mejora futura). El ⋯ solo aparece si hay acción (los ↗ de #3 lo cambiarán).
+
 ## Evidencias <!-- MUST -->
+
+- Navegador integrado (orquestador, 2026-09-30) contra `hylistats_test`, "mi perfil" con `targets [103,17]`, `manual [350]`:
+  - `o` sobre Ashe (22): pasa a "Objetivos sin ganar", `targets [103,17,22]` y el foco se queda en Ashe.
+  - ⋯ de Annie → "Marcar como ganado a mano…" → "Úsalo si ganaste con Annie y el historial no lo muestra. Se guarda solo en este navegador." con el foco en [Marcar]; Enter → "Annie, ganado a mano" en Ganados, `manual [350,1]`, foco en "Más acciones: Annie". `Esc` cierra el menú y devuelve el foco al ⋯. Blitzcrank (verificado) tiene diana y no ⋯.
+  - Sellado: con la página en polling, `finish-perfil newgame` → Rakan (497) recibe `li.stamp` y corren las animaciones `stamp` y `sealIn`; la clase se retira; la carga inicial no sella nada.
+  - Perfil ajeno: 0 `[data-card-part]`, `o` no cambia `localStorage`, sin filtro "Objetivos sin ganar".
+- Checks (orquestador): `npm run lint` OK (117 ficheros) · `npm run typecheck` OK · `npm test` 35 ficheros, 608 tests en verde · `npm run build` OK.
+- Commit: ver `git log` (`feat(ui): objetivos, marcado manual, teclado y sellado en el álbum`).

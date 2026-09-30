@@ -72,6 +72,38 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Sellado de un 1º nuevo en el álbum (brief §4.4; `@keyframes stamp` y `sealIn` de la maqueta).
+   `animate-stamp` va en el retrato y `animate-seal-in` en el sello, ambos bajo `.stamp` del cromo.
+   El sello anima `scale` y `rotate` (propiedades propias, como las usa Tailwind 4 en `-rotate-12`)
+   en vez de `transform`, que se sumaría al giro fijo del sello. Con prefers-reduced-motion el
+   cromo no recibe `.stamp` y, aun así, la regla de más abajo anula toda animación. */
+@theme {
+  --animate-stamp: stamp 0.6s ease;
+  --animate-seal-in: sealIn 0.5s 0.25s both cubic-bezier(0.2, 1.6, 0.4, 1);
+
+  @keyframes stamp {
+    0% {
+      filter: saturate(0.25) brightness(0.62);
+    }
+    100% {
+      filter: none;
+    }
+  }
+
+  @keyframes sealIn {
+    0% {
+      scale: 2.2;
+      rotate: -40deg;
+      opacity: 0;
+    }
+    100% {
+      scale: 1;
+      rotate: -12deg;
+      opacity: 1;
+    }
+  }
+}
+
 /* Un tema claro (D11, post-v1) solo tendría que redefinir esta capa de
    variables (p. ej. `:root[data-theme="light"]`) y quitar la clase `dark` de
    <html>: componentes y utilidades leen siempre de aquí. */

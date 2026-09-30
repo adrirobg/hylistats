@@ -112,7 +112,7 @@
     {
       "id": "T09",
       "title": "Álbum: objetivos, marcado manual, atajos de teclado y sellado",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/2-perfil-y-album",
       "worktree": null,
@@ -121,7 +121,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T09_album-interaccion.md",
       "created_at": "2026-09-29T20:30:00Z",
-      "updated_at": "2026-09-29T20:30:00Z"
+      "updated_at": "2026-09-30T00:02:52Z"
     },
     {
       "id": "T10",

@@ -4,13 +4,16 @@ import type { CSSProperties } from "react";
 import type { AlbumEntry } from "@/domain/album";
 import { formatDecimal, formatPercent, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { type CardPart, manualActionFor } from "./album-interaction";
 import { type CardState, cardLabel, cardSub, cardTitle } from "./album-view";
+import { CardMenu } from "./card-menu";
 import { initials } from "./view-model";
 
 // Cromo del álbum (brief §4.4, `.card` de la maqueta) y su versión en fila para la vista lista.
 // Las tres dimensiones se distinguen por forma además de por color: sello «1º» (verificado), lápiz
 // (manual), diana (objetivo) y saturación del retrato (jugado / sin jugar). El estado que llega ya
-// es el efectivo (`effectiveState`); aquí solo se pinta.
+// es el efectivo (`effectiveState`); aquí solo se pinta. Solo en «mi perfil» (`actions`) el cromo
+// lleva los controles: botón de diana y menú ⋯ (T09); en un perfil ajeno queda la capa verificada.
 
 /** Retrato: borde y filtro por estado (`.s-won`, `.s-manual`, `.s-played` y `.s-none`). */
 const PORTRAIT_STATE: Record<CardState, string> = {
@@ -60,6 +63,8 @@ export function Portrait({
           size === "card" ? "border-2" : "border",
           radius,
           PORTRAIT_STATE[state],
+          // Sellado de un 1º nuevo: el retrato pasa de gris a color (`.stamp` lo pone el cromo).
+          "group-[.stamp]:animate-stamp",
         )}
       >
         <span
@@ -91,7 +96,7 @@ export function Portrait({
   );
 }
 
-/** Diana (◎): anillo con punto, la de la maqueta. También la usará el botón de T09. */
+/** Diana (◎): anillo con punto, la de la maqueta. */
 export function TargetGlyph({ size = 14 }: { size?: number }) {
   return (
     <svg
@@ -109,52 +114,127 @@ export function TargetGlyph({ size = 14 }: { size?: number }) {
   );
 }
 
+/** Lo que el cromo puede pedir a «mi perfil» (`album.tsx` lo cablea al almacén del navegador). */
+export interface CardActions {
+  /** `part`: qué parte del cromo recupera el foco si el cambio lo mueve de banda. */
+  toggleTarget: (championId: number, part: CardPart) => void;
+  setManual: (championId: number, on: boolean) => void;
+}
+
 export interface AlbumCardProps {
   entry: AlbumEntry;
   /** Estado efectivo: `manual` solo en «mi perfil»; un verificado es siempre `won`. */
   state: CardState;
   /** Objetivo (capa ortogonal al estado); solo en «mi perfil». */
   target: boolean;
+  /** Es un 1º nuevo: durante unos instantes el cromo se «sella» (`.stamp`). */
+  stamp?: boolean;
+  /** `null` fuera de «mi perfil» (D12): ni diana, ni menú, ni atajo `o`. */
+  actions: CardActions | null;
 }
 
-export function AlbumCard({ entry, state, target }: AlbumCardProps) {
+/** Diana de la esquina: visible en hover, foco o si ya es objetivo. Conmuta sin abrir nada. */
+function TargetButton({
+  name,
+  target,
+  onToggle,
+}: {
+  name: string;
+  target: boolean;
+  onToggle: () => void;
+}) {
   return (
-    // Focusable para el teclado y los lectores aunque aún no abra nada (el panel de campeón es #3);
-    // T09 pone dentro los botones de diana y ⋯, que son controles propios.
+    <button
+      type="button"
+      data-card-part="target"
+      aria-pressed={target}
+      aria-label={`${target ? "Quitar objetivo" : "Marcar como objetivo"}: ${name}`}
+      onClick={(event) => {
+        // El clic no debe llegar al cromo (el panel de campeón de #3 se abrirá desde ahí).
+        event.stopPropagation();
+        onToggle();
+      }}
+      className={cn(
+        "absolute top-1 left-1 grid size-[26px] cursor-pointer place-items-center rounded-full transition-opacity",
+        target
+          ? "bg-target text-[#1a0d06]"
+          : "bg-[rgba(15,16,19,.72)] text-muted-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100",
+      )}
+    >
+      <TargetGlyph />
+    </button>
+  );
+}
+
+export function AlbumCard({
+  entry,
+  state,
+  target,
+  stamp = false,
+  actions,
+}: AlbumCardProps) {
+  const manualAction = manualActionFor(state);
+  return (
+    // Focusable para el teclado y los lectores aunque aún no abra nada (el panel de campeón es #3).
+    // `data-champion-id` permite reponer el foco y recorrer los cromos con las flechas (`album.tsx`).
     <li
       // biome-ignore lint/a11y/noNoninteractiveTabindex: el cromo se recorre con Tab y lleva su descripción completa en aria-label.
       tabIndex={0}
+      data-champion-id={entry.championId}
       aria-label={cardLabel(entry, state, target)}
       title={cardTitle(entry, state)}
-      className="group relative grid min-w-0 gap-[5px] rounded-lg"
+      className={cn(
+        // `scroll-mt`: al enfocar con las flechas o `o`, el cromo no debe quedar bajo el header pegajoso.
+        "group relative grid min-w-0 scroll-mt-24 gap-[5px] rounded-lg",
+        stamp && "stamp",
+      )}
     >
-      <Portrait entry={entry} state={state} target={target} />
-      {state === "won" && (
-        <span
-          aria-hidden="true"
-          className="absolute -top-1.5 -right-1.5 grid size-[30px] -rotate-12 place-items-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#F6D88A,var(--place-1)_55%,var(--won-deep))] font-display text-[13px] font-extrabold text-[#231906] shadow-[0_2px_6px_rgba(0,0,0,.5)]"
-        >
-          1º
-        </span>
-      )}
-      {state === "manual" && (
-        <span
-          aria-hidden="true"
-          className="absolute -top-1.5 -right-1.5 grid size-[26px] place-items-center rounded-full border border-trust bg-trust-bg text-trust"
-        >
-          <Pencil size={13} strokeWidth={2.2} />
-        </span>
-      )}
-      {/* T09: aquí el botón de diana (atajo `o`, marca/quita el objetivo) y el menú ⋯ con
-          «Marcar como ganado a mano». Hoy la diana solo se pinta si es objetivo. */}
-      {target && (
-        <span
-          aria-hidden="true"
-          className="absolute top-1 left-1 grid size-[26px] place-items-center rounded-full bg-target text-[#1a0d06]"
-        >
-          <TargetGlyph />
-        </span>
-      )}
+      {/* Ancla de las esquinas: el sello, el lápiz, la diana y el ⋯ se colocan sobre el retrato. */}
+      <span className="relative block">
+        <Portrait entry={entry} state={state} target={target} />
+        {state === "won" && (
+          <span
+            aria-hidden="true"
+            className="absolute -top-1.5 -right-1.5 grid size-[30px] -rotate-12 place-items-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#F6D88A,var(--place-1)_55%,var(--won-deep))] font-display text-[13px] font-extrabold text-[#231906] shadow-[0_2px_6px_rgba(0,0,0,.5)] group-[.stamp]:animate-seal-in"
+          >
+            1º
+          </span>
+        )}
+        {state === "manual" && (
+          <span
+            aria-hidden="true"
+            className="absolute -top-1.5 -right-1.5 grid size-[26px] place-items-center rounded-full border border-trust bg-trust-bg text-trust"
+          >
+            <Pencil size={13} strokeWidth={2.2} />
+          </span>
+        )}
+        {actions ? (
+          <TargetButton
+            name={entry.name}
+            target={target}
+            onToggle={() => actions.toggleTarget(entry.championId, "target")}
+          />
+        ) : (
+          target && (
+            <span
+              aria-hidden="true"
+              className="absolute top-1 left-1 grid size-[26px] place-items-center rounded-full bg-target text-[#1a0d06]"
+            >
+              <TargetGlyph />
+            </span>
+          )
+        )}
+        {/* Un verificado no ofrece marca manual: sin nada que ofrecer, no hay menú. */}
+        {actions && manualAction !== "none" && (
+          <CardMenu
+            name={entry.name}
+            action={manualAction}
+            onConfirm={() =>
+              actions.setManual(entry.championId, manualAction === "mark")
+            }
+          />
+        )}
+      </span>
       <span
         className={cn(
           "text-[13px] leading-[1.2] font-medium [overflow-wrap:anywhere]",

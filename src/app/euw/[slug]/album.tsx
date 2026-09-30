@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -16,10 +17,16 @@ import { Notice } from "@/components/hy/notice";
 import type { AlbumEntry } from "@/domain/album";
 import { type LocalState, profileData } from "@/lib/local-store";
 import { normalizeRiotId } from "@/lib/riot-id";
-import { useLocalStore } from "@/lib/use-local-store";
+import { localActions, useLocalStore } from "@/lib/use-local-store";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
-import { AlbumCard, AlbumTable } from "./album-card";
+import { AlbumCard, AlbumTable, type CardActions } from "./album-card";
+import {
+  type CardBox,
+  type CardPart,
+  isNavKey,
+  navigateTo,
+} from "./album-interaction";
 import {
   type AlbumParams,
   type AlbumSection,
@@ -35,6 +42,7 @@ import {
   type Vista,
   withQuery,
 } from "./album-view";
+import { useStamped } from "./use-stamped";
 
 // Álbum de campeones (brief §4.4 y §4.5, `.controls`, `.band` y `.grid` de la maqueta): buscador,
 // filtro segmentado, orden, vista álbum/lista y las bandas de cromos. Todo el estado de la vista
@@ -45,6 +53,11 @@ import {
 // Rangos (container queries sobre `.app`, como la cabina): por debajo de 640 px la rejilla baja a
 // celdas de 64 px como mínimo (4 columnas a 375 px) y la lista oculta Top 3 y Medio; nada hace
 // scroll horizontal.
+//
+// Interacción (T09, brief §4.4 y §7): en «mi perfil» cada cromo lleva la diana y el menú ⋯ (las
+// acciones de `actions`), y `o` conmuta el objetivo del cromo enfocado. Las flechas, `Home` y `End`
+// recorren los cromos también en perfiles ajenos. Un 1º nuevo entre dos renders sella su cromo
+// (`use-stamped.ts`).
 
 export interface AlbumProps {
   /** Forma canónica de Riot: con ella se decide si el perfil es «mi perfil». */
@@ -89,6 +102,47 @@ export function Album({ gameName, tagLine, album, nowMs }: AlbumProps) {
     () => (mine ? new Set(localData.manual) : NO_IDS),
     [mine, localData.manual],
   );
+
+  // --- Acciones de los cromos (solo «mi perfil») ---
+  // Conmutar un objetivo o marcar a mano puede mudar el cromo de banda, y entonces React lo
+  // remonta: el elemento enfocado desaparece. Se anota qué parte de qué campeón debe recuperar el
+  // foco y `useLayoutEffect` (tras cada render, antes de pintar) lo busca por `data-champion-id`.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const focusAfter = useRef<{ championId: number; part: CardPart } | null>(
+    null,
+  );
+  const actions = useMemo<CardActions | null>(() => {
+    if (!mine) return null;
+    return {
+      toggleTarget: (championId, part) => {
+        focusAfter.current = { championId, part };
+        localActions.toggleTarget(norm, championId);
+      },
+      setManual: (championId, on) => {
+        focusAfter.current = { championId, part: "menu" };
+        localActions.setManual(norm, championId, on);
+      },
+    };
+  }, [mine, norm]);
+
+  useLayoutEffect(() => {
+    const pending = focusAfter.current;
+    if (!pending) return;
+    focusAfter.current = null;
+    const card = rootRef.current?.querySelector<HTMLElement>(
+      `[data-champion-id="${pending.championId}"]`,
+    );
+    const element =
+      pending.part === "card"
+        ? card
+        : card?.querySelector<HTMLElement>(
+            `[data-card-part="${pending.part}"]`,
+          );
+    if (element && element !== document.activeElement) element.focus();
+  });
+
+  // Cromos que se sellan ahora: los verificados que llegan con el polling o un refresco.
+  const stamped = useStamped(album, norm);
 
   // --- URL y buscador ---
   const urlParams = useMemo(
@@ -168,6 +222,49 @@ export function Album({ gameName, tagLine, album, nowMs }: AlbumProps) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  // Con el foco en un cromo o en sus botones: `o` conmuta su objetivo (solo «mi perfil»); las
+  // flechas, `Home` y `End` pasan a otro cromo. Fuera de los cromos no hace nada (campos de
+  // texto, controles, el menú ⋯: su popover vive en un portal) y sin trampas de foco: si no hay
+  // a dónde ir se deja al navegador (scroll con ↑ y ↓).
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const { target } = event;
+      if (!(target instanceof HTMLElement)) return;
+      const card = target.closest<HTMLElement>("[data-champion-id]");
+      if (!card) return;
+
+      if (event.key === "o" || event.key === "O") {
+        if (!actions || event.repeat) return;
+        event.preventDefault();
+        actions.toggleTarget(Number(card.dataset.championId), "card");
+        return;
+      }
+      if (!isNavKey(event.key)) return;
+
+      const cards = Array.from(
+        rootRef.current?.querySelectorAll<HTMLElement>(
+          "li[data-champion-id]",
+        ) ?? [],
+      );
+      const groups = new Map<Element | null, number>();
+      const boxes: CardBox[] = cards.map((element) => {
+        const { left, top, width } = element.getBoundingClientRect();
+        const group = groups.get(element.parentElement) ?? groups.size;
+        groups.set(element.parentElement, group);
+        return { left, top, width, group };
+      });
+      const from = cards.indexOf(card);
+      const to = navigateTo(boxes, from, event.key);
+      if (from === -1 || to === from) return;
+      event.preventDefault();
+      cards[to].focus();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [actions]);
+
   const sections = useMemo(
     () => albumSections(album, { targets, manual }, { ...live, filtro }),
     [album, targets, manual, live, filtro],
@@ -181,7 +278,7 @@ export function Album({ gameName, tagLine, album, nowMs }: AlbumProps) {
 
   return (
     // `min-w-0`: la tabla ancha no debe ensanchar la columna del panel (que es una rejilla).
-    <div className="min-w-0">
+    <div ref={rootRef} className="min-w-0">
       {catalogMissing && (
         <Notice role="status" icon="!" className="mb-4">
           No se pudo cargar el catálogo de campeones (Data Dragon): solo se
@@ -272,6 +369,8 @@ export function Album({ gameName, tagLine, album, nowMs }: AlbumProps) {
           targets={targets}
           manual={manual}
           now={now}
+          stamped={stamped}
+          actions={actions}
           onShowAll={() => update({ filtro: "todos" })}
         />
       ))}
@@ -340,6 +439,8 @@ function Band({
   targets,
   manual,
   now,
+  stamped,
+  actions,
   onShowAll,
 }: {
   section: AlbumSection;
@@ -347,6 +448,8 @@ function Band({
   targets: ReadonlySet<number>;
   manual: ReadonlySet<number>;
   now: number;
+  stamped: ReadonlySet<number>;
+  actions: CardActions | null;
   onShowAll: () => void;
 }) {
   const titleId = useId();
@@ -399,6 +502,8 @@ function Band({
               entry={entry}
               state={state}
               target={target}
+              stamp={stamped.has(entry.championId)}
+              actions={actions}
             />
           ))}
         </ul>
