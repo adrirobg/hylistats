@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Box } from "@/components/hy/box";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDb } from "@/db";
-import { ARENA_GOD_THRESHOLD, getSeasonStart } from "@/lib/config";
+import { getSeasonStart } from "@/lib/config";
 import { getChampionCatalog } from "@/lib/ddragon";
 import { formatDateTime } from "@/lib/format";
 import { getGameData } from "@/lib/game-data";
@@ -130,6 +130,7 @@ function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
           lastJobErrorAt={data.lastJobError?.at.getTime() ?? null}
           paused={data.paused}
           arenaQuietSince={data.arenaQuiet?.lastArenaGameAt ?? null}
+          arenaDeity={data.arenaGod.reached}
           games={data.summary.games}
           champions={data.verifiedChampions.map((c) => ({
             championId: c.championId,
@@ -145,7 +146,8 @@ function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
           verifiedIds={data.verifiedChampions.map((c) => c.championId)}
           official={data.challenge.value}
           checkedAt={data.challenge.checkedAt?.getTime() ?? null}
-          goal={ARENA_GOD_THRESHOLD}
+          goal={data.arenaGod.goal}
+          goalName={data.arenaGod.name}
           nowMs={Date.now()}
         />
       }

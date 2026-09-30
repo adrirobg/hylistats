@@ -28,6 +28,7 @@ import {
   type RecentGame,
   recentForm,
 } from "@/domain/album";
+import { type ArenaGodGoal, arenaGodGoal } from "@/domain/arena-god";
 import { computeHeat } from "@/domain/heat";
 import { getProfileMatches } from "@/domain/matches";
 import {
@@ -177,7 +178,7 @@ export interface SummaryTabData {
   curve: CurvePoint[];
   /** Los tres grupos de campeones destacados, de hasta 8 chips cada uno. */
   highlights: Highlights;
-  /** Meta de la curva: los campeones que pide el nivel MASTER del challenge (Arena God). */
+  /** Meta de la curva: los campeones que pide el nivel MASTER del challenge (`ARENA_GOD_THRESHOLD`, «Deidad de Arena»). */
   threshold: number;
 }
 
@@ -219,6 +220,11 @@ export interface ProfileView {
    */
   form: RecentGame[];
   challenge: ProfileChallenge;
+  /**
+   * Badge «Deidad de Arena» y meta de la barra (`arenaGodGoal`): se decide en el servidor con los
+   * verificados y el contador oficial, y el mismo valor llega a la cabecera y a la barra.
+   */
+  arenaGod: ArenaGodGoal;
   /**
    * Los `RAIL_TEAMMATES` (5) compañeros con más partidas juntos, sin mínimo, para la caja del raíl:
    * el raíl se pinta en todas las pestañas. Cifras ya formateadas y sin `puuid`.
@@ -566,6 +572,12 @@ export async function loadProfilePage(
       championName: displayName.get(game.championId) ?? game.championName,
     })),
     challenge: stats.challenge,
+    // N es el tamaño del catálogo que ya se cargó para el álbum: no se pide otra vez.
+    arenaGod: arenaGodGoal({
+      verified: stats.verifiedChampions.length,
+      official: stats.challenge.value,
+      championTotal: championCatalog.champions.length,
+    }),
     railTeammates: railTeammates(stats.teammates, RAIL_TEAMMATES),
     // La clave solo existe con `?campeon` válido: `...null` no añade nada.
     ...(championEntry && {

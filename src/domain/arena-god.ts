@@ -2,6 +2,64 @@
 // ganados (verificados, marcas manuales y contador oficial de 602002), su comparación y los
 // textos del aviso de descuadre. Funciones puras, sin React ni BD: la UI solo pinta lo que sale de
 // aquí. Sustituye a `compareWithChallenge` (`stats.ts`) en la UI, porque esa no conoce los manuales.
+//
+// También decide cuándo se consigue el badge «Deidad de Arena» y la meta pasa a «Dios de Arena»
+// (`arenaGodGoal`): una sola función, para que cabecera y barra no dupliquen la condición.
+
+import { ARENA_GOD_THRESHOLD } from "@/lib/config";
+
+// --- Badge y meta -------------------------------------------------------------------------
+
+/** Nombre del badge que se consigue con `ARENA_GOD_THRESHOLD` campeones ganados, y de la meta antes. */
+export const DEITY_NAME = "Deidad de Arena";
+/** Nombre de la meta final: ganar con todos los campeones del catálogo. */
+export const GOD_NAME = "Dios de Arena";
+/** Condición del badge, en el tooltip de la cabecera. */
+export const DEITY_CONDITION = `${ARENA_GOD_THRESHOLD} campeones distintos ganados esta temporada`;
+
+export interface ArenaGodGoalInput {
+  /** Campeones con algún 1º en el historial (verificados). Las marcas manuales no cuentan. */
+  verified: number;
+  /** Contador oficial de 602002; `null` si no se pudo leer. */
+  official: number | null;
+  /** Campeones del catálogo de datos estáticos; `0` si el catálogo no está disponible. */
+  championTotal: number;
+}
+
+export interface ArenaGodGoal {
+  /** Badge «Deidad de Arena» conseguido: `max(verificados, oficial ?? 0) >= ARENA_GOD_THRESHOLD`. */
+  reached: boolean;
+  /** Meta de la barra: `championTotal` con el badge conseguido; `ARENA_GOD_THRESHOLD` en otro caso. */
+  goal: number;
+  /** Nombre de la meta: `GOD_NAME` si `goal` es el catálogo entero, `DEITY_NAME` si sigue en 60. */
+  name: string;
+}
+
+/**
+ * Badge y meta de la barra. Con el badge conseguido la meta pasa a ser el catálogo entero
+ * («Dios de Arena»). Fallback: si el catálogo no está disponible (caído o vacío) o trae menos de
+ * `ARENA_GOD_THRESHOLD` campeones (incompleto), no hay un N fiable: la meta se queda en 60 con el
+ * nombre «Deidad de Arena», aunque el badge sí se muestre. Solo cuentan datos verificados y el
+ * oficial; las marcas manuales viven en el navegador y no dan el badge.
+ */
+export function arenaGodGoal({
+  verified,
+  official,
+  championTotal,
+}: ArenaGodGoalInput): ArenaGodGoal {
+  const reached = Math.max(verified, official ?? 0) >= ARENA_GOD_THRESHOLD;
+  const godGoal = reached && championTotal >= ARENA_GOD_THRESHOLD;
+  return {
+    reached,
+    goal: godGoal ? championTotal : ARENA_GOD_THRESHOLD,
+    name: godGoal ? GOD_NAME : DEITY_NAME,
+  };
+}
+
+/** Título de la barra: «Dios de Arena · temporada actual». */
+export const arenaGodHeading = (name: string) => `${name} · temporada actual`;
+
+// --- Estado de las tres capas -------------------------------------------------------------
 
 export interface ArenaGodInput {
   /** `championId` con algún 1º en el historial (lista verificada). */
@@ -10,7 +68,7 @@ export interface ArenaGodInput {
   manualIds: readonly number[];
   /** Contador oficial de 602002; `null` si no se pudo leer. */
   official: number | null;
-  /** Meta de la barra (`ARENA_GOD_THRESHOLD`). */
+  /** Meta de la barra: `ARENA_GOD_THRESHOLD` o, con el badge conseguido, el catálogo (`arenaGodGoal`). */
   goal: number;
 }
 
@@ -41,11 +99,19 @@ export interface ArenaGodState {
   excess: "verified" | "manual" | null;
   /** Fin de la escala de la barra: el mayor de meta, oficial y total, al múltiplo de 10 superior. */
   scaleMax: number;
-  /** Valores de la escala: 0 y cada 20 hasta `scaleMax`, más la meta. Ascendentes y sin repetir. */
+  /**
+   * Valores de la escala, ascendentes y sin repetir: el 0, la meta y los regulares (múltiplos de
+   * 20, o de 40 si `scaleMax > 100` para no apiñar etiquetas) hasta `scaleMax`. Se descartan los
+   * regulares a menos de 20 de la meta, porque sus etiquetas se pisarían con la de la meta.
+   */
   ticks: number[];
 }
 
+/** Paso de la escala y distancia mínima entre un tick regular y la meta. */
 const TICK_STEP = 20;
+/** Paso de la escala cuando `scaleMax` pasa de `WIDE_SCALE`. */
+const WIDE_TICK_STEP = 40;
+const WIDE_SCALE = 100;
 const SCALE_ROUND = 10;
 
 export function arenaGodState({
@@ -79,8 +145,11 @@ export function arenaGodState({
 
   const scaleMax =
     Math.ceil(Math.max(goal, official ?? 0, total) / SCALE_ROUND) * SCALE_ROUND;
+  const step = scaleMax > WIDE_SCALE ? WIDE_TICK_STEP : TICK_STEP;
   const ticks = new Set<number>([goal]);
-  for (let tick = 0; tick <= scaleMax; tick += TICK_STEP) ticks.add(tick);
+  for (let tick = 0; tick <= scaleMax; tick += step) {
+    if (tick === 0 || Math.abs(tick - goal) >= TICK_STEP) ticks.add(tick);
+  }
 
   return {
     verified,

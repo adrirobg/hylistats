@@ -1,11 +1,18 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { ARENA_GOD_THRESHOLD } from "@/lib/config";
 import {
   ARENA_GOD_EXPLANATION,
   type ArenaGodInput,
   arenaGodActions,
+  arenaGodGoal,
+  arenaGodHeading,
   arenaGodLabel,
   arenaGodMessage,
   arenaGodState,
+  DEITY_CONDITION,
+  DEITY_NAME,
+  GOD_NAME,
   manualPhrase,
   messageText,
   missingPhrase,
@@ -170,10 +177,33 @@ describe("arenaGodState: escala", () => {
     expect(state({ official: 70 }).scaleMax).toBe(70);
   });
 
-  it("una meta que no cae en la rejilla de 20 aparece como tick propio", () => {
+  it("una meta que no cae en la rejilla de 20 aparece como tick propio y aparta a los que quedan a menos de 20", () => {
     const s = state({ goal: 50 });
     expect(s.scaleMax).toBe(50);
-    expect(s.ticks).toEqual([0, 20, 40, 50]);
+    expect(s.ticks).toEqual([0, 20, 50]); // el 40 pisaría la etiqueta del 50
+  });
+
+  it("meta 60 con oficial 107: escala de 110, paso de 40 y la meta conserva a sus vecinos a 20", () => {
+    const s = state({ verifiedIds: ids(107), official: 107 });
+    expect(s.scaleMax).toBe(110);
+    expect(s.ticks).toEqual([0, 40, 60, 80]);
+  });
+
+  it("meta 173 (catálogo) con escala 180: paso de 40 y nada a menos de 20 de la meta", () => {
+    const s = state({ verifiedIds: ids(173), official: 173, goal: 173 });
+    expect(s.scaleMax).toBe(180);
+    expect(s.ticks).toEqual([0, 40, 80, 120, 173]); // el 160 pisaría al 173
+    for (const tick of s.ticks) {
+      if (tick !== 0 && tick !== 173) {
+        expect(Math.abs(tick - 173)).toBeGreaterThanOrEqual(20);
+      }
+    }
+  });
+
+  it("meta 172: [0, 40, 80, 120, 172]", () => {
+    const s = state({ verifiedIds: ids(75), official: 75, goal: 172 });
+    expect(s.scaleMax).toBe(180);
+    expect(s.ticks).toEqual([0, 40, 80, 120, 172]);
   });
 });
 
@@ -292,5 +322,130 @@ describe("arenaGodActions", () => {
 
   it("cuadra: sin acciones", () => {
     expect(arenaGodActions("match", true)).toEqual([]);
+  });
+});
+
+describe("arenaGodGoal: badge y cambio de meta", () => {
+  const CATALOG = 172;
+  const goalOf = (verified: number, official: number | null, total = CATALOG) =>
+    arenaGodGoal({ verified, official, championTotal: total });
+
+  it("59 verificados y sin oficial: sin badge, meta 60 «Deidad de Arena»", () => {
+    expect(goalOf(59, null)).toEqual({
+      reached: false,
+      goal: 60,
+      name: "Deidad de Arena",
+    });
+  });
+
+  it("60 verificados: badge y meta en el catálogo «Dios de Arena»", () => {
+    expect(goalOf(60, null)).toEqual({
+      reached: true,
+      goal: CATALOG,
+      name: "Dios de Arena",
+    });
+  });
+
+  it("el oficial mayor que los verificados basta: 10 verificados y oficial 61", () => {
+    expect(goalOf(10, 61)).toMatchObject({ reached: true, goal: CATALOG });
+  });
+
+  it("oficial 59 con 40 verificados: sin badge", () => {
+    expect(goalOf(40, 59)).toMatchObject({ reached: false, goal: 60 });
+  });
+
+  it("verificados mayores que el oficial (contador sin actualizar): cuentan los verificados", () => {
+    expect(goalOf(60, 50)).toMatchObject({ reached: true, goal: CATALOG });
+  });
+
+  it("el umbral es el de la configuración", () => {
+    expect(goalOf(ARENA_GOD_THRESHOLD - 1, null).reached).toBe(false);
+    expect(goalOf(ARENA_GOD_THRESHOLD, null).reached).toBe(true);
+  });
+
+  it("fallback: con el catálogo caído (0) o incompleto (<60) el badge se muestra pero la meta sigue en 60", () => {
+    for (const total of [0, 59]) {
+      expect(goalOf(75, null, total)).toEqual({
+        reached: true,
+        goal: 60,
+        name: "Deidad de Arena",
+      });
+    }
+    expect(goalOf(75, null, 60)).toMatchObject({
+      goal: 60,
+      name: "Dios de Arena",
+    });
+  });
+
+  it("la barra con la meta nueva: 75 de 172, escala hasta 180 y marca en 172", () => {
+    const { goal } = goalOf(75, 75);
+    const s = state({ verifiedIds: ids(75), official: 75, goal });
+    expect(s.goal).toBe(172);
+    expect(s.scaleMax).toBe(180);
+    expect(s.ticks).toContain(172);
+  });
+});
+
+describe("renombrado: ningún texto visible dice «Arena God» (AC6)", () => {
+  const OLD = /arena god/i;
+
+  /** Todos los textos visibles que exporta el dominio, en todos los estados. */
+  function visibleTexts(): string[] {
+    const texts = [
+      DEITY_NAME,
+      GOD_NAME,
+      DEITY_CONDITION,
+      ARENA_GOD_EXPLANATION,
+      arenaGodHeading(DEITY_NAME),
+      arenaGodHeading(GOD_NAME),
+    ];
+    const inputs: Partial<ArenaGodInput>[] = [
+      { verifiedIds: ids(25), official: 25 },
+      { verifiedIds: ids(25), official: 27 },
+      { verifiedIds: ids(25), manualIds: [200], official: 20 },
+      { verifiedIds: ids(25), official: 20 },
+      { verifiedIds: ids(25), official: null },
+    ];
+    for (const input of inputs) {
+      const s = state(input);
+      texts.push(
+        arenaGodLabel(s),
+        messageText(arenaGodMessage(s, "hace 5 min")),
+      );
+    }
+    texts.push(
+      verifiedPhrase(1),
+      manualPhrase(2),
+      officialPhrase(null),
+      missingPhrase(2),
+    );
+    return texts;
+  }
+
+  it("los textos del dominio no contienen «Arena God»", () => {
+    for (const text of visibleTexts()) expect(text).not.toMatch(OLD);
+  });
+
+  it("los nombres son los fijados por el supervisor", () => {
+    expect(DEITY_NAME).toBe("Deidad de Arena");
+    expect(GOD_NAME).toBe("Dios de Arena");
+  });
+
+  it("los componentes no pintan «Arena God» (solo puede quedar en comentarios)", () => {
+    const files = [
+      "src/app/euw/[slug]/arena-god.tsx",
+      "src/app/euw/[slug]/header.tsx",
+      "src/app/euw/[slug]/won-curve-chart.tsx",
+      "src/app/euw/[slug]/won-curve-view.ts",
+      "src/app/euw/[slug]/summary-panel.tsx",
+      "src/app/euw/[slug]/page.tsx",
+      "src/components/hy/badge.tsx",
+    ];
+    for (const file of files) {
+      const code = readFileSync(file, "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/^\s*\/\/.*$/gm, "");
+      expect(code, file).not.toMatch(OLD);
+    }
   });
 });

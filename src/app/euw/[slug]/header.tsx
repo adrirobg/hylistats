@@ -1,11 +1,13 @@
 "use client";
 
-import { RefreshCw, Star } from "lucide-react";
+import { Crown, RefreshCw, Star } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
+import { Badge } from "@/components/hy/badge";
 import { Btn } from "@/components/hy/btn";
 import { Chip } from "@/components/hy/chip";
 import { Notice } from "@/components/hy/notice";
 import { ToastRegion } from "@/components/hy/toast";
+import { DEITY_CONDITION, DEITY_NAME } from "@/domain/arena-god";
 import type { LocalState } from "@/lib/local-store";
 import { normalizeRiotId } from "@/lib/riot-id";
 import {
@@ -59,6 +61,8 @@ export interface ProfileHeaderProps {
    * rotación (`ProfileView.arenaQuiet`); `null` si no hay nada que decir.
    */
   arenaQuietSince: number | null;
+  /** Badge «Deidad de Arena» conseguido (`ProfileView.arenaGod.reached`, decidido en el dominio). */
+  arenaDeity: boolean;
   games: number;
   champions: RefreshSnapshot["champions"];
 }
@@ -76,6 +80,7 @@ export function ProfileHeader({
   lastJobErrorAt,
   paused,
   arenaQuietSince,
+  arenaDeity,
   games,
   champions,
 }: ProfileHeaderProps) {
@@ -172,6 +177,13 @@ export function ProfileHeader({
               <Chip className="@max-[640px]:hidden">
                 Arena · temporada actual
               </Chip>
+              {arenaDeity && (
+                <Badge
+                  title={DEITY_NAME}
+                  description={DEITY_CONDITION}
+                  emblem={<Crown size={12} />}
+                />
+              )}
             </div>
           </div>
         </div>

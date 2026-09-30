@@ -837,6 +837,61 @@ describe("loadProfilePage", () => {
     }
   });
 
+  describe("badge y meta de la barra (arenaGod)", () => {
+    /** Catálogo de `n` campeones sintéticos. */
+    const catalogOf = (n: number): ChampionCatalog => ({
+      version: "16.19.1",
+      champions: Array.from({ length: n }, (_, i) => ({
+        championId: 1000 + i,
+        ddId: `Champ${i}`,
+        name: `Champ ${i}`,
+        portraitUrl: null,
+      })),
+    });
+
+    async function loadGod(
+      challengeValue: number | null,
+      catalog: ChampionCatalog,
+    ) {
+      await storeAll(); // pocos verificados: la condición sale del contador oficial
+      await insertProfile({ challengeValue });
+      const data = await loadProfilePage(
+        db,
+        "BEJITO MAMBO",
+        "1991",
+        { tab: "campeones" },
+        seasonStart,
+        catalog,
+      );
+      if (data.kind !== "profile") throw new Error(`kind: ${data.kind}`);
+      return data.arenaGod;
+    }
+
+    it("oficial 60 y catálogo de 172: badge y meta en el tamaño del catálogo (Dios de Arena)", async () => {
+      expect(await loadGod(60, catalogOf(172))).toEqual({
+        reached: true,
+        goal: 172,
+        name: "Dios de Arena",
+      });
+    });
+
+    it("oficial 59: sin badge, la meta sigue en 60 (Deidad de Arena)", async () => {
+      expect(await loadGod(59, catalogOf(172))).toEqual({
+        reached: false,
+        goal: ARENA_GOD_THRESHOLD,
+        name: "Deidad de Arena",
+      });
+    });
+
+    it("badge con el catálogo caído (vacío): la meta se queda en 60", async () => {
+      expect(await loadGod(75, { version: null, champions: [] })).toEqual({
+        reached: true,
+        goal: ARENA_GOD_THRESHOLD,
+        name: "Deidad de Arena",
+      });
+    });
+  });
+
   describe("álbum", () => {
     const BLITZCRANK = {
       championId: 53,

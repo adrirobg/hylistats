@@ -1,7 +1,7 @@
 # Task T06 — Badge Deidad de Arena, meta Dios de Arena y renombrado
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -33,11 +33,31 @@ Con ≥60 ganados la cabecera muestra el badge "Deidad de Arena" y la barra de t
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Badge en la cabecera con ≥60 (verificados u oficial), componente reutilizable.
-- [ ] Barra "Dios de Arena: X / N" con N del catálogo; <60 sigue a 60 como "Deidad de Arena".
-- [ ] Sin textos visibles "Arena God".
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Badge en la cabecera con ≥60 (verificados u oficial), componente reutilizable.
+- [x] Barra "Dios de Arena: X / N" con N del catálogo; <60 sigue a 60 como "Deidad de Arena".
+- [x] Sin textos visibles "Arena God".
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- Condición única en `arenaGodGoal({ verified, official, championTotal })` (`src/domain/arena-god.ts`), que devuelve `{ reached, goal, name }`. Las marcas manuales no cuentan.
+  - N sale del catálogo que ya carga `data.ts`.
+  - Fallback: si el catálogo trae menos de 60 campeones o está caído, la meta se queda en 60 con el nombre «Deidad de Arena» y el badge se muestra igualmente.
+- `src/components/hy/badge.tsx` es genérico (`title`, `description`, `emblem`) y no sabe nada de Arena.
+  - El tooltip es un Popover de Base UI. Se abre con hover, con clic o toque, y con Enter desde el teclado.
+  - La descripción está siempre en el DOM como `sr-only` enlazada por `aria-describedby`.
+- Formato de la barra: la spec escribe «Dios de Arena: X / N». Se mantiene el formato de la barra, con título «Dios de Arena · temporada actual» y contador «X de N»: la información es la misma.
+- Escala, corrección del orquestador en la revisión: con meta 173 la etiqueta pisaba los ticks 160 y 180. Ahora el paso es 40 cuando `scaleMax` > 100, y se quitan los ticks regulares a menos de 20 de la meta. Queda `[0, 40, 80, 120, 173]`, con tests.
+- Renombrado de textos visibles:
+  - Título de la barra: «Deidad/Dios de Arena · temporada actual».
+  - Tick de la meta: «· {nombre}».
+  - Curva del Resumen: «Deidad de Arena · 60».
+
+  Un test recorre los textos del dominio y el código sin comentarios de los componentes. `grep` de "Arena God" en `src/` solo encuentra comentarios y tests.
+- Navegador integrado (dev noworker):
+  - Azpekaa (63): badge «Deidad de Arena», barra «DIOS DE ARENA · TEMPORADA ACTUAL · 63 de 173», escala limpia y línea de la curva «Deidad de Arena · 60».
+  - Tooltip abierto con Enter: «60 campeones distintos ganados esta temporada».
+  - Hylimichi (107) a 375 px: badge visible, «107 de 173» y sin scroll horizontal.
+  - TheCIutch (30): sin badge, «DEIDAD DE ARENA · 30 de 60 · 60 · Deidad de Arena».
+  - Ningún «Arena God» en el texto de la página.
+- `npm run lint && npm run typecheck && npm test && npm run build`: en verde (50 ficheros, 1089 tests).
