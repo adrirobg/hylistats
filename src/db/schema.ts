@@ -213,6 +213,14 @@ export const settings = pgTable(
   (t) => [check("settings_singleton", sql`${t.id} = 1`)],
 );
 
+// Grupo fijo (F19): lista de perfiles miembros. Un perfil es miembro como mucho una vez (PK).
+export const groupMembers = pgTable("group_members", {
+  profileId: integer("profile_id")
+    .primaryKey()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  addedAt: timestamptz("added_at").notNull().defaultNow(),
+});
+
 export type Profile = typeof profiles.$inferSelect;
 export type NewProfile = typeof profiles.$inferInsert;
 export type Match = typeof matches.$inferSelect;

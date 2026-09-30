@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
+import { addGroupMemberByRiotId, removeGroupMember } from "@/domain/group";
 import {
   ADMIN_COOKIE,
   ADMIN_SESSION_MAX_AGE_S,
@@ -53,6 +54,51 @@ export async function saveKeyAction(formData: FormData): Promise<void> {
     }
   }
   redirect(`/admin?result=${result}`);
+}
+
+/** Añade al grupo un perfil ya registrado, por Riot ID. */
+export async function addGroupMemberAction(formData: FormData): Promise<void> {
+  const session = (await cookies()).get(ADMIN_COOKIE)?.value;
+  if (!isAdminSession(session)) redirect("/admin");
+
+  const riotId = formData.get("riotId");
+  let code = "invalid";
+  if (typeof riotId === "string") {
+    try {
+      const result = await addGroupMemberByRiotId(getDb(), riotId);
+      code = result.ok ? (result.added ? "added" : "already") : result.reason;
+    } catch (error) {
+      console.error(
+        `[admin] no se pudo añadir al grupo: ${safeErrorMessage(error)}`,
+      );
+      code = "error";
+    }
+  }
+  redirect(`/admin?group=${code}`);
+}
+
+/** Quita un miembro del grupo. */
+export async function removeGroupMemberAction(
+  formData: FormData,
+): Promise<void> {
+  const session = (await cookies()).get(ADMIN_COOKIE)?.value;
+  if (!isAdminSession(session)) redirect("/admin");
+
+  const raw = formData.get("profileId");
+  const profileId = typeof raw === "string" ? Number(raw) : Number.NaN;
+  let code = "error";
+  if (Number.isSafeInteger(profileId) && profileId > 0) {
+    try {
+      code = (await removeGroupMember(getDb(), profileId))
+        ? "removed"
+        : "not_member";
+    } catch (error) {
+      console.error(
+        `[admin] no se pudo quitar del grupo: ${safeErrorMessage(error)}`,
+      );
+    }
+  }
+  redirect(`/admin?group=${code}`);
 }
 
 export async function logoutAction(): Promise<void> {

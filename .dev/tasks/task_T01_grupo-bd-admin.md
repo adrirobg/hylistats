@@ -1,7 +1,7 @@
 # Task T01 — Grupo en BD y apartado Grupo en /admin
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -37,11 +37,14 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Tabla y migración creadas; `npm run db:migrate` (o el script equivalente del repo) la aplica sobre la BD local.
-- [ ] Consultas de miembros con tests: añadir, duplicado idempotente, Riot ID no registrado con error claro y quitar (AC1).
-- [ ] `/admin` muestra el apartado Grupo solo con sesión; añade y quita miembros (AC1).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Tabla y migración creadas; `npm run db:migrate` (o el script equivalente del repo) la aplica sobre la BD local.
+- [x] Consultas de miembros con tests: añadir, duplicado idempotente, Riot ID no registrado con error claro y quitar (AC1).
+- [x] `/admin` muestra el apartado Grupo solo con sesión; añade y quita miembros (AC1).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- Tabla `group_members` (`profile_id` PK + FK a `profiles.id` ON DELETE CASCADE, `added_at`), migración `drizzle/0004_mature_grim_reaper.sql` aplicada con `db:migrate` y `db:migrate:test`.
+- `src/domain/group.ts`: `listGroupMembers`, `isGroupMember`, `addGroupMemberByRiotId` (solo perfiles existentes en `profiles`; duplicado → `added: false`; no registrado → `NOT_REGISTERED_MESSAGE`), `removeGroupMember`. Tests en `src/domain/group.test.ts`.
+- `/admin`: apartado Grupo tras el login (`addGroupMemberAction`, `removeGroupMemberAction`, con comprobación de sesión propia); tests en `src/app/admin/actions.test.ts` (sin sesión no muta; códigos added/already/not_registered/invalid/removed/not_member/error).
+- Worker: `npm run lint && npm run typecheck && npm test && npm run build` en verde (51 ficheros, 1117 tests). Revisión del diff por el orquestador contra spec (AC1). El alta real de los 6 miembros y la comprobación en navegador quedan para T10.

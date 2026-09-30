@@ -9,10 +9,17 @@ import {
   vi,
 } from "vitest";
 import { closeDb } from "@/db";
-import { settings } from "@/db/schema";
+import { groupMembers, profiles, settings } from "@/db/schema";
+import { addGroupMemberByRiotId } from "@/domain/group";
 import { ADMIN_COOKIE, adminSessionValue } from "@/lib/admin/auth";
 import { getTestDb, truncateAll } from "../../../tests/helpers/db";
-import { loginAction, logoutAction, saveKeyAction } from "./actions";
+import {
+  addGroupMemberAction,
+  loginAction,
+  logoutAction,
+  removeGroupMemberAction,
+  saveKeyAction,
+} from "./actions";
 
 // Fuera de una petición de Next no hay `cookies()` ni `redirect()` reales: se sustituyen por
 // un almacén en memoria y una excepción con la URL (como hace `redirect`, que lanza).
@@ -175,6 +182,59 @@ describe("saveKeyAction", () => {
       "/admin?result=invalid_format",
     );
     expect(mocks.validateKey).not.toHaveBeenCalled();
+  });
+});
+
+describe("acciones del grupo", () => {
+  async function insertProfile() {
+    const [p] = await db
+      .insert(profiles)
+      .values({
+        gameName: "Hylimichi",
+        tagLine: "EUW",
+        riotIdNorm: "hylimichi#euw",
+        status: "active",
+      })
+      .returning();
+    return p;
+  }
+
+  it("sin sesión no añade ni quita", async () => {
+    const p = await insertProfile();
+    expect(
+      await redirectOf(() =>
+        addGroupMemberAction(form({ riotId: "Hylimichi#EUW" })),
+      ),
+    ).toBe("/admin");
+    expect(await db.select().from(groupMembers)).toHaveLength(0);
+
+    await addGroupMemberByRiotId(db, "Hylimichi#EUW");
+    expect(
+      await redirectOf(() =>
+        removeGroupMemberAction(form({ profileId: String(p.id) })),
+      ),
+    ).toBe("/admin");
+    expect(await db.select().from(groupMembers)).toHaveLength(1);
+  });
+
+  it("con sesión: añade, duplicado, no registrado y quita, con código de resultado", async () => {
+    mocks.jar.set(ADMIN_COOKIE, adminSessionValue());
+    const p = await insertProfile();
+    const add = (riotId: string) =>
+      redirectOf(() => addGroupMemberAction(form({ riotId })));
+
+    expect(await add("Hylimichi#EUW")).toBe("/admin?group=added");
+    expect(await add("hylimichi#euw")).toBe("/admin?group=already");
+    expect(await add("Nadie#EUW")).toBe("/admin?group=not_registered");
+    expect(await add("sin tag")).toBe("/admin?group=invalid");
+    expect(await db.select().from(groupMembers)).toHaveLength(1);
+
+    const remove = (profileId: string) =>
+      redirectOf(() => removeGroupMemberAction(form({ profileId })));
+    expect(await remove(String(p.id))).toBe("/admin?group=removed");
+    expect(await remove(String(p.id))).toBe("/admin?group=not_member");
+    expect(await remove("abc")).toBe("/admin?group=error");
+    expect(await db.select().from(groupMembers)).toHaveLength(0);
   });
 });
 
