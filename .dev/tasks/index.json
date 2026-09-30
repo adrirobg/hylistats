@@ -15,7 +15,7 @@
     {
       "id": "T02",
       "title": "Dominio de estadísticas personales: récords, rachas, días, a la primera",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/7-stats-personales",
       "worktree": null,
@@ -24,7 +24,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T02_dominio-estadisticas.md",
       "created_at": "2026-09-30T20:30:00Z",
-      "updated_at": "2026-09-30T20:30:00Z"
+      "updated_at": "2026-09-30T20:53:02Z"
     },
     {
       "id": "T03",

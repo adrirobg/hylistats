@@ -1,7 +1,7 @@
 # Task T02 — Dominio de estadísticas personales: récords, rachas, días, a la primera
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -36,11 +36,15 @@ Un módulo puro `src/domain/records.ts` que, a partir de las partidas del jugado
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `computeRecords` y `getRecordRows` existen con la forma descrita.
-- [ ] Tests de AC2 en verde (empates, racha en curso, 01:30, día con 2 partidas, sin 1º, cambio de hora).
-- [ ] `firstTry` comparte lógica con `highlights().firstTry` (mismo resultado sobre los mismos datos, con test).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] `computeRecords` y `getRecordRows` existen con la forma descrita.
+- [x] Tests de AC2 en verde (empates, racha en curso, 01:30, día con 2 partidas, sin 1º, cambio de hora).
+- [x] `firstTry` comparte lógica con `highlights().firstTry` (mismo resultado sobre los mismos datos, con test).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `src/domain/records.ts`: `computeRecords(rows): Records` y `gameDay(ts)`. `getRecordRows(db, puuid, seasonStart)` en `src/domain/queries.ts` (mismo filtro y orden que `getPlayerRows`). `RECORD_DAY_MIN_GAMES = 3` en `src/lib/config.ts`.
+- `firstTry` compartido: `firstTryMatches(rows)` en `src/domain/summary.ts`, usado por `highlights()` y `computeRecords`. Hay un test de equivalencia con `highlights().firstTry`, y los tests previos de `highlights` siguen en verde sin cambios.
+- **Desviación del prompt, alineada con la spec**: el día de juego no se calcula como `gameStartTimestamp − 6 h`. Esa resta pone en el día equivocado 1 h de partidas en los días de cambio de hora (03-29 06:30 CEST daría 03-28; 10-25 05:30 CET daría 10-25). `gameDay` toma la fecha y la hora locales de Madrid con `Intl` y resta un día natural si la hora es < 06:00, que es la regla de spec §Días y F17.
+- Tests: 32 en `records.test.ts`. Cubren AC2: empate de récord (gana la más antigua), racha en curso, 01:30 en el día anterior, día con 2 partidas excluido, sin ningún 1º, y cambio de hora en marzo y octubre a las 05:30 y 06:30. Cubren también nulos excluidos, lista vacía y los desempates de rachas, días y `topChampion`. Hay 4 tests de integración de `getRecordRows` en `queries.test.ts`.
+- `npm run lint && npm run typecheck && npm test && npm run build`: en verde (48 ficheros, 1006 tests).

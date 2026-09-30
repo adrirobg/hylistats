@@ -25,6 +25,12 @@ export const ARENA_GOD_THRESHOLD = 60;
  */
 export const ARENA_QUIET_DAYS = 7;
 
+/**
+ * Partidas mínimas que debe tener un día de juego para entrar en «mejor/peor día» de la pestaña
+ * Estadísticas (F17): con menos, un único buen resultado encabezaría el ranking.
+ */
+export const RECORD_DAY_MIN_GAMES = 3;
+
 /** Inicio de la temporada de Arena por defecto (patch 26.10, mayo 2026). */
 export const DEFAULT_SEASON_START = "2026-05-12T00:00:00Z";
 

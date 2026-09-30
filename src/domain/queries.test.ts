@@ -1,6 +1,7 @@
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDb } from "@/db";
-import { profiles } from "@/db/schema";
+import { participants, profiles } from "@/db/schema";
 import { getTestDb, truncateAll } from "../../tests/helpers/db";
 import {
   loadMatchFixtures,
@@ -10,7 +11,12 @@ import {
   variantOf,
 } from "../../tests/helpers/matches";
 import { storeMatch } from "./ingest";
-import { getPlayerRows, getProfileStats, getTeammateRows } from "./queries";
+import {
+  getPlayerRows,
+  getProfileStats,
+  getRecordRows,
+  getTeammateRows,
+} from "./queries";
 import { computeTeammates } from "./stats";
 
 const db = getTestDb();
@@ -125,6 +131,79 @@ describe("colas de Arena 1750 y 1740", () => {
       [904, "EUW1_TEST_Q1740"],
       [53, "EUW1_TEST_Q1750"],
     ]);
+  });
+});
+
+describe("getRecordRows", () => {
+  it("devuelve las columnas de los récords de las partidas del jugador, en el orden de getPlayerRows", async () => {
+    await storeAll();
+    const rows = await getRecordRows(db, SELF_PUUID, seasonStart);
+    const playerRows = await getPlayerRows(db, SELF_PUUID, seasonStart);
+    expect(rows).toHaveLength(10);
+    expect(rows.map((r) => r.matchId)).toEqual(
+      playerRows.map((r) => r.matchId),
+    );
+    expect(rows.map((r) => r.matchId)).toEqual(fixtures.map((f) => f.id));
+
+    // Cada fila coincide con el participante del JSON original.
+    for (const [i, f] of fixtures.entries()) {
+      const self = f.match.info.participants.find(
+        (p) => p.puuid === SELF_PUUID,
+      );
+      expect(self).toBeDefined();
+      expect(rows[i]).toEqual({
+        matchId: f.id,
+        gameCreation: f.match.info.gameCreation,
+        gameStartTimestamp: f.match.info.gameStartTimestamp,
+        championId: self?.championId,
+        championName: self?.championName,
+        placement: self?.placement,
+        kills: self?.kills,
+        deaths: self?.deaths,
+        totalDamageDealtToChampions: self?.totalDamageDealtToChampions,
+        totalDamageTaken: self?.totalDamageTaken,
+        largestKillingSpree: self?.largestKillingSpree,
+      });
+    }
+  });
+
+  it("filtra por cola y temporada, igual que getPlayerRows", async () => {
+    await storeAll();
+    await storeFirst(fixtures[1], "EUW1_TEST_Q1740", 1740, 1_790_700_000_000);
+    await storeFirst(fixtures[2], "EUW1_TEST_Q400", 400, 1_790_700_100_000);
+
+    const rows = await getRecordRows(db, SELF_PUUID, seasonStart);
+    expect(rows).toHaveLength(11); // 10 reales + la de la 1740; la de la 400 no
+    expect(rows.at(-1)?.matchId).toBe("EUW1_TEST_Q1740");
+    // Con la temporada empezando después de todas las partidas, no queda ninguna.
+    expect(
+      await getRecordRows(db, SELF_PUUID, new Date("2027-01-01T00:00:00Z")),
+    ).toEqual([]);
+  });
+
+  it("devuelve null en las columnas nuevas de las partidas sin el dato", async () => {
+    await storeAll();
+    await db
+      .update(participants)
+      .set({ totalDamageTaken: null, largestKillingSpree: null })
+      .where(
+        and(
+          eq(participants.matchId, fixtures[0].id),
+          eq(participants.puuid, SELF_PUUID),
+        ),
+      );
+    const rows = await getRecordRows(db, SELF_PUUID, seasonStart);
+    expect(rows[0]).toMatchObject({
+      matchId: fixtures[0].id,
+      totalDamageTaken: null,
+      largestKillingSpree: null,
+    });
+    expect(rows[1].totalDamageTaken).not.toBeNull();
+  });
+
+  it("un jugador desconocido no devuelve filas", async () => {
+    await storeAll();
+    expect(await getRecordRows(db, "otro-puuid", seasonStart)).toEqual([]);
   });
 });
 

@@ -136,11 +136,16 @@ const chipOf = (entry: AlbumEntry, detail: string): HighlightChip => ({
 const byName = (a: AlbumEntry, b: AlbumEntry) =>
   a.name.localeCompare(b.name, "es") || a.championId - b.championId;
 
+type FirstGameRow = Pick<
+  PlayerMatchRow,
+  "matchId" | "gameCreation" | "championId" | "placement"
+>;
+
 /** La primera partida de cada campeón (mismo orden y mismos puestos que cuenta el álbum). */
-function firstGames(
-  rows: readonly PlayerMatchRow[],
-): Map<number, PlayerMatchRow> {
-  const first = new Map<number, PlayerMatchRow>();
+function firstGames<T extends FirstGameRow>(
+  rows: readonly T[],
+): Map<number, T> {
+  const first = new Map<number, T>();
   for (const row of rows) {
     if (!(PLACEMENTS as readonly number[]).includes(row.placement)) continue;
     const current = first.get(row.championId);
@@ -148,6 +153,22 @@ function firstGames(
       first.set(row.championId, row);
   }
   return first;
+}
+
+/**
+ * Definición única de «ganado a la primera» (la comparten los destacados del Resumen y la pestaña
+ * Estadísticas): campeones cuya **primera partida** fue un 1º. Devuelve `championId` → `matchId`
+ * de esa partida. Se comparan partidas, no instantes: dos partidas en el mismo milisegundo no
+ * confunden el resultado.
+ */
+export function firstTryMatches<T extends FirstGameRow>(
+  rows: readonly T[],
+): Map<number, string> {
+  const wins = new Map<number, string>();
+  for (const [championId, game] of firstGames(rows)) {
+    if (game.placement === 1) wins.set(championId, game.matchId);
+  }
+  return wins;
 }
 
 /**
@@ -164,13 +185,13 @@ export function highlights(
   album: readonly AlbumEntry[],
   rows: readonly PlayerMatchRow[],
 ): Highlights {
-  const first = firstGames(rows);
+  const firstTryWins = firstTryMatches(rows);
 
   const firstTry = album
     .filter(
       (entry) =>
         entry.firstWinMatchId !== null &&
-        first.get(entry.championId)?.matchId === entry.firstWinMatchId,
+        firstTryWins.get(entry.championId) === entry.firstWinMatchId,
     )
     .sort((a, b) => (b.firstWinAt ?? 0) - (a.firstWinAt ?? 0) || byName(a, b))
     .slice(0, HIGHLIGHT_LIMIT)

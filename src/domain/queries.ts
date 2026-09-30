@@ -4,6 +4,7 @@ import type { Db } from "@/db";
 import { matches, participants, profiles } from "@/db/schema";
 import { ARENA_QUEUE_IDS, getSeasonStart } from "@/lib/config";
 import { lastGameAt } from "./album";
+import type { RecordRow } from "./records";
 import {
   type ChallengeComparison,
   compareWithChallenge,
@@ -39,6 +40,43 @@ export async function getPlayerRows(
       championName: participants.championName,
       placement: participants.placement,
       playerSubteamId: participants.playerSubteamId,
+    })
+    .from(participants)
+    .innerJoin(matches, eq(matches.matchId, participants.matchId))
+    .where(
+      and(
+        eq(participants.puuid, puuid),
+        inArray(matches.queueId, [...ARENA_QUEUE_IDS]),
+        gte(matches.gameCreation, seasonStart.getTime()),
+      ),
+    )
+    .orderBy(asc(matches.gameCreation), asc(participants.matchId));
+}
+
+/**
+ * Partidas del jugador dentro de la temporada con las columnas que usan los récords de la pestaña
+ * Estadísticas (`computeRecords`). Mismo filtro y orden que `getPlayerRows`. `totalDamageTaken` y
+ * `largestKillingSpree` pueden ser `null` (partidas sin el dato): el dominio los trata como «sin
+ * dato».
+ */
+export async function getRecordRows(
+  db: Db,
+  puuid: string,
+  seasonStart: Date,
+): Promise<RecordRow[]> {
+  return db
+    .select({
+      matchId: participants.matchId,
+      gameCreation: matches.gameCreation,
+      gameStartTimestamp: matches.gameStartTimestamp,
+      championId: participants.championId,
+      championName: participants.championName,
+      placement: participants.placement,
+      kills: participants.kills,
+      deaths: participants.deaths,
+      totalDamageDealtToChampions: participants.totalDamageDealtToChampions,
+      totalDamageTaken: participants.totalDamageTaken,
+      largestKillingSpree: participants.largestKillingSpree,
     })
     .from(participants)
     .innerJoin(matches, eq(matches.matchId, participants.matchId))
