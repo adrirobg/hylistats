@@ -1,7 +1,7 @@
 # Task T02 — Dominio de periodos, ranking, equipos del periodo y títulos
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -40,14 +40,18 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Semana de juego sobre `gameDay`, con tests de lunes 05:59/06:00 y de las semanas con cambio de hora (AC2).
-- [ ] Periodo mostrado con el fallback al último día o semana con partidas, con test (AC2).
-- [ ] Ranking con mínimos, empates que comparten posición y "sin mínimo" aparte, con tests (AC3).
-- [ ] Los 7 títulos con sus métricas, mínimos, "al menos 2 clasificados" y empates compartidos; tests de cada caso de AC4.
-- [ ] Cada título trae métrica, valor, partidas y texto de "por qué" (AC5, parte de datos).
-- [ ] Constantes nuevas en `config.ts`.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Semana de juego sobre `gameDay`, con tests de lunes 05:59/06:00 y de las semanas con cambio de hora (AC2).
+- [x] Periodo mostrado con el fallback al último día o semana con partidas, con test (AC2).
+- [x] Ranking con mínimos, empates que comparten posición y "sin mínimo" aparte, con tests (AC3).
+- [x] Los 7 títulos con sus métricas, mínimos, "al menos 2 clasificados" y empates compartidos; tests de cada caso de AC4.
+- [x] Cada título trae métrica, valor, partidas y texto de "por qué" (AC5, parte de datos).
+- [x] Constantes nuevas en `config.ts`.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `src/domain/group-titles.ts` (+ 42 tests en `group-titles.test.ts`): `gameWeek` sobre `gameDay` (lunes del día de juego), `gameDayStart`, `periodOf`, `displayedPeriod` (fallback al último día/semana con partidas no posterior al actual, con `label` e `isCurrent`), `computePlayerStats`, `rankPlayers` (posición compartida 1,1,3; "sin mínimo" aparte), `computeTeams` (dúos de cada par de miembros del mismo `matchId`+`playerSubteamId`; trío si son 3), `TITLE_DEFINITIONS`, `TITLE_RULES`, `awardTitles` (mínimos, ≥2 clasificados, empates compartidos, desempate de rotos por puesto medio), `titlesOf` (títulos por puuid, dúo/trío a cada miembro), `computeGroupPeriod`.
+- Tests de AC2 (lunes 05:59/06:00, semanas del 2026-03-29 y 2026-10-25 con barrido cada 15 min), AC3 y todos los casos de AC4; regla literal documentada (tríos con 0 primeros, mismo trío roto y mental boom).
+- `config.ts`: `GROUP_WEEK_MIN_GAMES = 5`, `GROUP_TEAM_MIN_GAMES = 3`.
+- Decisión del orquestador: el "por qué" usa `formatAvgPlacement` (2 decimales, como el resto de la app) para que coincida con las tablas (AC5); el "4,6" de la spec es ejemplo.
+- Orquestador: `npm run lint && npm run typecheck && npm test && npm run build` en verde (52 ficheros, 1159 tests).

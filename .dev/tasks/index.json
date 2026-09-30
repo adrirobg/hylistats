@@ -15,19 +15,19 @@
     {
       "id": "T02",
       "title": "Dominio de periodos, ranking, equipos del periodo y títulos",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/9-capa-de-grupo",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T02_dominio-periodos-titulos.md",
       "created_at": "2026-09-30T23:16:04Z",
-      "updated_at": "2026-09-30T23:20:29Z"
+      "updated_at": "2026-09-30T23:27:59Z"
     },
     {
       "id": "T03",
       "title": "Dominio de equipos de temporada y tabla de temporada",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:sonnet",
       "branch": "feat/9-capa-de-grupo",
       "worktree": null,
@@ -36,7 +36,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T03_dominio-equipos-temporada.md",
       "created_at": "2026-09-30T23:16:04Z",
-      "updated_at": "2026-09-30T23:16:04Z"
+      "updated_at": "2026-09-30T23:27:59Z"
     },
     {
       "id": "T04",

@@ -32,6 +32,20 @@ export const ARENA_QUIET_DAYS = 7;
 export const RECORD_DAY_MIN_GAMES = 3;
 
 /**
+ * Partidas mínimas de un miembro en la semana de juego para entrar en el ranking de la semana y
+ * optar a sus títulos individuales (F21). El mínimo del día es `RECORD_DAY_MIN_GAMES`. Revisable
+ * tras la sesión conjunta (F18).
+ */
+export const GROUP_WEEK_MIN_GAMES = 5;
+
+/**
+ * Partidas mínimas juntos en el periodo (día o semana) para que un dúo o un trío de miembros opte
+ * a sus títulos (F21). También es el mínimo de las tablas de Dúos y Tríos de la temporada. Revisable
+ * tras la sesión conjunta (F18).
+ */
+export const GROUP_TEAM_MIN_GAMES = 3;
+
+/**
  * Frío/calor por campeón (F16). Solo aplica a campeones sin ningún 1º en la temporada, con al
  * menos `HEAT_MIN_GAMES` partidas. Valores revisables tras el uso con el grupo.
  */
