@@ -21,6 +21,7 @@ import { MatchesPanel } from "./matches-panel";
 import { parseMatchParams } from "./matches-view";
 import { NotFoundCard, UnregisteredCard } from "./profile-states";
 import { Scoreboard } from "./scoreboard";
+import { StatsPanel } from "./stats-panel";
 import { SummaryPanel } from "./summary-panel";
 import { SyncBand } from "./sync-band";
 import { TabPanel, Titled } from "./tab-panel";
@@ -167,6 +168,8 @@ function ActivePanel({ data, slug }: { data: ProfileView; slug: string }) {
       return <MatchesTab data={data} />;
     case "resumen":
       return <SummaryTab data={data} slug={slug} />;
+    case "estadisticas":
+      return <StatsTab data={data} slug={slug} />;
   }
 }
 
@@ -385,6 +388,39 @@ function SummarySkeleton() {
       <Skeleton className="h-28" />
       <Skeleton className="h-56" />
       <Skeleton className="h-36" />
+    </div>
+  );
+}
+
+// --- Pestaña Estadísticas (main) ---------------------------------------------------------
+
+function StatsTab({ data, slug }: { data: ProfileView; slug: string }) {
+  const empty = emptyState({
+    games: data.summary.games,
+    syncing: data.sync !== null,
+    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
+  });
+  return (
+    <TabPanel tab="estadisticas">
+      {empty === "syncing" && <StatsSkeleton />}
+      {(empty === "never" || empty === "empty") && (
+        <NoGames empty={empty} seasonStart={data.seasonStart} />
+      )}
+      {empty === null && data.records && (
+        <StatsPanel records={data.records} album={data.album} slug={slug} />
+      )}
+    </TabPanel>
+  );
+}
+
+/** Los bloques por rellenar mientras llega el backfill (§5: esqueleto, no un vacío). */
+function StatsSkeleton() {
+  return (
+    <div aria-busy="true" className="grid gap-3">
+      <Skeleton className="h-56" />
+      <Skeleton className="h-40" />
+      <Skeleton className="h-32" />
+      <Skeleton className="h-32" />
     </div>
   );
 }

@@ -4,6 +4,8 @@ import { closeDb } from "@/db";
 import { matches, matchFetch, profiles, settings, syncJobs } from "@/db/schema";
 import { arenaGodState, officialPhrase } from "@/domain/arena-god";
 import { storeMatch } from "@/domain/ingest";
+import { getRecordRows } from "@/domain/queries";
+import { computeRecords } from "@/domain/records";
 import {
   ARENA_GOD_THRESHOLD,
   ARENA_QUEUE_IDS,
@@ -1109,6 +1111,7 @@ describe("loadProfilePage", () => {
     const OWN_KEYS: Record<ProfileTab, readonly (keyof ProfileView)[]> = {
       campeones: [], // el álbum es común: header, barra Arena God y raíl dependen de él
       resumen: ["summaryTab"],
+      estadisticas: ["records"],
       companeros: ["teammates"],
       partidas: ["matches", "matchDetail"],
     };
@@ -1178,6 +1181,80 @@ describe("loadProfilePage", () => {
       });
     });
   });
+  describe("estadisticas (records)", () => {
+    it("solo la pestaña Estadísticas trae los récords", async () => {
+      await storeAll();
+      await insertProfile();
+      expect(await loadProfile("estadisticas")).toHaveProperty("records");
+      for (const tab of PROFILE_TABS) {
+        if (tab === "estadisticas") continue;
+        expect(await loadProfile(tab)).not.toHaveProperty("records");
+      }
+    });
+
+    it("sin partidas: los récords de ninguna partida", async () => {
+      await insertProfile();
+      const data = await loadProfile("estadisticas");
+      expect(data.records).toEqual(computeRecords([]));
+      expect(data.records?.records.damage).toBeNull();
+      expect(data.records?.deathlessWins).toEqual({ count: 0, matches: [] });
+    });
+
+    it("un perfil sin puuid todavía (resolviéndose) no rompe la pestaña", async () => {
+      await insertProfile({ puuid: null, status: "resolving" });
+      const data = await loadProfile("estadisticas");
+      expect(data.records).toEqual(computeRecords([]));
+    });
+
+    it("son los récords de las partidas del perfil dentro de la temporada, sin puuid", async () => {
+      await storeAll();
+      await insertProfile();
+      const data = await loadProfile("estadisticas");
+      const expected = computeRecords(
+        await getRecordRows(db, SELF_PUUID, seasonStart),
+      );
+      expect(data.records).toEqual(expected);
+      expect(data.records?.records.kills).not.toBeNull();
+      expect(data.records?.records.damage?.matchId).toMatch(/^EUW1_/);
+      expect(hasKeyDeep(data, "puuid")).toBe(false);
+      expect(JSON.stringify(data)).not.toContain(SELF_PUUID);
+    });
+
+    it("una temporada posterior deja fuera las partidas anteriores", async () => {
+      await storeAll();
+      await insertProfile();
+      const data = await loadProfilePage(
+        db,
+        "BEJITO MAMBO",
+        "1991",
+        { tab: "estadisticas" },
+        new Date("2027-01-01T00:00:00Z"),
+      );
+      expect(data.kind === "profile" && data.records).toEqual(
+        computeRecords([]),
+      );
+    });
+
+    it("un 1º añade la racha, el campeón con más 1º y la victoria a la primera", async () => {
+      await storeAll();
+      await storeVariant(fixtures[1], "EUW1_TEST_STATS_WIN", (j) => {
+        j.info.gameCreation = 1_790_700_000_000;
+        promoteTrioToFirst(j, SELF_PUUID);
+      });
+      await insertProfile();
+      const { records } = await loadProfile("estadisticas");
+      expect(records?.longestWinStreak).toMatchObject({
+        length: 1,
+        toMatchId: "EUW1_TEST_STATS_WIN",
+        ongoing: true,
+      });
+      expect(records?.topChampion).toMatchObject({
+        championId: 53,
+        firsts: 1,
+      });
+    });
+  });
+
   describe("resumen (summaryTab)", () => {
     const FIRST_AT = 1_790_700_000_000;
     const TRY_AT = FIRST_AT + 3_600_000;

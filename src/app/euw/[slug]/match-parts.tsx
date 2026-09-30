@@ -1,7 +1,7 @@
-import Image from "next/image";
 import type { CSSProperties } from "react";
 import { CHIP_TEXT, placeTone, TONE_BG } from "@/domain/scoreboard";
 import { cn } from "@/lib/utils";
+import { PortraitImage } from "./portrait-image";
 import { initials } from "./view-model";
 
 // Piezas que comparten la fila de una partida y su detalle 6×3 (y los destacados del Resumen): el
@@ -48,22 +48,7 @@ export function ChampionThumb({
       >
         {initials(name)}
       </span>
-      {portraitUrl && (
-        <Image
-          src={portraitUrl}
-          alt={name}
-          title={name}
-          width={80}
-          height={80}
-          loading="lazy"
-          draggable={false}
-          // Si la imagen no llega (red, versión retirada) quedan las iniciales de debajo.
-          onError={(event) => {
-            event.currentTarget.hidden = true;
-          }}
-          className="absolute inset-0 size-full object-cover"
-        />
-      )}
+      {portraitUrl && <PortraitImage src={portraitUrl} name={name} />}
     </span>
   );
 }

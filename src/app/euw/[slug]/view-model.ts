@@ -25,6 +25,7 @@ export function initials(gameName: string): string {
 export const PROFILE_TABS = [
   "campeones",
   "resumen",
+  "estadisticas",
   "companeros",
   "partidas",
 ] as const;
@@ -36,6 +37,7 @@ export const DEFAULT_TAB: ProfileTab = "campeones";
 export const TAB_LABEL: Record<ProfileTab, string> = {
   campeones: "Campeones",
   resumen: "Resumen",
+  estadisticas: "Estadísticas",
   companeros: "Compañeros",
   partidas: "Partidas",
 };
@@ -356,6 +358,7 @@ const TAB_PARAM = "tab";
 const TAB_PARAMS: Record<ProfileTab, readonly string[]> = {
   campeones: ["vista", FILTER_PARAM, "q", "orden"],
   resumen: [],
+  estadisticas: [],
   companeros: ["min", "orden"],
   partidas: ["q", "puesto", "companero", "n", "partida"],
 };

@@ -1,7 +1,7 @@
 # Task T04 — Pestaña Estadísticas (UI)
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -37,12 +37,32 @@ La pestaña `?tab=estadisticas` existe entre Resumen y Compañeros, carga bajo d
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `?tab=estadisticas` abre por URL directa y aparece entre Resumen y Compañeros.
-- [ ] Todos los bloques pintados; cada récord enlaza a su partida y el campeón con más 1º a su panel.
-- [ ] Estados vacíos con explicación.
-- [ ] Capturas a 375 px y escritorio sin scroll horizontal; navegación por teclado OK.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] `?tab=estadisticas` abre por URL directa y aparece entre Resumen y Compañeros.
+- [x] Todos los bloques pintados; cada récord enlaza a su partida y el campeón con más 1º a su panel.
+- [x] Estados vacíos con explicación.
+- [x] Capturas a 375 px y escritorio sin scroll horizontal; navegación por teclado OK.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `estadisticas` es la tercera pestaña de `PROFILE_TABS`, entre Resumen y Compañeros. `data.ts` solo carga `records` (`getRecordRows` + `computeRecords`) cuando `tab === "estadisticas"`, y `data.test.ts` lo cubre con `OWN_KEYS` y 6 casos propios.
+- `stats-panel.tsx` es un componente de servidor y `stats-panel-view.ts` tiene las funciones puras de textos, fechas y enlaces, con sus tests. Pinta cinco bloques:
+  - Récords
+  - Victorias especiales (lista plegable con `<details>` a partir de 5)
+  - Rachas
+  - Días
+  - Campeones
+
+  Cada estado vacío explica su motivo.
+- Refactor mínimo: `ChampionThumb` usaba `onError` en un componente de servidor. La `<Image>` pasa a `portrait-image.tsx` (cliente) sin cambios de marcado, y así el panel de servidor puede pintar retratos.
+- Ajuste del orquestador en la revisión: `formatGameDate` pasa de Europe/Madrid a UTC, como el resto de la app (`@/lib/format`). Antes, el récord mostraba "6 ago 2026" y la fila de Partidas a la que enlaza (EUW1_7941668205, 00:58 en Madrid) mostraba "5 ago". Los días de juego (`formatDay`) siguen siendo F17.
+- Navegador integrado (dev noworker, `/euw/Hylimichi-EUW?tab=estadisticas`):
+  - Escritorio: se pintan todos los bloques.
+  - Las cifras cuadran con SQL: daño 156.312, recibido 182.585, kills 29, racha 20, muertes 21, victoria con más muertes 15, 907 partidas.
+  - El récord "Más daño recibido" abre `?tab=partidas&partida=EUW1_7941668205` con la partida desplegada.
+  - "Campeón con más 1º" abre el panel de Cassiopeia sobre Estadísticas.
+  - Victorias sin morir: vacío con explicación (0 en toda la BD).
+  - A 375 px: una columna y `scrollWidth` = 375, sin scroll horizontal.
+  - Teclado: Tab desde la pestaña llega a las tarjetas de récord con `:focus-visible` (outline sólido de 2 px).
+  - Consola sin errores.
+- `npm run lint && npm run typecheck && npm test && npm run build`: en verde (50 ficheros, 1051 tests).

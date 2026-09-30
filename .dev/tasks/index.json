@@ -41,7 +41,7 @@
     {
       "id": "T04",
       "title": "Pestaña Estadísticas (UI)",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/7-stats-personales",
       "worktree": null,
@@ -50,7 +50,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T04_pestana-estadisticas.md",
       "created_at": "2026-09-30T20:30:00Z",
-      "updated_at": "2026-09-30T20:30:00Z"
+      "updated_at": "2026-09-30T21:06:05Z"
     },
     {
       "id": "T05",

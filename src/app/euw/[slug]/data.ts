@@ -31,9 +31,11 @@ import {
 import { getProfileMatches } from "@/domain/matches";
 import {
   getProfileStats,
+  getRecordRows,
   type ProfileChallenge,
   type TeammateSummary,
 } from "@/domain/queries";
+import { computeRecords, type Records } from "@/domain/records";
 import type {
   PlayerMatchRow,
   StatsSummary,
@@ -246,6 +248,11 @@ export interface ProfileView {
   matchDetail?: MatchDetailView;
   /** Curva de campeones ganados y destacados (`tab === "resumen"`). */
   summaryTab?: SummaryTabData;
+  /**
+   * Récords, victorias especiales, rachas, días y campeones de la temporada (`tab === "estadisticas"`).
+   * Son solo identificadores y cifras: los nombres y retratos salen del álbum, que ya viaja.
+   */
+  records?: Records;
 }
 
 export type ProfilePageData =
@@ -518,6 +525,11 @@ export async function loadProfilePage(
   const championEntry =
     view.campeon === undefined ? null : findChampionBySlug(album, view.campeon);
 
+  const records =
+    view.tab === "estadisticas"
+      ? await loadRecords(db, profile.id, seasonStart)
+      : null;
+
   const partidas =
     view.tab === "partidas"
       ? await loadMatches(
@@ -574,11 +586,31 @@ export async function loadProfilePage(
         threshold: ARENA_GOD_THRESHOLD,
       },
     }),
+    ...(records && { records }),
     ...(partidas && {
       matches: partidas.matches,
       ...(partidas.matchDetail && { matchDetail: partidas.matchDetail }),
     }),
   };
+}
+
+/**
+ * Datos propios de Estadísticas: `computeRecords` sobre las partidas del perfil dentro de la
+ * temporada. Resuelve el `puuid` aquí dentro (como `getProfileMatches`), así que no sale de este
+ * módulo; un perfil sin `puuid` todavía (resolviéndose) da los récords de ninguna partida.
+ */
+async function loadRecords(
+  db: Db,
+  profileId: number,
+  seasonStart: Date,
+): Promise<Records> {
+  const [profile] = await db
+    .select({ puuid: profiles.puuid })
+    .from(profiles)
+    .where(eq(profiles.id, profileId))
+    .limit(1);
+  if (!profile?.puuid) return computeRecords([]);
+  return computeRecords(await getRecordRows(db, profile.puuid, seasonStart));
 }
 
 /**
