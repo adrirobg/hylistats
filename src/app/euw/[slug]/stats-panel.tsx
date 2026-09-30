@@ -3,6 +3,7 @@ import { Box } from "@/components/hy/box";
 import { Chip } from "@/components/hy/chip";
 import type { AlbumEntry } from "@/domain/album";
 import type { RecordGame, Records } from "@/domain/records";
+import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ChampionThumb } from "./match-parts";
 import {
@@ -13,7 +14,6 @@ import {
   deathlessEmpty,
   firstTryModel,
   foldedLabel,
-  formatCount,
   formatGameDate,
   type RecordCardModel,
   recordCards,

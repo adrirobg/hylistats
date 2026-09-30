@@ -12,7 +12,7 @@ import type {
   StreakRecord,
 } from "@/domain/records";
 import { RECORD_DAY_MIN_GAMES } from "@/lib/config";
-import { formatDecimal, formatPercent } from "@/lib/format";
+import { formatCount, formatDecimal, formatPercent } from "@/lib/format";
 import { championHref, championSlug } from "./champion-panel-view";
 import { matchHref, tabHref } from "./view-model";
 
@@ -23,11 +23,6 @@ const UTC_DATE = new Intl.DateTimeFormat("es-ES", {
   day: "numeric",
   month: "short",
   year: "numeric",
-});
-
-const COUNT = new Intl.NumberFormat("es-ES", {
-  useGrouping: "always",
-  maximumFractionDigits: 0,
 });
 
 /**
@@ -48,11 +43,6 @@ export function formatDay(day: string): string {
   if (!match) return day;
   const [, year, month, date] = match;
   return UTC_DATE.format(Date.UTC(+year, +month - 1, +date, 12));
-}
-
-/** Entero con separador de miles `es-ES`, también a partir de 4 cifras: `123456` -> `123.456`. */
-export function formatCount(value: number): string {
-  return COUNT.format(value);
 }
 
 /** Puesto medio con 2 decimales y coma: `2.3333` -> `2,33`. */

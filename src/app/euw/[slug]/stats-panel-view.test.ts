@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AlbumEntry } from "@/domain/album";
 import type { RecordGame, Records, StreakRecord } from "@/domain/records";
 import { RECORD_DAY_MIN_GAMES } from "@/lib/config";
+import { formatCount } from "@/lib/format";
 import {
   championRef,
   DAYS_NOTE,
@@ -11,7 +12,6 @@ import {
   firstTryModel,
   foldedLabel,
   formatAvgPlacement,
-  formatCount,
   formatDay,
   formatGameDate,
   gamesLabel,

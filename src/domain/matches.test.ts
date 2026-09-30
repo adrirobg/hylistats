@@ -274,6 +274,10 @@ describe("getMatchDetail", () => {
       .flatMap((t) => t.players)
       .filter((p) => p.isSelf);
     expect(selves).toHaveLength(1);
+    const rawSelf = FIRST.match.info.participants.find(
+      (p) => p.puuid === SELF_PUUID,
+    );
+    expect(rawSelf?.totalDamageTaken).toBeGreaterThan(0);
     expect(selves[0]).toMatchObject({
       gameName: "BEJITO MAMBO",
       tagLine: "1991",
@@ -282,6 +286,8 @@ describe("getMatchDetail", () => {
       deaths: 9,
       assists: 10,
       damage: 9451,
+      damageTaken: rawSelf?.totalDamageTaken,
+      killingSpree: rawSelf?.largestKillingSpree,
       gold: 10026,
       level: 15,
     });
@@ -292,6 +298,31 @@ describe("getMatchDetail", () => {
       "BEJITO MAMBO",
       "Player152",
     ]);
+  });
+
+  it("daño recibido y racha de kills de cada jugador; null si la fila no los tiene", async () => {
+    await storeAll();
+    const raw = new Map(
+      FIRST.match.info.participants.map((p) => [p.riotIdGameName, p]),
+    );
+    const detail = await getMatchDetail(db, SELF_PUUID, FIRST.id, seasonStart);
+    const players = detail?.teams.flatMap((t) => t.players) ?? [];
+    expect(players).toHaveLength(18);
+    for (const p of players) {
+      expect(p.damageTaken).toBe(raw.get(p.gameName)?.totalDamageTaken);
+      expect(p.killingSpree).toBe(raw.get(p.gameName)?.largestKillingSpree);
+    }
+
+    // Partida guardada antes de que existieran las columnas: llegan null, no 0.
+    await db
+      .update(participants)
+      .set({ totalDamageTaken: null, largestKillingSpree: null })
+      .where(eq(participants.matchId, FIRST.id));
+    const old = await getMatchDetail(db, SELF_PUUID, FIRST.id, seasonStart);
+    for (const p of old?.teams.flatMap((t) => t.players) ?? []) {
+      expect(p.damageTaken).toBeNull();
+      expect(p.killingSpree).toBeNull();
+    }
   });
 
   it("augments e items sin los huecos (0), en el orden de la partida; el amuleto va el último", async () => {

@@ -2,6 +2,7 @@ import { Link2 } from "lucide-react";
 import Image from "next/image";
 import { Btn } from "@/components/hy/btn";
 import { CHIP_TEXT, placeTone, TONE_BG } from "@/domain/scoreboard";
+import { formatCount } from "@/lib/format";
 import type { GameIcon } from "@/lib/game-data";
 import { cn } from "@/lib/utils";
 import { ChampionThumb } from "./match-parts";
@@ -19,7 +20,8 @@ import { profileHref } from "./teammates-view";
 
 // Detalle de una partida (brief §3.5, `.mdet` y `.team` de la maqueta): los 6 equipos de 3 en
 // rejilla, del 1º al 6º, con el propio resaltado aunque quede 5º o 6º (corrige a OPGG). Por jugador:
-// campeón, Riot ID (enlace a su perfil), K/D/A, daño, oro, nivel y, solo si hay datos, sus augments
+// campeón, Riot ID (enlace a su perfil), K/D/A, daño (con la cifra exacta en el `title`), daño
+// recibido, oro, racha de kills, nivel y, solo si hay datos, sus augments
 // y objetos (§5: ocultar y decir «sin datos», nunca iconos vacíos ni ids sueltos).
 //
 // Columnas (container queries sobre `.app`, como la cabina): 3; 2 por debajo de 960 px; 1 por
@@ -91,12 +93,28 @@ function PlayerRow({ player }: { player: MatchPlayerView }) {
           <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
             <span>{player.championName}</span>
             <span className="whitespace-nowrap">nv {player.level}</span>
-            <span className="num whitespace-nowrap">
+            <span
+              className="num whitespace-nowrap"
+              title={formatCount(player.damage)}
+            >
               {compactNumber(player.damage)} daño
             </span>
+            {player.damageTaken !== null && (
+              <span
+                className="num whitespace-nowrap"
+                title={formatCount(player.damageTaken)}
+              >
+                {compactNumber(player.damageTaken)} recibido
+              </span>
+            )}
             <span className="num whitespace-nowrap">
               {compactNumber(player.gold)} oro
             </span>
+            {player.killingSpree !== null && (
+              <span className="num whitespace-nowrap">
+                racha {player.killingSpree}
+              </span>
+            )}
           </p>
         </div>
       </div>
@@ -167,7 +185,7 @@ export function MatchDetail({
         ))}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-faint">
-        <span>K/D/A · daño a campeones · oro</span>
+        <span>K/D/A · daño a campeones · recibido · oro · racha de kills</span>
         {!augments && <span>sin datos de augments</span>}
         {!items && <span>sin datos de objetos</span>}
         <Btn size="small" onClick={onCopyLink} className="ml-auto">

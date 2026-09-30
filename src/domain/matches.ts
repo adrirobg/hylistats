@@ -207,6 +207,10 @@ export interface MatchPlayer {
   assists: number;
   /** `totalDamageDealtToChampions`. */
   damage: number;
+  /** `totalDamageTaken`; `null` si la partida se guardó antes de que existiera la columna. */
+  damageTaken: number | null;
+  /** `largestKillingSpree`; `null` como `damageTaken`. */
+  killingSpree: number | null;
   gold: number;
   level: number;
   /** Ids de augment, sin los huecos (`0`), en el orden de la partida. */
@@ -281,6 +285,8 @@ export async function getMatchDetail(
       deaths: participants.deaths,
       assists: participants.assists,
       damage: participants.totalDamageDealtToChampions,
+      damageTaken: participants.totalDamageTaken,
+      killingSpree: participants.largestKillingSpree,
       gold: participants.goldEarned,
       level: participants.champLevel,
       augments: participants.augments,
@@ -306,6 +312,8 @@ export async function getMatchDetail(
       deaths: player.deaths,
       assists: player.assists,
       damage: player.damage,
+      damageTaken: player.damageTaken,
+      killingSpree: player.killingSpree,
       gold: player.gold,
       level: player.level,
       augments: player.augments.filter((id) => id !== 0),

@@ -83,3 +83,13 @@ export function formatPercent(ratio: number, digits = 1): string {
 export function formatDecimal(value: number, digits = 2): string {
   return numberFormat("decimal", digits).format(value);
 }
+
+const COUNT = new Intl.NumberFormat("es-ES", {
+  useGrouping: "always",
+  maximumFractionDigits: 0,
+});
+
+/** Entero con separador de miles `es-ES`, también a partir de 4 cifras: `123456` -> `123.456`. */
+export function formatCount(value: number): string {
+  return COUNT.format(value);
+}

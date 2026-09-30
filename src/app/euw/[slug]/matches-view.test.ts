@@ -532,6 +532,8 @@ describe("matchDetailView", () => {
     deaths: 2,
     assists: 3,
     damage: 4000,
+    damageTaken: 6000,
+    killingSpree: 3,
     gold: 5000,
     level: 12,
     augments: [] as number[],
@@ -632,6 +634,26 @@ describe("matchDetailView", () => {
       championName: "Nuevo",
       portraitUrl: null,
     });
+  });
+
+  it("conserva el daño recibido y la racha, también cuando son null", () => {
+    const withNulls: MatchDetail = {
+      ...detail,
+      teams: [
+        {
+          placement: 1,
+          isOwnTeam: true,
+          players: [
+            player("Con datos", { damageTaken: 182_600, killingSpree: 20 }),
+            player("Sin datos", { damageTaken: null, killingSpree: null }),
+          ],
+        },
+      ],
+    };
+    const [full, empty] = matchDetailView(withNulls, album, gameData).teams[0]
+      .players;
+    expect(full).toMatchObject({ damageTaken: 182_600, killingSpree: 20 });
+    expect(empty).toMatchObject({ damageTaken: null, killingSpree: null });
   });
 
   it("conserva isOwnTeam, isSelf y el orden de los equipos", () => {
