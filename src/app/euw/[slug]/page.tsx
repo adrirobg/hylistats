@@ -1,241 +1,272 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { Box } from "@/components/hy/box";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getDb } from "@/db";
-import type { ProfileChallenge } from "@/domain/queries";
-import { PLACEMENTS, type StatsSummary } from "@/domain/stats";
+import { ARENA_GOD_THRESHOLD, getSeasonStart } from "@/lib/config";
+import { getChampionCatalog } from "@/lib/ddragon";
+import { formatDateTime } from "@/lib/format";
 import { parseProfileSlug, profileSlug } from "@/lib/riot-id";
-import { REFRESH_COOLDOWN_MS } from "@/worker/queue";
-import { registerProfileAction } from "./actions";
+import { Album } from "./album";
+import { ArenaGodBar } from "./arena-god";
 import { AutoRefresh } from "./auto-refresh";
+import { Cabin } from "./cabin";
+import { loadProfilePage, type ProfileView } from "./data";
+import { FormStrip } from "./form-strip";
+import { ProfileHeader } from "./header";
+import { NotFoundCard, UnregisteredCard } from "./profile-states";
+import { Scoreboard } from "./scoreboard";
+import { SyncBand } from "./sync-band";
+import { TopBar } from "./top-bar";
 import {
-  loadProfilePage,
-  type ProfilePageData,
-  type ProfileView,
-  type SyncProgress,
-} from "./data";
-import { RefreshButton } from "./refresh-button";
+  emptyState,
+  type ProfileTab,
+  parseProfileTab,
+  syncBandModel,
+} from "./view-model";
 
 // Depende de la BD y cambia con el worker: nunca se prerenderiza.
 export const dynamic = "force-dynamic";
 
-const CELL = "border-b border-gray-200 px-2 py-1";
-const H2 = "mb-2 text-xl font-semibold";
-
-const percent = new Intl.NumberFormat("es-ES", {
-  style: "percent",
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-const decimal = new Intl.NumberFormat("es-ES", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-/** `2026-09-29 15:04 UTC`; `-` si no hay fecha. */
-function formatDate(date: Date | number | null): string {
-  return date === null
-    ? "-"
-    : `${new Date(date).toISOString().slice(0, 16).replace("T", " ")} UTC`;
-}
-
 export default async function ProfilePage({
   params,
+  searchParams,
 }: PageProps<"/euw/[slug]">) {
   const { slug } = await params;
   const riotId = parseProfileSlug(slug);
   if (!riotId) notFound();
 
-  const data = await loadProfilePage(getDb(), riotId.gameName, riotId.tagLine);
+  // El catálogo de campeones se pide a la vez que la BD (`getChampionCatalog` nunca lanza: sin
+  // Data Dragon el álbum sale sin retratos).
+  const [query, data] = await Promise.all([
+    searchParams,
+    loadProfilePage(
+      getDb(),
+      riotId.gameName,
+      riotId.tagLine,
+      getSeasonStart(),
+      getChampionCatalog(),
+    ),
+  ]);
   // Las actions identifican el perfil por el Riot ID de la URL (`riotIdNorm`), no por el canónico.
   const actionSlug = profileSlug(riotId.gameName, riotId.tagLine);
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-8 p-6">
-      <Header data={data} />
-      {data.kind === "unregistered" && <Unregistered slug={actionSlug} />}
-      {data.kind === "not_found" && <p>Ese Riot ID no existe en EUW.</p>}
-      {data.kind === "profile" && (
+    <main className="flex flex-1 flex-col">
+      <TopBar />
+      {data.kind === "profile" ? (
         <>
           <AutoRefresh slug={actionSlug} active={data.sync !== null} />
-          <SyncBlock data={data} slug={actionSlug} />
-          <Summary summary={data.summary} />
-          <Champions
-            champions={data.verifiedChampions}
-            challenge={data.challenge}
+          <ProfileCabin
+            data={data}
+            slug={actionSlug}
+            tab={parseProfileTab(query.tab)}
           />
         </>
+      ) : (
+        <div className="mx-auto w-full max-w-[640px] px-1.5 pt-4 sm:pt-10">
+          <h1 className="mb-4 font-display text-[40px] leading-none font-extrabold uppercase [overflow-wrap:anywhere]">
+            {data.gameName}
+            <span className="text-faint">#{data.tagLine}</span>
+          </h1>
+          {data.kind === "unregistered" ? (
+            <UnregisteredCard
+              slug={actionSlug}
+              gameName={data.gameName}
+              tagLine={data.tagLine}
+            />
+          ) : (
+            <NotFoundCard
+              slug={actionSlug}
+              gameName={data.gameName}
+              tagLine={data.tagLine}
+            />
+          )}
+        </div>
       )}
     </main>
   );
 }
 
-function Header({ data }: { data: ProfilePageData }) {
-  return (
-    <header>
-      <h1 className="text-2xl font-semibold">
-        {data.gameName}#{data.tagLine}
-      </h1>
-      <p className="text-sm text-gray-600">EUW</p>
-      {data.kind === "profile" && (
-        <p className="text-sm">
-          Temporada desde {formatDate(data.seasonStart)}
-        </p>
-      )}
-    </header>
-  );
-}
+// --- Cabina ------------------------------------------------------------------------------
 
-function Unregistered({ slug }: { slug: string }) {
-  return (
-    <section>
-      <p className="mb-3">Este Riot ID todavía no está registrado.</p>
-      <form action={registerProfileAction}>
-        <input type="hidden" name="slug" value={slug} />
-        <button
-          type="submit"
-          className="rounded border border-gray-400 px-3 py-1"
-        >
-          Registrar y sincronizar
-        </button>
-      </form>
-    </section>
-  );
-}
-
-function SyncBlock({ data, slug }: { data: ProfileView; slug: string }) {
-  return (
-    <section className="space-y-3">
-      <h2 className={H2}>Sincronización</h2>
-      {data.paused && (
-        <p role="alert" className="rounded border border-amber-500 px-3 py-2">
-          Actualización pausada: key caducada. Los datos son los de la última
-          sincronización
-        </p>
-      )}
-      <p>Última sincronización: {formatDate(data.lastSyncedAt)}</p>
-      {data.sync && <SyncStatus sync={data.sync} />}
-      <RefreshButton slug={slug} cooldownSeconds={REFRESH_COOLDOWN_MS / 1000} />
-    </section>
-  );
-}
-
-function SyncStatus({ sync }: { sync: SyncProgress }) {
-  const what =
-    sync.kind === "backfill" ? "Sincronización inicial" : "Actualización";
-  switch (sync.phase) {
-    case "resolving":
-      return <p>{`${what}: resolviendo Riot ID…`}</p>;
-    case "listing":
-      return <p>{`${what}: listando… ${sync.listedIds} ids`}</p>;
-    case "fetching":
-      return (
-        <p>
-          {`${what}: descargando ${sync.fetched}/${sync.total} partidas `}
-          {sync.total > 0 && <progress value={sync.fetched} max={sync.total} />}
-        </p>
-      );
-  }
-}
-
-function Summary({ summary }: { summary: StatsSummary }) {
-  return (
-    <section>
-      <h2 className={H2}>Cifras de la temporada</h2>
-      <ul className="mb-4 list-disc pl-5">
-        <li>Partidas: {summary.games}</li>
-        <li>
-          1º: {summary.firsts} ({percent.format(summary.firstRate)})
-        </li>
-        <li>
-          Top 3: {summary.top3} ({percent.format(summary.top3Rate)})
-        </li>
-        <li>
-          Puesto medio:{" "}
-          {summary.avgPlacement === null
-            ? "-"
-            : decimal.format(summary.avgPlacement)}
-        </li>
-      </ul>
-      <table className="border-collapse text-left text-sm">
-        <caption className="mb-1 text-left font-medium">
-          Distribución de puestos
-        </caption>
-        <thead>
-          <tr>
-            <th className={CELL}>Puesto</th>
-            <th className={CELL}>Partidas</th>
-          </tr>
-        </thead>
-        <tbody>
-          {PLACEMENTS.map((placement) => (
-            <tr key={placement}>
-              <td className={CELL}>{placement}º</td>
-              <td className={CELL}>{summary.distribution[placement]}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
-  );
-}
-
-/** El contador llega como float (75.0) pero es entero. */
-const formatCounter = (value: number) =>
-  Number.isInteger(value) ? String(value) : value.toFixed(1);
-
-function challengeStatus({ comparison }: ProfileChallenge): string {
-  switch (comparison.status) {
-    case "match":
-      return "cuadra";
-    case "diff": {
-      const diff = comparison.diff ?? 0;
-      return `diferencia de ${diff > 0 ? "+" : ""}${diff}: la lista verificada solo ve el historial Match-V5 de esta temporada`;
-    }
-    case "unknown":
-      return "contador no disponible";
-  }
-}
-
-function Champions({
-  champions,
-  challenge,
+function ProfileCabin({
+  data,
+  slug,
+  tab,
 }: {
-  champions: ProfileView["verifiedChampions"];
-  challenge: ProfileChallenge;
+  data: ProfileView;
+  slug: string;
+  tab: ProfileTab;
 }) {
-  const counter =
-    challenge.value === null
-      ? "602002"
-      : `602002 = ${formatCounter(challenge.value)}${challenge.level ? ` (${challenge.level})` : ""}`;
+  const band = syncBandModel(data.sync, data.paused);
   return (
-    <section>
-      <h2 className={H2}>Campeones ganados verificados</h2>
-      <p className="mb-3">
-        {`${champions.length} verificados vs ${counter}: ${challengeStatus(challenge)}`}
-      </p>
-      {champions.length === 0 ? (
-        <p>Todavía ninguno.</p>
-      ) : (
-        <table className="w-full border-collapse text-left text-sm">
-          <thead>
-            <tr>
-              <th className={CELL}>Campeón</th>
-              <th className={CELL}>Nº de 1º</th>
-              <th className={CELL}>Último 1º</th>
-              <th className={CELL}>Partida</th>
-            </tr>
-          </thead>
-          <tbody>
-            {champions.map((champion) => (
-              <tr key={champion.championId}>
-                <td className={CELL}>{champion.championName}</td>
-                <td className={CELL}>{champion.firsts}</td>
-                <td className={CELL}>{formatDate(champion.lastWinAt)}</td>
-                <td className={CELL}>{champion.lastWinMatchId}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <Cabin
+      header={
+        <ProfileHeader
+          slug={slug}
+          gameName={data.gameName}
+          tagLine={data.tagLine}
+          nowMs={Date.now()}
+          lastGameAt={data.lastGameAt}
+          lastSyncedAt={data.lastSyncedAt?.getTime() ?? null}
+          sync={data.sync}
+          lastJobErrorAt={data.lastJobError?.at.getTime() ?? null}
+          paused={data.paused}
+          games={data.summary.games}
+          champions={data.verifiedChampions.map((c) => ({
+            championId: c.championId,
+            championName: c.championName,
+          }))}
+        />
+      }
+      band={band && <SyncBand model={band} />}
+      god={
+        <ArenaGodBar
+          gameName={data.gameName}
+          tagLine={data.tagLine}
+          verifiedIds={data.verifiedChampions.map((c) => c.championId)}
+          official={data.challenge.value}
+          checkedAt={data.challenge.checkedAt?.getTime() ?? null}
+          goal={ARENA_GOD_THRESHOLD}
+          nowMs={Date.now()}
+        />
+      }
+      strip={<Scoreboard summary={data.summary} variant="strip" />}
+      tabs={<Tabs active={tab} />}
+      main={<ChampionsPanel data={data} />}
+      rail={<RailBoxes data={data} />}
+    />
+  );
+}
+
+/** Pestañas del perfil; solo existe Campeones (Resumen, Compañeros y Partidas van en #3). */
+function Tabs({ active }: { active: ProfileTab }) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Secciones del perfil"
+      className="mb-4 flex gap-1 overflow-x-auto border-b border-line"
+    >
+      <button
+        type="button"
+        role="tab"
+        id="tab-campeones"
+        aria-selected={active === "campeones"}
+        aria-controls="panel-campeones"
+        className="cursor-pointer px-3 pt-3.5 pb-3 font-medium whitespace-nowrap text-muted-foreground aria-selected:text-foreground aria-selected:shadow-[inset_0_-2px_0_var(--place-1)]"
+      >
+        Campeones
+      </button>
+    </div>
+  );
+}
+
+// --- Pestaña Campeones (main) ------------------------------------------------------------
+
+function Empty({ children }: { children: string }) {
+  return (
+    <p className="rounded-md border border-dashed border-line p-4 text-sm text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+
+function ChampionsPanel({ data }: { data: ProfileView }) {
+  const empty = emptyState({
+    games: data.summary.games,
+    syncing: data.sync !== null,
+    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
+  });
+  return (
+    <div
+      role="tabpanel"
+      id="panel-campeones"
+      aria-labelledby="tab-campeones"
+      className="grid gap-4"
+    >
+      {empty === "syncing" && <AlbumSkeleton />}
+      {empty === "never" && (
+        <Empty>
+          Todavía no hay datos de este perfil: la primera sincronización no ha
+          terminado. Pulsa Actualizar para reintentarla.
+        </Empty>
       )}
-    </section>
+      {/* Nunca un «No matches» mudo (§5): el porqué y qué hacer. */}
+      {empty === "empty" && (
+        <Empty>
+          {`No hay partidas de Arena desde el inicio de la temporada actual (${formatDateTime(data.seasonStart)}). Cuando juegues alguna, pulsa Actualizar.`}
+        </Empty>
+      )}
+      {empty === null && (
+        // `Album` lee `?vista`, `?filtro`, `?q` y `?orden` con `useSearchParams`.
+        <Suspense fallback={<AlbumSkeleton />}>
+          <Album
+            gameName={data.gameName}
+            tagLine={data.tagLine}
+            album={data.album}
+            nowMs={Date.now()}
+          />
+        </Suspense>
+      )}
+    </div>
+  );
+}
+
+/** Cromos por procesar mientras llega el backfill (§5: esqueleto, no un vacío). */
+function AlbumSkeleton() {
+  return (
+    <div
+      aria-busy="true"
+      className="grid grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-x-2.5 gap-y-3"
+    >
+      {Array.from({ length: 12 }, (_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: lista fija de marcadores sin identidad propia.
+        <Skeleton key={i} className="aspect-square" />
+      ))}
+    </div>
+  );
+}
+
+// --- Raíl --------------------------------------------------------------------------------
+
+/**
+ * Título de una `Box` con nota (`hint`): a la vista son dos textos separados, como en la maqueta;
+ * el « · » oculto hace que el encabezado se lea entero («Marcador · 1º = victoria»).
+ */
+function Titled({ children }: { children: string }) {
+  return (
+    <>
+      {children}
+      <span className="sr-only"> · </span>
+    </>
+  );
+}
+
+/**
+ * Bloques del raíl (D2). A partir de 1100 px de contenedor el marcador vive aquí; por debajo lo
+ * sustituye la franja bajo la barra Arena God (`strip`) y solo queda la forma, que el `Cabin`
+ * deja al final del main. Todo sale de `data` en el servidor: sube en vivo con el `AutoRefresh`
+ * durante el backfill.
+ */
+function RailBoxes({ data }: { data: ProfileView }) {
+  return (
+    <>
+      <Box
+        title={<Titled>Marcador</Titled>}
+        hint="1º = victoria"
+        titleAs="h2"
+        className="@max-[1100px]:hidden"
+      >
+        <Scoreboard summary={data.summary} variant="rail" />
+      </Box>
+      <Box
+        title={<Titled>Forma</Titled>}
+        hint="últimas 20 · más reciente a la izquierda"
+        titleAs="h2"
+      >
+        <FormStrip games={data.form} nowMs={Date.now()} />
+      </Box>
+    </>
   );
 }

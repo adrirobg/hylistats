@@ -1,5 +1,5 @@
 # Think: hylistats
-**Estado**: iter-01 cerrada — sin iteración activa
+**Estado**: iter-02 en curso (issue #2, rama `feat/2-perfil-y-album`)
 **Ultima sesion**: 2026-09-29
 **Sesiones**: 2026-09-29 (Webapp de estadísticas de perfil de jugador para trackear progreso en el modo Arena de LoL usando la Riot API (inspiración: lolalytics.com/arena, op.gg/lol/modes/arena, metasrc.com/lol/arena, arenasweats.lol, arena.trott.dev))
 **Grill**: cerrado (2026-09-29) — gate confirmado; §1 cerrada; I1–I4 entregadas. El supervisor da paso a desarrollo (2026-09-29)
@@ -28,7 +28,7 @@ Flujo imaginado por el supervisor: entras → introduces tu Riot ID → tu perfi
 
 Hechos de dominio (2026-09-29):
 - Arena Season 2 (parche 26.10, mayo 2026) pasó a **tríos**: 6 equipos de 3 ([AltChar](https://www.altchar.com/game-news/league-of-legends-patch-26.10-expands-arena-with-3v3v3v3v3v3-format-az48b0A2Z97G)); activo en 26.19 ([Blitz](https://blitz.gg/lol/tierlist/arena-trios)). El historial mezcla partidas 2v2 (queue 1700/1710) y 3v3 (queueId por verificar). Arena rota: puede no estar disponible todo el año.
-- Arena tríos = `queueId` **1750** (VERIFICADO en I1; no figura en `queues.json`). `placement==1` es el 1º (`win` es true del 1º al 3º). Compañeros = mismo `playerSubteamId`. Challenge `602002` del supervisor = 75 (VERIFICADO); la API no expone fechas de temporada → `SEASON_START` como configuración.
+- Arena tríos = `queueId` **1750** (VERIFICADO en I1; no figura en `queues.json`). **Corrección 2026-09-29**: también **1740**, mismo formato (`CHERRY`, mapa 30, 6×3) y misma temporada, en paralelo a la 1750; cuenta para `602002` (1750 ∪ 1740 = 75 y el paso a MASTER cae en el campeón nº 60 de la unión). Ver F14 y `archive/iter-01/verify-report.md` § AC4. `placement==1` es el 1º (`win` es true del 1º al 3º). Compañeros = mismo `playerSubteamId`. Challenge `602002` del supervisor = 75 (VERIFICADO); la API no expone fechas de temporada → `SEASON_START` como configuración.
 - PUUID cifrado por proyecto/key: conseguir la Personal key antes de persistir datos reales (I2 §5).
 - Match-V5 retiene ~2 años de historial ([Riot](https://www.riotgames.com/en/DevRel/match-history-retention-Change)): victorias antiguas de Arena son irrecuperables por API.
 - Challenge `602002` "Adapt to All Situations" (Arena God, 1º con 60 campeones distintos) en Challenges-V1: da contador, no lista. **Es por temporada** (confirmado por el supervisor: 75 campeones en la season actual, no cuenta anteriores). La temporada actual (desde 26.10, 2026-05-13) cae entera dentro de la retención de Match-V5.
@@ -56,6 +56,7 @@ Hechos de dominio (2026-09-29):
 | F10 | Región | Solo EUW (todo el grupo) | Cerrada | Supervisor, gate |
 | F12 | Entorno y publicación | Desarrollo 100 % local; hosting/publicación se decide después (Heroku no convence del todo). Stack de I3 adoptado salvo hosting: Next.js 16 + Drizzle + Postgres (local) + worker en proceso + cliente Riot propio + dev key rotable desde `/admin`. Código de acceso común se decide con el hosting | Cerrada | Supervisor, 2026-09-29 |
 | F13 | Diseño base | Brief I4 + maqueta (`research/design-mock.html`): recomendaciones D1–D13 adoptadas por defecto, revisables por el supervisor tras ver la maqueta | Cerrada (revisable) | Supervisor, 2026-09-29 |
+| F14 | Colas de Arena sincronizadas | Backfill, incremental y stats cubren las colas **1750 y 1740** (las dos Arena tríos de la temporada); el álbum cuadra con `602002`. Entra como T01 de iter-02 (cambio de alcance de la spec de #1, que fijó `queue=1750`) | Cerrada | Supervisor, 2026-09-29 (gate de iter-02) |
 | F11 | Investigación previa a Spec | Stack, backfill, Riot API y diseño UI/UX se resuelven con investigaciones dedicadas (I1–I4) antes de abrir Spec; la de Riot API produce además una skill de uso | Cerrada | Supervisor, gate |
 
 ---
@@ -103,7 +104,7 @@ Webapp sin login (F5) que, dado un Riot ID, muestra y mantiene las stats de Aren
 | Hilo | Owner | Siguiente accion |
 |------|-------|-------------------|
 | Hosting/publicación y código de acceso (Heroku, Railway, Fly, Azure…) | Supervisor | Tras v1 en local |
-| Revisión visual D1–D13 sobre la maqueta | Supervisor | Antes de la iteración de UI |
+| Pulido y mejora de la UI base (D1–D13 aplicadas por defecto en iter-02; el supervisor prefiere prototipar ya, 2026-09-29) | Supervisor | Tras v1 |
 | Registro del producto en el portal de Riot para obtener Personal key (requisitos, cuándo es viable) | Supervisor | Tras tener prototipo con dev key |
 | Qué cuenta como "public consumption" con Personal key para web accesible por URL (I1 §11) | Supervisor | Revisar en Spec; F9 prevé código de acceso si hace falta |
 | Sync de datos personales entre dispositivos (token secreto de edición / verificación por icono) | Supervisor | Post-v1, volver sobre ello |

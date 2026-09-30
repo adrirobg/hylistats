@@ -1,0 +1,1 @@
+ALTER TABLE "sync_jobs" ADD COLUMN "list_queue_index" integer DEFAULT 0 NOT NULL;

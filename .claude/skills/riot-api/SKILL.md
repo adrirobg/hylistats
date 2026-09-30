@@ -27,15 +27,16 @@ Los contadores de rate limit son independientes por host.
 ## Endpoints usados
 - Riot ID → puuid: `GET europe/riot/account/v1/accounts/by-riot-id/{gameName}/{tagLine}` (codificar espacios `%20`). Devuelve `puuid, gameName, tagLine`.
 - Icono/nivel: `GET euw1/lol/summoner/v4/summoners/by-puuid/{puuid}` → solo `puuid, profileIconId, revisionDate, summonerLevel` (ya no hay `id`/`name`).
-- Ids: `GET europe/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=1750&start=0&count=100[&startTime=&endTime=]`.
+- Ids: `GET europe/lol/match/v5/matches/by-puuid/{puuid}/ids?queue={1750|1740}&start=0&count=100[&startTime=&endTime=]` (una petición por cola; `queue` admite un solo valor).
   `count` 0–100 (101 → 400); más reciente primero; `start` fuera de rango → `[]`; `startTime/endTime` en **segundos** epoch; `type=normal` incluye Arena (no sirve para filtrar Arena, usar `queue`).
 - Detalle: `GET europe/lol/match/v5/matches/{matchId}` (id `EUW1_<n>`). 404 = no existe o expirado (`match file not found`): no reintentar.
 - Challenges: `GET euw1/lol/challenges/v1/player-data/{puuid}` (≈41 KB) y `…/challenges/602002/config`.
 
 ## queueIds de Arena
 - **1750** = Arena actual, tríos (6 equipos × 3, 18 participantes), `gameMode "CHERRY"`, `mapId 30` (V). **No está en `queues.json` oficial**: no depender de él.
+- **1740** = también Arena tríos de la temporada actual (V, 2026-09-29): mismo formato (`CHERRY`, `mapId 30`, `MATCHED_GAME`, 6×3, puestos 1–6) y mismos parches que la 1750, jugada en sesiones separadas. **Cuenta para `602002`**. Qué distingue una cola de otra: no se sabe. Tampoco está en `queues.json`. Ver `.dev/archive/iter-01/verify-report.md` § AC4 y F14 en `think.md`.
 - **1700 / 1710** = Arena antigua, "Arena" en `queues.json` (1710 "16 player lobby") (D). Sin partidas de ese tipo en los historiales probados; asignación 1700=4 equipos / 1710=8 equipos **no verificada**.
-- Backfill y sync: filtrar `queue=1750`. Tríos empiezan con el patch 26.10 (mayo 2026, `gameVersion` 16.10; fuentes discrepan 12/13-may) (D/V).
+- Backfill y sync: listar **las dos colas**, 1750 y 1740 (`ARENA_QUEUE_IDS` en `src/lib/config.ts`). Tríos empiezan con el patch 26.10 (mayo 2026, `gameVersion` 16.10; fuentes discrepan 12/13-may) (D/V).
 
 ## Leer los campos Arena (participante)
 - `placement` (1..6) = puesto del equipo; `subteamPlacement` es igual (V). **1º puesto = `placement === 1`**.
@@ -51,8 +52,8 @@ Los contadores de rate limit son independientes por host.
 ## Challenge 602002 "Adapt to All Situations" (Arena God)
 - `player-data` → `challenges[].challengeId == 602002` → `value` (float), `level`, `percentile`, `achievedTime` (ms). Muestra de prueba: `value 75.0`, MASTER (V), = lo que dice el supervisor.
 - Umbrales: Iron 3, Bronze 6, Silver 12, Gold 20, Platinum 32, Diamond 45, Master 60 (V). `config` **no trae fechas ni temporada** (`state`, `leaderboard`, `thresholds`): la API no dice cuándo empieza/acaba/reinicia la temporada.
-- `achievedTime` coincide con el `gameCreation` de una partida 1750 en 1º (V). Significado exacto (último cambio de nivel vs. último incremento): abierto.
-- Uso previsto: **control**, no fuente de verdad. Comparar con `distinct(championId | placement==1, queue==1750, desde inicio de temporada)`. Guardar snapshots `(fecha, value)`: una bajada indica reinicio (I). Comparación completa aún no ejecutada (≈510 peticiones).
+- `achievedTime` coincide con el `gameCreation` de una partida en 1º (V; con 1750 ∪ 1740, el paso a MASTER cae en el campeón nº 60 de la unión). Significado exacto (último cambio de nivel vs. último incremento): abierto.
+- Uso previsto: **control**, no fuente de verdad. Comparar con `distinct(championId | placement==1, queue ∈ {1750, 1740}, desde inicio de temporada)`. Guardar snapshots `(fecha, value)`: una bajada indica reinicio (I). Comparación ejecutada en iter-01 (V): solo 1750 da 70; 1750 ∪ 1740 da 75 = `value`.
 - `602001` "Arena Champion Ocean" = campeones **jugados** (jugador de prueba: 133); alcance temporal no verificado.
 
 ## Datos estáticos (sin key, sin límite de Riot)
@@ -67,7 +68,7 @@ Los contadores de rate limit son independientes por host.
 - Backfill de N partidas ≈ ceil(N/100) + N peticiones (504 partidas ≈ 510 ≈ 10 min). Prever cola con limitador propio, reanudable.
 - Leer `X-App-Rate-Limit-Count` y frenar antes de llegar al tope. **429** (D): esperar `Retry-After` segundos (cabecera `X-Rate-Limit-Type` indica cuál); no reintentar en bucle. 5xx: backoff exponencial con tope.
 - **Las partidas son inmutables**: cachear el JSON (o los campos derivados) por `matchId`; no volver a descargar una partida ya guardada; una partida compartida entre amigos se descarga una sola vez (dedupe por `matchId`).
-- Sync incremental: `startTime` = fin de la última partida conocida (con margen), `queue=1750`, y comparar contra ids ya guardados.
+- Sync incremental: `startTime` = fin de la última partida conocida (con margen), una petición de ids por cola (1750 y 1740), y comparar contra ids ya guardados.
 - Al hacer pruebas: pocas peticiones, pausas ≥0,5 s, sin bucles; muestrear en vez de recorrer todo.
 - Retención (D): ~2 años para partidas, 1 año para timelines. Un 404 en un id conocido = retirado; marcarlo y no reintentar.
 
@@ -79,7 +80,7 @@ Los contadores de rate limit son independientes por host.
 
 ## Gotchas
 - `win` ≠ 1º puesto. `placement === 1` es la única señal de 1º.
-- 1750 no está en `queues.json`; `type=normal` incluye Arena; `teams[]` inútil; `summonerName` vacío; `teamId` 100/200 no son equipos de trío.
+- Arena tríos son **dos colas** (1750 y 1740) y ninguna está en `queues.json`; `type=normal` incluye Arena; `teams[]` inútil; `summonerName` vacío; `teamId` 100/200 no son equipos de trío.
 - `gameVersion` = `16.N`, parche público "26.N" (I); Data Dragon usa `16.N.1`.
 - Ids de Match-V5 no son densos: no sondear ids al azar. Un id inexistente y uno expirado dan el mismo 404.
 - `startTime`/`endTime` en **segundos**, timestamps de la partida en **ms**.

@@ -7,6 +7,7 @@ import {
   profiles,
   syncJobs,
 } from "@/db/schema";
+import { normalizeRiotId } from "@/lib/riot-id";
 
 // Cola persistente de sincronización (sync-strategy.md §2 y §3): lo que la web encola para el
 // worker. Aquí no se llama nunca a Riot; todas las llamadas las hace el worker (spec,
@@ -21,10 +22,9 @@ export type RefreshResult = "queued" | "active" | "cooldown";
 /** `fresh`: no hace falta refrescar (sincronizado hace poco, o el Riot ID no existe). */
 export type EnsureFreshResult = RefreshResult | "fresh";
 
-/** Identidad primaria del perfil: `lower(gameName)#lower(tagLine)`, sin espacios en los extremos. */
-export function normalizeRiotId(gameName: string, tagLine: string): string {
-  return `${gameName.trim().toLowerCase()}#${tagLine.trim().toLowerCase()}`;
-}
+// `normalizeRiotId` vive en `@/lib/riot-id` (módulo puro, también para el cliente); se re-exporta
+// aquí para no tocar a los consumidores del lado servidor (worker, página, scripts y tests).
+export { normalizeRiotId };
 
 // --- Señal de despertar -----------------------------------------------------------------
 // En `globalThis`: las rutas de Next e `instrumentation.ts` pueden cargar copias distintas de
@@ -180,6 +180,51 @@ export async function requestRefresh(
   if (inserted.length === 0) return "active";
   wakeWorker();
   return "queued";
+}
+
+export type SeasonBackfillResult =
+  | { outcome: "queued"; jobId: number }
+  /** No hay ningún perfil con ese `riotIdNorm`. */
+  | { outcome: "unknown" }
+  /** El perfil existe pero no está `active` (aún se resuelve, o no existe en Riot). */
+  | { outcome: "inactive"; status: Profile["status"] }
+  /** Ya tiene un job en curso: no se encola otro. */
+  | { outcome: "active" };
+
+/**
+ * Re-backfill de la temporada de un perfil ya sincronizado (p. ej. tras añadir una cola nueva a
+ * `ARENA_QUEUE_IDS`): encola un job `backfill` NO interactivo (es mantenimiento, no lo pide una
+ * persona) y despierta al worker. Las partidas que ya están en `matches` se resuelven sin
+ * petición al listar, así que solo se descargan las que faltan.
+ *
+ * El job entra en `pending` como el del registro: al ser un perfil con `puuid`, el worker lo pasa
+ * a `listing` en ese paso sin pedir nada a Riot (`resolveAccount`). `wakeWorker` solo llega a un
+ * worker del mismo proceso; si se llama desde `sync:season`, el worker lo recoge por sondeo.
+ */
+export async function enqueueSeasonBackfill(
+  db: Db,
+  riotIdNorm: string,
+): Promise<SeasonBackfillResult> {
+  const [profile] = await db
+    .select({ id: profiles.id, status: profiles.status })
+    .from(profiles)
+    .where(eq(profiles.riotIdNorm, riotIdNorm))
+    .limit(1);
+  if (!profile) return { outcome: "unknown" };
+  if (profile.status !== "active") {
+    return { outcome: "inactive", status: profile.status };
+  }
+  if (await hasActiveJob(db, profile.id)) return { outcome: "active" };
+
+  // El índice único parcial (un job activo por perfil) resuelve la carrera con otro encolado.
+  const [job] = await db
+    .insert(syncJobs)
+    .values({ profileId: profile.id, kind: "backfill", interactive: false })
+    .onConflictDoNothing()
+    .returning({ id: syncJobs.id });
+  if (!job) return { outcome: "active" };
+  wakeWorker();
+  return { outcome: "queued", jobId: job.id };
 }
 
 export interface EnsureFreshOptions {

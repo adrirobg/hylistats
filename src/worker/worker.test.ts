@@ -29,12 +29,14 @@ import { createFakeRiot, type FakeRiot } from "../../tests/helpers/fake-riot";
 import {
   type FixtureJson,
   loadMatchFixtures,
+  type MatchFixture,
   SELF_PUUID,
   variantOf,
 } from "../../tests/helpers/matches";
 import { createFakeClock, readFixtureJson } from "../../tests/helpers/riot";
 import { createWorker, getWorkerStatus, type Worker } from "./main";
 import {
+  enqueueSeasonBackfill,
   ensureFreshOnView,
   REFRESH_COOLDOWN_MS,
   registerProfile,
@@ -129,6 +131,32 @@ function laterVariant(matchId: string, hours: number) {
   });
 }
 
+/**
+ * Copia de una partida de la cola 1740 con el id consecutivo al de `fixture` y 1 minuto después:
+ * queda justo detrás de ella en el tiempo y en la numeración de EUW1.
+ */
+function queue1740After(fixture: MatchFixture) {
+  return variantOf(
+    fixture,
+    `EUW1_${Number(fixture.id.split("_")[1]) + 1}`,
+    (json) => {
+      json.info.queueId = 1740;
+      const info = json.info as unknown as Record<string, number>;
+      for (const key of [
+        "gameCreation",
+        "gameStartTimestamp",
+        "gameEndTimestamp",
+      ]) {
+        info[key] += 60_000;
+      }
+    },
+  );
+}
+
+/** Ids de más reciente a más antigua por su parte numérica (en EUW1 crece con el tiempo). */
+const newestFirst = (ids: string[]) =>
+  [...ids].sort((a, b) => Number(b.split("_")[1]) - Number(a.split("_")[1]));
+
 describe("backfill", () => {
   it("completo: más reciente primero, 18 participantes por partida y 602002 guardado", async () => {
     const { fake, worker, logs } = setup();
@@ -137,7 +165,7 @@ describe("backfill", () => {
 
     const { result, worked } = await drain(worker);
     expect(result).toBe("idle");
-    expect(worked).toBe(13); // cuenta + 1 página de ids + 10 detalles + cierre
+    expect(worked).toBe(14); // cuenta + 2 páginas de ids (una por cola) + 10 detalles + cierre
 
     const job = await lastJob(profile.id);
     expect(job).toMatchObject({
@@ -152,7 +180,8 @@ describe("backfill", () => {
     expect(job.startedAt).not.toBeNull();
     expect(job.finishedAt).not.toBeNull();
 
-    // Orden de descarga = más reciente primero; 1 petición de cada tipo salvo el detalle.
+    // Orden de descarga = más reciente primero; 1 petición de cada tipo salvo ids (1 por cola) y
+    // detalle.
     expect(fake.matchCalls()).toEqual(IDS_DESC);
     expect(fake.count("account")).toBe(1);
     expect(fake.count("playerData")).toBe(1);
@@ -160,6 +189,7 @@ describe("backfill", () => {
       fake.calls.filter((c) => c.method === "matchIds").map((c) => c.query),
     ).toEqual([
       { start: 0, count: 100, queue: 1750, startTime: SEASON_START_S },
+      { start: 0, count: 100, queue: 1740, startTime: SEASON_START_S },
     ]);
     // Job interactivo (registro): todo con prioridad interactiva.
     expect(fake.calls.every((c) => c.priority === PRIORITY.interactive)).toBe(
@@ -241,16 +271,94 @@ describe("backfill", () => {
     // Caída a mitad del listado: otra instancia sigue desde el cursor guardado.
     const second = make();
     expect(await second.tick()).toBe("worked"); // página 2 (repite un id)
-    expect(await second.tick()).toBe("worked"); // página 3 (incompleta)
+    expect(await second.tick()).toBe("worked"); // página 3 (incompleta) y paso a la 1740
+    expect(await lastJob(profile.id)).toMatchObject({
+      status: "listing",
+      listQueueIndex: 1,
+      listCursor: 0,
+    });
+    expect(await second.tick()).toBe("worked"); // 1740: sin partidas
     const job = await lastJob(profile.id);
     expect(job).toMatchObject({ status: "fetching", totalIds: 250 });
     expect(job.matchIds).toEqual(ids);
     expect(
       fake.calls
         .filter((c) => c.method === "matchIds")
-        .map((c) => c.query?.start),
-    ).toEqual([0, 100, 200]);
+        .map((c) => [c.query?.queue, c.query?.start]),
+    ).toEqual([
+      [1750, 0],
+      [1750, 100],
+      [1750, 200],
+      [1740, 0],
+    ]);
     expect((await counts()).matchFetch).toBe(250);
+  });
+
+  it.each([
+    {
+      name: "1750 con página llena y 1740 incompleta",
+      inA: 100,
+      inB: 40,
+      calls: [
+        [1750, 0],
+        [1750, 100], // la página llena obliga a pedir otra, aquí vacía
+        [1740, 0],
+      ],
+    },
+    {
+      name: "1750 incompleta y 1740 con más de una página",
+      inA: 20,
+      inB: 130,
+      calls: [
+        [1750, 0],
+        [1740, 0],
+        [1740, 100],
+      ],
+    },
+  ])("dos colas: $name", async ({ inA, inB, calls }) => {
+    const { fake, worker } = setup();
+    // Ids de las dos colas intercalados: 1750 en los pares y 1740 en los impares.
+    const base = 8_100_000_000;
+    const idsA = Array.from({ length: inA }, (_, i) => `EUW1_${base - 2 * i}`);
+    const idsB = Array.from(
+      { length: inB },
+      (_, i) => `EUW1_${base - 1 - 2 * i}`,
+    );
+    fake.setMatchIds(SELF_PUUID, idsA, 1750);
+    fake.setMatchIds(SELF_PUUID, idsB, 1740);
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+
+    expect(await worker.tick()).toBe("worked"); // cuenta
+    const pagesOfA = calls.filter(([queue]) => queue === 1750).length;
+    for (let i = 0; i < pagesOfA; i++)
+      expect(await worker.tick()).toBe("worked");
+    // Terminada la 1750 el job sigue en `listing`, en la cola siguiente y con lo listado hasta ahora.
+    expect(await lastJob(profile.id)).toMatchObject({
+      status: "listing",
+      listQueueIndex: 1,
+      listCursor: 0,
+      matchIds: idsA,
+    });
+    for (let i = 0; i < calls.length - pagesOfA; i++) {
+      expect(await worker.tick()).toBe("worked");
+    }
+
+    const expected = [...idsA, ...idsB].sort(
+      (a, b) => Number(b.slice(5)) - Number(a.slice(5)),
+    );
+    const job = await lastJob(profile.id);
+    expect(job).toMatchObject({
+      status: "fetching",
+      listQueueIndex: 1,
+      totalIds: inA + inB,
+    });
+    expect(job.matchIds).toEqual(expected);
+    expect(
+      fake.calls
+        .filter((c) => c.method === "matchIds")
+        .map((c) => [c.query?.queue, c.query?.start]),
+    ).toEqual(calls);
+    expect((await counts()).matchFetch).toBe(inA + inB);
   });
 });
 
@@ -270,8 +378,9 @@ describe("AC3 deduplicación", () => {
         fetched: 10,
       });
     }
-    // Ambos listaron las 10 partidas, pero cada detalle se pidió una vez.
-    expect(fake.count("matchIds")).toBe(2);
+    // Ambos listaron las 10 partidas (2 peticiones de ids cada uno, una por cola), pero cada
+    // detalle se pidió una vez.
+    expect(fake.count("matchIds")).toBe(4);
     for (const id of IDS_DESC) expect(fake.count("match", id)).toBe(1);
     expect(fake.matchCalls()).toHaveLength(10);
     expect(await counts()).toEqual({
@@ -282,8 +391,129 @@ describe("AC3 deduplicación", () => {
   });
 });
 
+describe("colas de Arena 1750 y 1740", () => {
+  // Tres partidas de la 1740 intercaladas entre las 10 de la 1750.
+  const extras = [fixtures[9], fixtures[4], fixtures[0]].map(queue1740After);
+  const extraIds = extras.map((e) => e.match.metadata.matchId);
+
+  it("backfill: lista las dos colas y descarga de más reciente a más antigua entre ambas", async () => {
+    const { fake, worker } = setup();
+    for (const extra of extras) fake.addMatch(extra);
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+
+    await drain(worker);
+
+    const expected = newestFirst([...IDS_DESC, ...extraIds]);
+    // Las de la 1740 no quedan al final: se intercalan con las de la 1750.
+    expect(expected.slice(0, 3)).toEqual([
+      extraIds[0],
+      IDS_DESC[0],
+      IDS_DESC[1],
+    ]);
+    const job = await lastJob(profile.id);
+    expect(job).toMatchObject({
+      status: "done",
+      listQueueIndex: 1,
+      totalIds: 13,
+      fetched: 13,
+    });
+    expect(job.matchIds).toEqual(expected);
+    expect(fake.matchCalls()).toEqual(expected);
+    expect(
+      fake.calls.filter((c) => c.method === "matchIds").map((c) => c.query),
+    ).toEqual([
+      { start: 0, count: 100, queue: 1750, startTime: SEASON_START_S },
+      { start: 0, count: 100, queue: 1740, startTime: SEASON_START_S },
+    ]);
+    const stored = await db
+      .select({ queueId: matches.queueId, n: count() })
+      .from(matches)
+      .groupBy(matches.queueId)
+      .orderBy(asc(matches.queueId));
+    expect(stored).toEqual([
+      { queueId: 1740, n: 3 },
+      { queueId: 1750, n: 10 },
+    ]);
+  });
+
+  it("una partida que sale en las dos colas cuenta una sola vez", async () => {
+    const { fake, worker } = setup();
+    fake.setMatchIds(SELF_PUUID, [IDS_DESC[3], IDS_DESC[5]], 1740);
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+
+    await drain(worker);
+
+    const job = await lastJob(profile.id);
+    expect(job).toMatchObject({ status: "done", totalIds: 10, fetched: 10 });
+    expect(job.matchIds).toEqual(IDS_DESC);
+    expect(fake.matchCalls()).toEqual(IDS_DESC);
+  });
+});
+
+describe("re-backfill de temporada (sync:season)", () => {
+  it("completa el perfil con las partidas de la 1740 sin pedir la cuenta ni las ya guardadas", async () => {
+    const { fake, worker } = setup();
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+    // Sincronizado como antes de añadir la 1740: solo hay partidas de la 1750.
+    await drain(worker);
+    expect(await lastJob(profile.id)).toMatchObject({
+      status: "done",
+      totalIds: 10,
+    });
+    const extras = [fixtures[9], fixtures[4], fixtures[0]].map(queue1740After);
+    for (const extra of extras) fake.addMatch(extra);
+    const before = fake.calls.length;
+
+    expect(await enqueueSeasonBackfill(db, "bejito mambo#1991")).toMatchObject({
+      outcome: "queued",
+    });
+    expect(await drain(worker)).toMatchObject({ result: "idle" });
+
+    const delta = fake.calls.slice(before);
+    // Sin Account-V1 (el perfil ya tiene puuid): un listado por cola desde el inicio de la
+    // temporada, solo las 3 nuevas en detalle y el contador 602002 al cerrar.
+    expect(delta.map((c) => c.method)).toEqual([
+      "matchIds",
+      "matchIds",
+      "match",
+      "match",
+      "match",
+      "playerData",
+    ]);
+    expect(delta.slice(0, 2).map((c) => c.query)).toEqual([
+      { start: 0, count: 100, queue: 1750, startTime: SEASON_START_S },
+      { start: 0, count: 100, queue: 1740, startTime: SEASON_START_S },
+    ]);
+    const requested = delta.filter((c) => c.method === "match");
+    expect(requested.map((c) => c.arg)).toEqual(
+      newestFirst(extras.map((e) => e.match.metadata.matchId)),
+    );
+    // Mantenimiento: no interactivo, prioridades de lista y detalle.
+    expect(requested.every((c) => c.priority === PRIORITY.detail)).toBe(true);
+    expect(delta[0].priority).toBe(PRIORITY.list);
+
+    const job = await lastJob(profile.id);
+    expect(job).toMatchObject({
+      kind: "backfill",
+      interactive: false,
+      status: "done",
+      totalIds: 13,
+      fetched: 13,
+    });
+    expect(job.startedAt).not.toBeNull();
+    expect(job.matchIds).toEqual(
+      newestFirst([
+        ...IDS_DESC,
+        ...extras.map((e) => e.match.metadata.matchId),
+      ]),
+    );
+    expect(fake.count("account")).toBe(1);
+    expect((await counts()).matches).toBe(13);
+  });
+});
+
 describe("AC5 refresco incremental", () => {
-  it("sin partidas nuevas: 1 petición de ids y 0 de detalle; con 1 nueva: 1 y 1; cooldown", async () => {
+  it("sin partidas nuevas: 1 petición de ids por cola y 0 de detalle; con 1 nueva: 1 por cola y 1; cooldown", async () => {
     const { fake, worker, clock } = setup();
     const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
     await drain(worker);
@@ -304,17 +534,21 @@ describe("AC5 refresco incremental", () => {
     let before = fake.calls.length;
     await drain(worker);
     let delta = fake.calls.slice(before);
-    // 1 de ids + el contador 602002 (otro host); ningún detalle.
-    expect(delta.map((c) => c.method)).toEqual(["matchIds", "playerData"]);
+    // 1 de ids por cola + el contador 602002 (otro host); ningún detalle.
+    expect(delta.map((c) => c.method)).toEqual([
+      "matchIds",
+      "matchIds",
+      "playerData",
+    ]);
     const [lastEnd] = await db
       .select({ max: sql<string>`max(${matches.gameEndTimestamp})` })
       .from(matches);
-    expect(delta[0].query).toMatchObject({
-      start: 0,
-      count: 100,
-      queue: 1750,
-      startTime: Math.floor(Number(lastEnd.max) / 1000) - 60,
-    });
+    // Un único `startTime` para las dos colas.
+    const startTime = Math.floor(Number(lastEnd.max) / 1000) - 60;
+    expect(delta.slice(0, 2).map((c) => c.query)).toEqual([
+      { start: 0, count: 100, queue: 1750, startTime },
+      { start: 0, count: 100, queue: 1740, startTime },
+    ]);
     expect(await lastJob(profile.id)).toMatchObject({
       kind: "incremental",
       status: "done",
@@ -331,7 +565,7 @@ describe("AC5 refresco incremental", () => {
     before = fake.calls.length;
     await drain(worker);
     delta = fake.calls.slice(before);
-    expect(delta.filter((c) => c.method === "matchIds")).toHaveLength(1);
+    expect(delta.filter((c) => c.method === "matchIds")).toHaveLength(2);
     expect(delta.filter((c) => c.method === "match").map((c) => c.arg)).toEqual(
       ["EUW1_7999000001"],
     );
@@ -361,6 +595,7 @@ describe("AC5 refresco incremental", () => {
     await drain(worker);
     const delta = fake.calls.slice(before);
     expect(delta.map((c) => [c.method, c.priority])).toEqual([
+      ["matchIds", PRIORITY.list],
       ["matchIds", PRIORITY.list],
       ["match", PRIORITY.detail],
       ["playerData", PRIORITY.list],
@@ -406,7 +641,7 @@ describe("AC6 pausa por key rechazada", () => {
   it("401 -> pausa sin avanzar ni consumir intento; sin llamadas hasta que cambie la key", async () => {
     const { fake, worker } = setup();
     const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
-    for (let i = 0; i < 5; i++) expect(await worker.tick()).toBe("worked"); // cuenta, ids, 3 detalles
+    for (let i = 0; i < 6; i++) expect(await worker.tick()).toBe("worked"); // cuenta, 2 de ids, 3 detalles
 
     const jobBefore = await lastJob(profile.id);
     const fetchBefore = await db
@@ -569,7 +804,7 @@ describe("AC7 caída y reanudación", () => {
     const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
 
     const first = make();
-    for (let i = 0; i < 5; i++) expect(await first.tick()).toBe("worked"); // cuenta, ids, 3 detalles
+    for (let i = 0; i < 6; i++) expect(await first.tick()).toBe("worked"); // cuenta, 2 de ids, 3 detalles
     // `kill -9` justo después de guardar la 4ª partida y antes de marcarla en match_fetch.
     const fourth = IDS_DESC[3];
     const fixture = fixtures.find((f) => f.id === fourth);
@@ -586,7 +821,7 @@ describe("AC7 caída y reanudación", () => {
       totalIds: 10,
     });
     expect(fake.count("account")).toBe(1);
-    expect(fake.count("matchIds")).toBe(1);
+    expect(fake.count("matchIds")).toBe(2); // una por cola
     expect(fake.count("match", fourth)).toBe(0);
     expect(fake.matchCalls()).toHaveLength(9);
     expect(new Set(fake.matchCalls()).size).toBe(9);
@@ -730,6 +965,6 @@ describe("errores en el detalle", () => {
       fetched: 10,
       attempts: 0,
     });
-    expect(fake.count("matchIds")).toBe(2);
+    expect(fake.count("matchIds")).toBe(3); // el fallo + una por cola
   });
 });

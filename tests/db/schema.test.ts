@@ -191,6 +191,7 @@ describe("sync_jobs", () => {
       matchIds: [],
       totalIds: 0,
       fetched: 0,
+      listQueueIndex: 0,
       listCursor: 0,
       attempts: 0,
     });

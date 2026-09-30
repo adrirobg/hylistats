@@ -4,6 +4,7 @@ import { closeDb } from "@/db";
 import { profiles, syncJobs } from "@/db/schema";
 import { getTestDb, truncateAll } from "../../tests/helpers/db";
 import {
+  enqueueSeasonBackfill,
   ensureFreshOnView,
   normalizeRiotId,
   onWake,
@@ -132,6 +133,94 @@ describe("requestRefresh", () => {
     );
     expect(results.filter((r) => r === "queued")).toHaveLength(1);
     expect(results.filter((r) => r === "active")).toHaveLength(3);
+    expect(await jobsOf(profile.id)).toHaveLength(2);
+  });
+});
+
+describe("enqueueSeasonBackfill", () => {
+  /** Perfil ya resuelto (`active`, con `puuid`) y con su último job terminado. */
+  async function syncedProfile() {
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+    await finishActiveJob(profile.id, new Date("2026-09-29T12:00:00Z"));
+    await db
+      .update(profiles)
+      .set({ status: "active", puuid: "anon-puuid-self" })
+      .where(eq(profiles.id, profile.id));
+    return profile;
+  }
+
+  it("perfil inexistente: unknown y no crea nada", async () => {
+    expect(await enqueueSeasonBackfill(db, "nadie#0000")).toEqual({
+      outcome: "unknown",
+    });
+    expect(await db.select().from(syncJobs)).toHaveLength(0);
+  });
+
+  it.each([
+    "resolving",
+    "not_found",
+  ] as const)("perfil %s: inactive y no encola", async (status) => {
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+    await finishActiveJob(profile.id, new Date("2026-09-29T12:00:00Z"));
+    await db
+      .update(profiles)
+      .set({ status })
+      .where(eq(profiles.id, profile.id));
+
+    expect(await enqueueSeasonBackfill(db, "bejito mambo#1991")).toEqual({
+      outcome: "inactive",
+      status,
+    });
+    expect(await jobsOf(profile.id)).toHaveLength(1);
+  });
+
+  it("perfil con un job en curso: active y no encola otro", async () => {
+    const profile = await syncedProfile();
+    await db.insert(syncJobs).values({
+      profileId: profile.id,
+      kind: "incremental",
+      status: "fetching",
+    });
+
+    const seq = wakeSeq();
+    expect(await enqueueSeasonBackfill(db, "bejito mambo#1991")).toEqual({
+      outcome: "active",
+    });
+    expect(await jobsOf(profile.id)).toHaveLength(2);
+    expect(wakeSeq()).toBe(seq);
+  });
+
+  it("perfil activo sin jobs en curso: backfill no interactivo en pending y despierta al worker", async () => {
+    const profile = await syncedProfile();
+
+    const seq = wakeSeq();
+    const result = await enqueueSeasonBackfill(db, "bejito mambo#1991");
+    expect(result).toMatchObject({ outcome: "queued" });
+    expect(wakeSeq()).toBe(seq + 1);
+
+    const jobs = await jobsOf(profile.id);
+    expect(jobs).toHaveLength(2);
+    const job = jobs.at(-1);
+    expect(job).toMatchObject({
+      kind: "backfill",
+      interactive: false,
+      status: "pending",
+      listQueueIndex: 0,
+      listCursor: 0,
+      matchIds: [],
+    });
+    expect(result).toEqual({ outcome: "queued", jobId: job?.id });
+  });
+
+  it("dos peticiones simultáneas crean un solo job", async () => {
+    const profile = await syncedProfile();
+    const results = await Promise.all(
+      Array.from({ length: 4 }, () =>
+        enqueueSeasonBackfill(db, "bejito mambo#1991"),
+      ),
+    );
+    expect(results.filter((r) => r.outcome === "queued")).toHaveLength(1);
+    expect(results.filter((r) => r.outcome === "active")).toHaveLength(3);
     expect(await jobsOf(profile.id)).toHaveLength(2);
   });
 });

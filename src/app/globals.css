@@ -2,22 +2,46 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Los artefactos de `.dev/` (maqueta, specs) no son código: que no generen utilidades. */
+@source not "../../.dev";
+
+/* Tema oscuro único (P9): <html> lleva siempre la clase `dark` (layout.tsx), que
+   activa las variantes `dark:` de los componentes de shadcn. */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Paleta hylistats (brief §6.1) como colores de Tailwind: `bg-surface-1`,
+     `border-line`, `text-place-1`, `text-target`… Fondo y texto ya existen por
+     el mapeo de shadcn: `--bg` es `bg-background`, `--text` es `text-foreground`
+     y `--text-muted` es `text-muted-foreground`. Cuidado: `text-muted` NO es el
+     texto atenuado (en shadcn `muted` es una superficie). */
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-faint: var(--text-faint);
+  --color-place-1: var(--place-1);
+  --color-won-deep: var(--won-deep);
+  --color-place-top: var(--place-top);
+  --color-place-low: var(--place-low);
+  --color-played: var(--played);
+  --color-trust: var(--trust);
+  --color-trust-bg: var(--trust-bg);
+  --color-target: var(--target);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+
+  /* Familias cargadas con next/font en layout.tsx. La display fija el eje
+     óptico en 72 (la variante Display de Big Shoulders). */
+  --font-display: var(--font-display);
+  --font-display--font-variation-settings: "opsz" 72;
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-body);
+
+  /* Tokens de shadcn (definidos abajo, apuntan a la paleta). */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -48,83 +72,128 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Sellado de un 1º nuevo en el álbum (brief §4.4; `@keyframes stamp` y `sealIn` de la maqueta).
+   `animate-stamp` va en el retrato y `animate-seal-in` en el sello, ambos bajo `.stamp` del cromo.
+   El sello anima `scale` y `rotate` (propiedades propias, como las usa Tailwind 4 en `-rotate-12`)
+   en vez de `transform`, que se sumaría al giro fijo del sello. Con prefers-reduced-motion el
+   cromo no recibe `.stamp` y, aun así, la regla de más abajo anula toda animación. */
+@theme {
+  --animate-stamp: stamp 0.6s ease;
+  --animate-seal-in: sealIn 0.5s 0.25s both cubic-bezier(0.2, 1.6, 0.4, 1);
+
+  @keyframes stamp {
+    0% {
+      filter: saturate(0.25) brightness(0.62);
+    }
+    100% {
+      filter: none;
+    }
+  }
+
+  @keyframes sealIn {
+    0% {
+      scale: 2.2;
+      rotate: -40deg;
+      opacity: 0;
+    }
+    100% {
+      scale: 1;
+      rotate: -12deg;
+      opacity: 1;
+    }
+  }
+}
+
+/* Un tema claro (D11, post-v1) solo tendría que redefinir esta capa de
+   variables (p. ej. `:root[data-theme="light"]`) y quitar la clase `dark` de
+   <html>: componentes y utilidades leen siempre de aquí. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  color-scheme: dark;
+
+  /* Paleta (brief §6.1; valores de la maqueta, revisados por contraste). */
+  --bg: #0f1013;
+  --surface-1: #17191e;
+  --surface-2: #20232a;
+  --line: #2c3038;
+  --text: #ece6d9;
+  --text-muted: #a29d92;
+  /* #6e6a62 en la maqueta daba 3,5:1 sobre --bg; subido al mínimo AA (4,9:1 sobre --bg y 4,5:1 sobre --surface-1). */
+  --text-faint: #858179;
+  --place-1: #e8b64c;
+  --won-deep: #8f6a1f;
+  --place-top: #4fb3a3;
+  --place-low: #5b616d;
+  --played: #7c8088;
+  --trust: #7fa3d1;
+  --trust-bg: #16202c;
+  --target: #ff7a45;
+  --danger: #e5534b;
+  --ok: #6cc08b;
+  --r: 6px;
+
+  /* Mapeo de shadcn a la paleta. Oro, naranja y azul acero tienen significado
+     propio (§6.1), así que ninguno hace de color primario o de acento. */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface-1);
+  --card-foreground: var(--text);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--text);
+  --primary: var(--text);
+  --primary-foreground: var(--bg);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--text);
+  --destructive: var(--danger);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--trust);
+  /* Gráficas de shadcn: rampa neutra; el color con significado se pasa
+     explícito desde cada gráfica. */
+  --chart-1: var(--text);
+  --chart-2: var(--text-muted);
+  --chart-3: var(--place-low);
+  --chart-4: var(--text-faint);
+  --chart-5: var(--line);
+  --radius: var(--r);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
+/* biome-ignore-start lint/complexity/noImportantStyles: `!important` es lo que se busca en `[hidden]` y en prefers-reduced-motion (deben ganar a cualquier estilo del autor) */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  [hidden] {
+    display: none !important;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body;
+    font-size: 16px;
+    line-height: 1.45;
+    /* Grano sutil (ruido SVG al 3,5 %, brief §6.3). */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
-  html {
-    @apply font-sans;
+  :focus-visible {
+    outline: 2px solid var(--trust);
+    outline-offset: 2px;
   }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* biome-ignore-end lint/complexity/noImportantStyles: fin del bloque anterior */
+
+/* Cifras alineadas en columnas, contadores y tablas. */
+@utility num {
+  font-variant-numeric: tabular-nums;
 }

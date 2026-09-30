@@ -1,15 +1,26 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { ACTIVE_SYNC_JOB_STATUSES, profiles, syncJobs } from "@/db/schema";
+import {
+  type AlbumEntry,
+  buildAlbum,
+  type RecentGame,
+  recentForm,
+} from "@/domain/album";
 import { getProfileStats, type ProfileChallenge } from "@/domain/queries";
 import type { StatsSummary, VerifiedChampion } from "@/domain/stats";
 import { getKeyStatus } from "@/lib/admin/key-service";
 import { getSeasonStart } from "@/lib/config";
+import type { ChampionCatalog } from "@/lib/ddragon";
 import { normalizeRiotId } from "@/worker/queue";
 
 // Carga de datos de `/euw/{nombre}-{tag}`, separada de la página para poder probarla contra la
 // BD. Devuelve una lista blanca explícita: ni el `puuid` (ni siquiera se lee del perfil) ni los
-// compañeros (van en #3) llegan a la página.
+// compañeros (van en #3) llegan a la página. El catálogo de Data Dragon se inyecta (la página pasa
+// `getChampionCatalog()`, que es server-only y usa la red): así esta carga se prueba sin red.
+
+/** Sin catálogo (por defecto): el álbum solo trae los campeones jugados, sin retratos. */
+const EMPTY_CATALOG: ChampionCatalog = { version: null, champions: [] };
 
 /** Progreso del job activo. Fases: `pending` -> resolviendo, `listing` -> listando, `fetching` -> descargando. */
 export type SyncProgress = { kind: "backfill" | "incremental" } & (
@@ -27,12 +38,26 @@ export interface ProfileView {
   tagLine: string;
   seasonStart: Date;
   lastSyncedAt: Date | null;
+  /** Epoch en ms de la última partida de la temporada; `null` sin partidas. */
+  lastGameAt: number | null;
   /** Job en curso (`null` si no hay ninguno). */
   sync: SyncProgress | null;
+  /**
+   * El último job que terminó (`done` o `error`) acabó en `error`: la última actualización falló.
+   * `at` es cuándo. Sin el texto de `lastError` (puede traer rutas o detalles internos).
+   */
+  lastJobError: { at: Date } | null;
   /** La key de Riot está caducada (`keyStatus = 'invalid'`): no se actualiza hasta rotarla. */
   paused: boolean;
   summary: StatsSummary;
   verifiedChampions: VerifiedChampion[];
+  /** Todos los campeones del catálogo más los jugados ausentes de él, con su estado de dominio. */
+  album: AlbumEntry[];
+  /**
+   * Las últimas 20 partidas (la más reciente primero) para la tira de forma del raíl. El nombre
+   * del campeón es el de visualización (el del álbum); sin `puuid`, como el resto.
+   */
+  form: RecentGame[];
   challenge: ProfileChallenge;
 }
 
@@ -85,15 +110,45 @@ async function loadSyncProgress(
 }
 
 /**
+ * ¿Falló la última actualización? Mira el último job terminado del perfil (`done`/`error`, por
+ * `id`: solo hay un job activo por perfil, así que el orden de ids es el de finalización). Un
+ * `done` posterior borra el aviso. Solo devuelve el instante: `lastError` no sale de la BD.
+ */
+async function loadLastJobError(
+  db: Db,
+  profileId: number,
+): Promise<{ at: Date } | null> {
+  const [last] = await db
+    .select({
+      status: syncJobs.status,
+      finishedAt: syncJobs.finishedAt,
+      updatedAt: syncJobs.updatedAt,
+    })
+    .from(syncJobs)
+    .where(
+      and(
+        eq(syncJobs.profileId, profileId),
+        inArray(syncJobs.status, ["done", "error"]),
+      ),
+    )
+    .orderBy(desc(syncJobs.id))
+    .limit(1);
+  if (last?.status !== "error") return null;
+  return { at: last.finishedAt ?? last.updatedAt };
+}
+
+/**
  * Todo lo que pinta la página de un Riot ID. El perfil se busca por `riotIdNorm`
  * (`lower(nombre)#lower(tag)`), no por el nombre canónico. `seasonStart` sale de `SEASON_START`
- * salvo que se pase otro (tests).
+ * salvo que se pase otro (tests). `catalog` es el catálogo de campeones (o su promesa: la página
+ * lo pide antes para que se cargue en paralelo con la BD); sin él, el álbum sale sin retratos.
  */
 export async function loadProfilePage(
   db: Db,
   gameName: string,
   tagLine: string,
   seasonStart: Date = getSeasonStart(),
+  catalog: ChampionCatalog | Promise<ChampionCatalog> = EMPTY_CATALOG,
 ): Promise<ProfilePageData> {
   const [profile] = await db
     .select({
@@ -116,12 +171,18 @@ export async function loadProfilePage(
     };
   }
 
-  const [stats, sync, key] = await Promise.all([
+  const [stats, sync, lastJobError, key, championCatalog] = await Promise.all([
     getProfileStats(db, profile.id, seasonStart),
     loadSyncProgress(db, profile.id),
+    loadLastJobError(db, profile.id),
     getKeyStatus(db),
+    catalog,
   ]);
   if (!stats) return unregistered; // borrado entre las dos consultas
+
+  const album = buildAlbum(championCatalog, stats.playerRows);
+  // La forma nombra a cada campeón como el álbum (catálogo o, sin él, la partida más reciente).
+  const displayName = new Map(album.map((e) => [e.championId, e.name]));
 
   return {
     kind: "profile",
@@ -129,10 +190,17 @@ export async function loadProfilePage(
     tagLine: profile.tagLine,
     seasonStart,
     lastSyncedAt: profile.lastSyncedAt,
+    lastGameAt: stats.lastGameAt,
     sync,
+    lastJobError,
     paused: key.status === "invalid",
     summary: stats.summary,
     verifiedChampions: stats.verifiedChampions,
+    album,
+    form: recentForm(stats.playerRows, 20).map((game) => ({
+      ...game,
+      championName: displayName.get(game.championId) ?? game.championName,
+    })),
     challenge: stats.challenge,
   };
 }

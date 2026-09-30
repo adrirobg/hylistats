@@ -1,10 +1,21 @@
 // Constantes y configuración de dominio de hylistats (sin acceso a BD ni a la Riot API).
 
-/** `queueId` de Arena actual (tríos, 6 equipos x 3). No está en `queues.json`: no depender de él. */
-export const ARENA_QUEUE_ID = 1750;
+/**
+ * `queueId` de las dos colas de Arena tríos (6 equipos x 3) de la temporada. Ninguna está en
+ * `queues.json`: no depender de él. La 1740 tiene el mismo formato que la 1750 y cuenta para el
+ * challenge 602002; se añadió por decisión del supervisor (think.md F14). El orden importa: el
+ * worker las lista en este orden y `sync_jobs.list_queue_index` es un índice en este array.
+ */
+export const ARENA_QUEUE_IDS = [1750, 1740] as const;
 
 /** Challenge 602002 "Adapt to All Situations" (Arena God): campeones distintos con 1º puesto. */
 export const CHALLENGE_ARENA_GOD = 602002;
+
+/**
+ * Meta de la barra Arena God: campeones ganados que pide el nivel MASTER de 602002 (thresholds
+ * del `config` verificados en I1 §7.2: IRON 3 … MASTER 60).
+ */
+export const ARENA_GOD_THRESHOLD = 60;
 
 /** Inicio de la temporada de Arena por defecto (patch 26.10, mayo 2026). */
 export const DEFAULT_SEASON_START = "2026-05-12T00:00:00Z";

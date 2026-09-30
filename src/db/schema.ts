@@ -148,6 +148,8 @@ export const syncJobs = pgTable(
     matchIds: text("match_ids").array().notNull().default(sql`'{}'::text[]`),
     totalIds: integer("total_ids").notNull().default(0),
     fetched: integer("fetched").notNull().default(0),
+    // Índice en `ARENA_QUEUE_IDS` de la cola que se está listando (`listCursor` es su paginación).
+    listQueueIndex: integer("list_queue_index").notNull().default(0),
     listCursor: integer("list_cursor").notNull().default(0),
     attempts: integer("attempts").notNull().default(0),
     lastError: text("last_error"),
