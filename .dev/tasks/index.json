@@ -95,14 +95,14 @@
     {
       "id": "T08",
       "title": "Menú ⋯ en todos los cromos con enlaces de builds",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/7-stats-personales",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T08_menu-builds.md",
       "created_at": "2026-09-30T20:30:00Z",
-      "updated_at": "2026-09-30T20:30:00Z"
+      "updated_at": "2026-09-30T21:30:23Z"
     },
     {
       "id": "T09",

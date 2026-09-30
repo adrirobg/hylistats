@@ -4,6 +4,7 @@
 // `card-menu.tsx`) solo las cablean.
 
 import type { AlbumEntry } from "@/domain/album";
+import { type ChampionLink, championLinks } from "@/lib/champion-links";
 import type { CardState } from "./album-view";
 
 /** Qué parte del cromo recibe el foco tras un cambio que puede mudarlo de banda (y remontarlo). */
@@ -58,6 +59,32 @@ export function manualCopy(
         question: `${name} dejará de contar como ganado a mano. Se guarda solo en este navegador.`,
         confirm: "Quitar",
       };
+}
+
+// --- Contenido del menú ⋯ -------------------------------------------------------------------
+
+export interface CardMenuContent {
+  /** Enlaces «Builds»: los mismos, en el mismo orden y con las mismas etiquetas que el panel. */
+  links: ChampionLink[];
+  /** Marcado manual (`mark`/`unmark`) o `null` si este cromo no lo ofrece. */
+  manual: Exclude<ManualAction, "none"> | null;
+}
+
+/**
+ * Qué lleva el menú ⋯ de un cromo. `manual` es lo que ofrecería el marcado manual (`manualActionFor`
+ * en «mi perfil», `"none"` en un perfil ajeno o en un verificado). Los enlaces salen de
+ * `championLinks`, igual que en el panel del campeón. Devuelve `null` si no hay nada que ofrecer
+ * (sin `ddId` y sin marcado manual): entonces no se pinta el ⋯.
+ */
+export function cardMenuContent(
+  ddId: string | null,
+  name: string,
+  manual: ManualAction,
+): CardMenuContent | null {
+  const links = championLinks(ddId, name);
+  const action = manual === "none" ? null : manual;
+  if (links.length === 0 && action === null) return null;
+  return { links, manual: action };
 }
 
 // --- Sellado -------------------------------------------------------------------------------

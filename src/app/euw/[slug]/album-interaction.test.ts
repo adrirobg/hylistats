@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { AlbumEntry } from "@/domain/album";
+import { championLinks } from "@/lib/champion-links";
 import {
   type CardBox,
+  cardMenuContent,
   isNavKey,
   manualActionFor,
   manualCopy,
@@ -209,5 +211,57 @@ describe("navigateTo", () => {
   it("un índice fuera de rango no mueve nada", () => {
     expect(navigateTo(boxes, -1, "ArrowRight")).toBe(-1);
     expect(navigateTo([], 0, "Home")).toBe(0);
+  });
+});
+
+describe("cardMenuContent", () => {
+  // Slugs límite de `championLinks`: los enlaces del menú son exactamente los del panel.
+  const LIMITE: [ddId: string, name: string][] = [
+    ["MonkeyKing", "Wukong"],
+    ["Nunu", "Nunu & Willump"],
+    ["Renata", "Renata Glasc"],
+    ["Belveth", "Bel'Veth"],
+    ["Kaisa", "Kai'Sa"],
+  ];
+
+  it.each(
+    LIMITE,
+  )("%s: mismos enlaces, orden y etiquetas que el panel", (ddId, name) => {
+    const panel = championLinks(ddId, name);
+    expect(panel).toHaveLength(5);
+    for (const action of ["none", "mark", "unmark"] as const) {
+      expect(cardMenuContent(ddId, name, action)?.links).toEqual(panel);
+    }
+    expect(
+      cardMenuContent(ddId, name, "none")?.links.map((l) => l.label),
+    ).toEqual(["op.gg", "LoLalytics", "METAsrc", "u.gg", "Blitz"]);
+  });
+
+  it("el marcado manual solo sale si la acción no es none", () => {
+    expect(cardMenuContent("Ahri", "Ahri", "none")?.manual).toBeNull();
+    expect(cardMenuContent("Ahri", "Ahri", "mark")?.manual).toBe("mark");
+    expect(cardMenuContent("Ahri", "Ahri", "unmark")?.manual).toBe("unmark");
+  });
+
+  it("todos los estados de cromo llevan menú; el manual solo donde aplicaba (mi perfil)", () => {
+    const states = ["won", "manual", "played", "none"] as const;
+    const mine = states.map(
+      (s) => cardMenuContent("Ahri", "Ahri", manualActionFor(s))?.manual,
+    );
+    expect(mine).toEqual([null, "unmark", "mark", "mark"]);
+    // Perfil ajeno: `actions` es null, el cromo pasa "none": solo builds.
+    for (const _ of states) {
+      const other = cardMenuContent("Ahri", "Ahri", "none");
+      expect(other?.links).toHaveLength(5);
+      expect(other?.manual).toBeNull();
+    }
+  });
+
+  it("sin ddId no hay enlaces: solo queda el marcado manual, o ningún menú", () => {
+    expect(cardMenuContent(null, "Fuera", "mark")).toEqual({
+      links: [],
+      manual: "mark",
+    });
+    expect(cardMenuContent(null, "Fuera", "none")).toBeNull();
   });
 });

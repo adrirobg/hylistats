@@ -1,7 +1,7 @@
 # Task T08 — Menú ⋯ en todos los cromos con enlaces de builds
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -28,11 +28,20 @@ El menú ⋯ aparece en todos los cromos (ganados, sin ganar y sin jugar) con lo
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] ⋯ visible en todos los estados de cromo.
-- [ ] Enlaces de builds idénticos a los del panel, en pestaña nueva.
-- [ ] "Marcar a mano" solo donde aplicaba antes; teclado y foco como antes.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] ⋯ visible en todos los estados de cromo.
+- [x] Enlaces de builds idénticos a los del panel, en pestaña nueva.
+- [x] "Marcar a mano" solo donde aplicaba antes; teclado y foco como antes.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `cardMenuContent(ddId, name, manual)` (`album-interaction.ts`) devuelve `{ links, manual }`. Los enlaces salen de `championLinks`, la misma función que usa el panel. `CardMenu` recibe ese contenido y se pinta en todos los cromos.
+  - La opción manual solo aparece con `actions` (mi perfil) y `manualActionFor(state) !== "none"`, como antes.
+  - `aria-label` del ⋯: «Más acciones: X» si hay marca manual y «Más opciones de X» si no.
+- Tests: menú = panel para Wukong, Nunu, Renata, Bel'Veth y Kai'Sa; matriz de estados (mi perfil y perfil ajeno); sin `ddId`.
+- Navegador integrado (dev noworker):
+  - BEJITO MAMBO (mi perfil): ⋯ en cromo ganado (Ahri, «Más opciones»), jugado (Aatrox) y sin jugar (Darius).
+  - Menú de Aatrox abierto con Enter: «BUILDS» con op.gg, LoLalytics, METAsrc, u.gg y Blitz, todos `_blank noopener noreferrer`, y debajo «Marcar como ganado a mano…». Captura con el menú abierto.
+  - Foco inicial en op.gg. Esc cierra y devuelve el foco al ⋯. La URL no cambia (no se abre el panel).
+  - Hylimichi (perfil ajeno): 173/173 cromos con ⋯. El de Kai'Sa lleva solo Builds, con los slugs `kaisa` y `Kaisa` correctos.
+- `npm run lint && npm run typecheck && npm test && npm run build`: en verde (50 ficheros, 1108 tests).
