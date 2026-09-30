@@ -10,7 +10,12 @@ import {
 } from "vitest";
 import { closeDb } from "@/db";
 import { syncJobs } from "@/db/schema";
-import { RiotAuthError } from "@/lib/riot/errors";
+import {
+  classifyRetry,
+  RiotAuthError,
+  RiotRateLimitError,
+  RiotRetryableError,
+} from "@/lib/riot/errors";
 import { getTestDb, truncateAll } from "../../tests/helpers/db";
 import { createFakeRiot } from "../../tests/helpers/fake-riot";
 import {
@@ -158,5 +163,26 @@ describe("safeErrorMessage", () => {
       status: 403,
     });
     expect(safeErrorMessage(error)).toBe(error.message);
+  });
+
+  it("el límite de peticiones conserva su marca en lo que se guarda: classifyRetry lo reconoce", () => {
+    const limited = safeErrorMessage(
+      new RiotRateLimitError(
+        { host: "europe", path: "/lol/match/v5/matches/:id", status: 429 },
+        "límite de peticiones tras 5 intentos",
+      ),
+    );
+    expect(classifyRetry(limited)).toBe("rate_limit");
+    // También con el prefijo con el que `closeJob` anota un fallo de player-data.
+    expect(classifyRetry(`player-data: ${limited}`)).toBe("rate_limit");
+    // Un 5xx o un error cualquiera no.
+    expect(
+      classifyRetry(
+        safeErrorMessage(
+          new RiotRetryableError({ host: "europe", path: "/x", status: 503 }),
+        ),
+      ),
+    ).toBe("error");
+    expect(classifyRetry(safeErrorMessage(new Error("boom")))).toBe("error");
   });
 });

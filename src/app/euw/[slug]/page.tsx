@@ -6,22 +6,33 @@ import { getDb } from "@/db";
 import { ARENA_GOD_THRESHOLD, getSeasonStart } from "@/lib/config";
 import { getChampionCatalog } from "@/lib/ddragon";
 import { formatDateTime } from "@/lib/format";
+import { getGameData } from "@/lib/game-data";
 import { parseProfileSlug, profileSlug } from "@/lib/riot-id";
 import { Album } from "./album";
 import { ArenaGodBar } from "./arena-god";
 import { AutoRefresh } from "./auto-refresh";
 import { Cabin } from "./cabin";
+import { ChampionPanel } from "./champion-panel";
+import { CHAMPION_PARAM } from "./champion-panel-view";
 import { loadProfilePage, type ProfileView } from "./data";
 import { FormStrip } from "./form-strip";
 import { ProfileHeader } from "./header";
+import { MatchesPanel } from "./matches-panel";
+import { parseMatchParams } from "./matches-view";
 import { NotFoundCard, UnregisteredCard } from "./profile-states";
 import { Scoreboard } from "./scoreboard";
+import { SummaryPanel } from "./summary-panel";
 import { SyncBand } from "./sync-band";
+import { TabPanel, Titled } from "./tab-panel";
+import { Tabs } from "./tabs";
+import { TeammatesPanel } from "./teammates-panel";
+import { RailTeammates } from "./teammates-rail";
+import { parseTeammateParams } from "./teammates-view";
 import { TopBar } from "./top-bar";
 import {
   emptyState,
-  type ProfileTab,
   parseProfileTab,
+  queryParams,
   syncBandModel,
 } from "./view-model";
 
@@ -36,32 +47,44 @@ export default async function ProfilePage({
   const riotId = parseProfileSlug(slug);
   if (!riotId) notFound();
 
-  // El catálogo de campeones se pide a la vez que la BD (`getChampionCatalog` nunca lanza: sin
-  // Data Dragon el álbum sale sin retratos).
-  const [query, data] = await Promise.all([
-    searchParams,
-    loadProfilePage(
-      getDb(),
-      riotId.gameName,
-      riotId.tagLine,
-      getSeasonStart(),
-      getChampionCatalog(),
-    ),
-  ]);
+  // `?tab` decide qué datos se cargan (solo los de la pestaña activa); `?min` y `?orden` cuántos
+  // compañeros, y `?q`, `?puesto`, `?companero`, `?n` y `?partida` qué partidas. `?campeon` abre el
+  // panel de campeón sobre cualquier pestaña. El catálogo de
+  // campeones se pide a la vez que la BD (`getChampionCatalog` nunca lanza: sin Data Dragon el
+  // álbum sale sin retratos). Los nombres e iconos de objetos y augments solo se piden con
+  // `?partida`, cuando hay un detalle que pintar (`getGameData` tampoco lanza).
+  const query = await searchParams;
+  const tab = parseProfileTab(query.tab);
+  const matches = parseMatchParams(queryParams(query));
+  const catalog = getChampionCatalog();
+  const data = await loadProfilePage(
+    getDb(),
+    riotId.gameName,
+    riotId.tagLine,
+    {
+      tab,
+      teammates: parseTeammateParams(queryParams(query)),
+      matches,
+      campeon: queryParams(query).get(CHAMPION_PARAM) ?? undefined,
+    },
+    getSeasonStart(),
+    catalog,
+    tab === "partidas" && matches.partida !== null
+      ? catalog.then(({ version }) => getGameData(version))
+      : undefined,
+  );
   // Las actions identifican el perfil por el Riot ID de la URL (`riotIdNorm`), no por el canónico.
   const actionSlug = profileSlug(riotId.gameName, riotId.tagLine);
 
   return (
-    <main className="flex flex-1 flex-col">
+    // `tabIndex={-1}`: a él vuelve el foco al cerrar el panel de campeón abierto por URL.
+    <main tabIndex={-1} className="flex flex-1 flex-col outline-none">
       <TopBar />
       {data.kind === "profile" ? (
         <>
           <AutoRefresh slug={actionSlug} active={data.sync !== null} />
-          <ProfileCabin
-            data={data}
-            slug={actionSlug}
-            tab={parseProfileTab(query.tab)}
-          />
+          <ProfileCabin data={data} slug={actionSlug} />
+          <ChampionSheet data={data} />
         </>
       ) : (
         <div className="mx-auto w-full max-w-[640px] px-1.5 pt-4 sm:pt-10">
@@ -90,16 +113,8 @@ export default async function ProfilePage({
 
 // --- Cabina ------------------------------------------------------------------------------
 
-function ProfileCabin({
-  data,
-  slug,
-  tab,
-}: {
-  data: ProfileView;
-  slug: string;
-  tab: ProfileTab;
-}) {
-  const band = syncBandModel(data.sync, data.paused);
+function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
+  const band = syncBandModel(data.sync, data.paused, Date.now());
   return (
     <Cabin
       header={
@@ -113,6 +128,7 @@ function ProfileCabin({
           sync={data.sync}
           lastJobErrorAt={data.lastJobError?.at.getTime() ?? null}
           paused={data.paused}
+          arenaQuietSince={data.arenaQuiet?.lastArenaGameAt ?? null}
           games={data.summary.games}
           champions={data.verifiedChampions.map((c) => ({
             championId: c.championId,
@@ -133,32 +149,52 @@ function ProfileCabin({
         />
       }
       strip={<Scoreboard summary={data.summary} variant="strip" />}
-      tabs={<Tabs active={tab} />}
-      main={<ChampionsPanel data={data} />}
-      rail={<RailBoxes data={data} />}
+      tabs={<Tabs active={data.tab} />}
+      main={<ActivePanel data={data} slug={slug} />}
+      rail={<RailBoxes data={data} slug={slug} />}
     />
   );
 }
 
-/** Pestañas del perfil; solo existe Campeones (Resumen, Compañeros y Partidas van en #3). */
-function Tabs({ active }: { active: ProfileTab }) {
+/** Panel de la pestaña activa. */
+function ActivePanel({ data, slug }: { data: ProfileView; slug: string }) {
+  switch (data.tab) {
+    case "campeones":
+      return <ChampionsPanel data={data} />;
+    case "companeros":
+      return <TeammatesTab data={data} />;
+    case "partidas":
+      return <MatchesTab data={data} />;
+    case "resumen":
+      return <SummaryTab data={data} slug={slug} />;
+  }
+}
+
+// --- Panel de campeón ----------------------------------------------------------------------
+
+/**
+ * Panel de campeón (`?campeon=`, sobre cualquier pestaña): se monta una vez, fuera del panel de la
+ * pestaña. Solo llega el campeón pedido (`data.champion`) y su entrada del álbum, no el álbum
+ * entero. Dentro va en portal sobre `<body>`. `ChampionPanel` lee `?…` con `useSearchParams`.
+ */
+function ChampionSheet({ data }: { data: ProfileView }) {
+  const { champion } = data;
+  const entry = champion
+    ? data.album.find((e) => e.championId === champion.championId)
+    : undefined;
+  if (!champion || !entry) return null;
   return (
-    <div
-      role="tablist"
-      aria-label="Secciones del perfil"
-      className="mb-4 flex gap-1 overflow-x-auto border-b border-line"
-    >
-      <button
-        type="button"
-        role="tab"
-        id="tab-campeones"
-        aria-selected={active === "campeones"}
-        aria-controls="panel-campeones"
-        className="cursor-pointer px-3 pt-3.5 pb-3 font-medium whitespace-nowrap text-muted-foreground aria-selected:text-foreground aria-selected:shadow-[inset_0_-2px_0_var(--place-1)]"
-      >
-        Campeones
-      </button>
-    </div>
+    <Suspense fallback={null}>
+      <ChampionPanel
+        // Otro campeón (Atrás, otro cromo) es otra hoja: su estado de «abierta» empieza de cero.
+        key={champion.championId}
+        gameName={data.gameName}
+        tagLine={data.tagLine}
+        entry={entry}
+        data={champion}
+        nowMs={Date.now()}
+      />
+    </Suspense>
   );
 }
 
@@ -172,6 +208,26 @@ function Empty({ children }: { children: string }) {
   );
 }
 
+/** Por qué no hay partidas (§5): nunca un «No matches» mudo, sino el porqué y qué hacer. */
+function NoGames({
+  empty,
+  seasonStart,
+}: {
+  empty: "never" | "empty";
+  seasonStart: Date;
+}) {
+  return empty === "never" ? (
+    <Empty>
+      Todavía no hay datos de este perfil: la primera sincronización no ha
+      terminado. Pulsa Actualizar para reintentarla.
+    </Empty>
+  ) : (
+    <Empty>
+      {`No hay partidas de Arena desde el inicio de la temporada actual (${formatDateTime(seasonStart)}). Cuando juegues alguna, pulsa Actualizar.`}
+    </Empty>
+  );
+}
+
 function ChampionsPanel({ data }: { data: ProfileView }) {
   const empty = emptyState({
     games: data.summary.games,
@@ -179,24 +235,10 @@ function ChampionsPanel({ data }: { data: ProfileView }) {
     lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
   });
   return (
-    <div
-      role="tabpanel"
-      id="panel-campeones"
-      aria-labelledby="tab-campeones"
-      className="grid gap-4"
-    >
+    <TabPanel tab="campeones">
       {empty === "syncing" && <AlbumSkeleton />}
-      {empty === "never" && (
-        <Empty>
-          Todavía no hay datos de este perfil: la primera sincronización no ha
-          terminado. Pulsa Actualizar para reintentarla.
-        </Empty>
-      )}
-      {/* Nunca un «No matches» mudo (§5): el porqué y qué hacer. */}
-      {empty === "empty" && (
-        <Empty>
-          {`No hay partidas de Arena desde el inicio de la temporada actual (${formatDateTime(data.seasonStart)}). Cuando juegues alguna, pulsa Actualizar.`}
-        </Empty>
+      {(empty === "never" || empty === "empty") && (
+        <NoGames empty={empty} seasonStart={data.seasonStart} />
       )}
       {empty === null && (
         // `Album` lee `?vista`, `?filtro`, `?q` y `?orden` con `useSearchParams`.
@@ -209,7 +251,7 @@ function ChampionsPanel({ data }: { data: ProfileView }) {
           />
         </Suspense>
       )}
-    </div>
+    </TabPanel>
   );
 }
 
@@ -228,28 +270,134 @@ function AlbumSkeleton() {
   );
 }
 
-// --- Raíl --------------------------------------------------------------------------------
+// --- Pestaña Compañeros (main) -----------------------------------------------------------
 
-/**
- * Título de una `Box` con nota (`hint`): a la vista son dos textos separados, como en la maqueta;
- * el « · » oculto hace que el encabezado se lea entero («Marcador · 1º = victoria»).
- */
-function Titled({ children }: { children: string }) {
+function TeammatesTab({ data }: { data: ProfileView }) {
+  const empty = emptyState({
+    games: data.summary.games,
+    syncing: data.sync !== null,
+    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
+  });
   return (
-    <>
-      {children}
-      <span className="sr-only"> · </span>
-    </>
+    <TabPanel tab="companeros">
+      {empty === "syncing" && <TeammatesSkeleton />}
+      {(empty === "never" || empty === "empty") && (
+        <NoGames empty={empty} seasonStart={data.seasonStart} />
+      )}
+      {empty === null && (
+        // `TeammatesPanel` lee `?min` y `?orden` con `useSearchParams`.
+        <Suspense fallback={<TeammatesSkeleton />}>
+          <TeammatesPanel teammates={data.teammates ?? []} nowMs={Date.now()} />
+        </Suspense>
+      )}
+    </TabPanel>
   );
 }
+
+/** Controles y filas por rellenar mientras llega el backfill (§5: esqueleto, no un vacío). */
+function TeammatesSkeleton() {
+  return (
+    <div aria-busy="true" className="grid gap-3">
+      <Skeleton className="h-9 w-64 max-w-full" />
+      <Skeleton className="h-10" />
+      {Array.from({ length: 6 }, (_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: lista fija de marcadores sin identidad propia.
+        <Skeleton key={i} className="h-11" />
+      ))}
+    </div>
+  );
+}
+
+// --- Pestaña Partidas (main) -------------------------------------------------------------
+
+function MatchesTab({ data }: { data: ProfileView }) {
+  const empty = emptyState({
+    games: data.summary.games,
+    syncing: data.sync !== null,
+    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
+  });
+  return (
+    <TabPanel tab="partidas">
+      {empty === "syncing" && <MatchesSkeleton />}
+      {(empty === "never" || empty === "empty") && (
+        <NoGames empty={empty} seasonStart={data.seasonStart} />
+      )}
+      {empty === null && data.matches && (
+        // `MatchesPanel` lee `?q`, `?puesto`, `?companero`, `?n` y `?partida` con `useSearchParams`.
+        <Suspense fallback={<MatchesSkeleton />}>
+          <MatchesPanel
+            matches={data.matches}
+            detail={data.matchDetail ?? null}
+            nowMs={Date.now()}
+          />
+        </Suspense>
+      )}
+    </TabPanel>
+  );
+}
+
+/** Filtros y filas por rellenar mientras llega el backfill (§5: esqueleto, no un vacío). */
+function MatchesSkeleton() {
+  return (
+    <div aria-busy="true" className="grid gap-3">
+      <Skeleton className="h-9" />
+      {Array.from({ length: 8 }, (_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: lista fija de marcadores sin identidad propia.
+        <Skeleton key={i} className="h-14" />
+      ))}
+    </div>
+  );
+}
+
+// --- Pestaña Resumen (main) --------------------------------------------------------------
+
+function SummaryTab({ data, slug }: { data: ProfileView; slug: string }) {
+  const empty = emptyState({
+    games: data.summary.games,
+    syncing: data.sync !== null,
+    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
+  });
+  return (
+    <TabPanel tab="resumen">
+      {empty === "syncing" && <SummarySkeleton />}
+      {(empty === "never" || empty === "empty") && (
+        <NoGames empty={empty} seasonStart={data.seasonStart} />
+      )}
+      {empty === null && data.summaryTab && (
+        <SummaryPanel
+          summary={data.summary}
+          form={data.form}
+          verifiedChampions={data.verifiedChampions}
+          album={data.album}
+          tab={data.summaryTab}
+          slug={slug}
+          nowMs={Date.now()}
+        />
+      )}
+    </TabPanel>
+  );
+}
+
+/** Marcador, evolución y destacados por rellenar mientras llega el backfill (§5: esqueleto, no un vacío). */
+function SummarySkeleton() {
+  return (
+    <div aria-busy="true" className="grid gap-3">
+      <Skeleton className="h-28" />
+      <Skeleton className="h-56" />
+      <Skeleton className="h-36" />
+    </div>
+  );
+}
+
+// --- Raíl --------------------------------------------------------------------------------
 
 /**
  * Bloques del raíl (D2). A partir de 1100 px de contenedor el marcador vive aquí; por debajo lo
  * sustituye la franja bajo la barra Arena God (`strip`) y solo queda la forma, que el `Cabin`
- * deja al final del main. Todo sale de `data` en el servidor: sube en vivo con el `AutoRefresh`
- * durante el backfill.
+ * deja al final del main, seguida de los compañeros con más partidas. Todo sale de `data` en el
+ * servidor: sube en vivo con el `AutoRefresh` durante el backfill.
  */
-function RailBoxes({ data }: { data: ProfileView }) {
+function RailBoxes({ data, slug }: { data: ProfileView; slug: string }) {
   return (
     <>
       <Box
@@ -265,7 +413,14 @@ function RailBoxes({ data }: { data: ProfileView }) {
         hint="últimas 20 · más reciente a la izquierda"
         titleAs="h2"
       >
-        <FormStrip games={data.form} nowMs={Date.now()} />
+        <FormStrip games={data.form} slug={slug} nowMs={Date.now()} />
+      </Box>
+      <Box
+        title={<Titled>Compañeros</Titled>}
+        hint="partidas juntos"
+        titleAs="h2"
+      >
+        <RailTeammates teammates={data.railTeammates} />
       </Box>
     </>
   );

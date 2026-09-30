@@ -3,7 +3,6 @@
 import { LayoutGrid, List, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  type ReactNode,
   useCallback,
   useEffect,
   useId,
@@ -14,13 +13,17 @@ import {
 } from "react";
 import { Btn } from "@/components/hy/btn";
 import { Notice } from "@/components/hy/notice";
+import { SegButton, Segmented } from "@/components/hy/segmented";
 import type { AlbumEntry } from "@/domain/album";
-import { type LocalState, profileData } from "@/lib/local-store";
-import { normalizeRiotId } from "@/lib/riot-id";
-import { localActions, useLocalStore } from "@/lib/use-local-store";
+import { localActions } from "@/lib/use-local-store";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
-import { AlbumCard, AlbumTable, type CardActions } from "./album-card";
+import {
+  AlbumCard,
+  AlbumTable,
+  type CardActions,
+  type ChampionOpener,
+} from "./album-card";
 import {
   type CardBox,
   type CardPart,
@@ -42,7 +45,10 @@ import {
   type Vista,
   withQuery,
 } from "./album-view";
+import { championHref, championSlug } from "./champion-panel-view";
+import { useProfileLocal } from "./use-profile-local";
 import { useStamped } from "./use-stamped";
+import { matchHref as buildMatchHref } from "./view-model";
 
 // Álbum de campeones (brief §4.4 y §4.5, `.controls`, `.band` y `.grid` de la maqueta): buscador,
 // filtro segmentado, orden, vista álbum/lista y las bandas de cromos. Todo el estado de la vista
@@ -57,7 +63,8 @@ import { useStamped } from "./use-stamped";
 // Interacción (T09, brief §4.4 y §7): en «mi perfil» cada cromo lleva la diana y el menú ⋯ (las
 // acciones de `actions`), y `o` conmuta el objetivo del cromo enfocado. Las flechas, `Home` y `End`
 // recorren los cromos también en perfiles ajenos. Un 1º nuevo entre dos renders sella su cromo
-// (`use-stamped.ts`).
+// (`use-stamped.ts`). El cromo verificado enlaza a la partida de su primer 1º. Un clic o Enter en
+// un cromo (o una fila de la lista) abre el panel del campeón, `?campeon=` (`champion-panel.tsx`).
 
 export interface AlbumProps {
   /** Forma canónica de Riot: con ella se decide si el perfil es «mi perfil». */
@@ -72,36 +79,14 @@ export interface AlbumProps {
 /** Espera tras la última pulsación antes de escribir la búsqueda en la URL. */
 const DEBOUNCE_MS = 200;
 
-const selectMyProfile = (state: LocalState) => state.myProfile;
-/** Sin marcas: el mismo conjunto siempre, para que los `useMemo` no se invaliden. */
-const NO_IDS: ReadonlySet<number> = new Set();
-
 export function Album({ gameName, tagLine, album, nowMs }: AlbumProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const now = useNow(nowMs);
 
-  // «Mi perfil» se decide igual que en el header. Antes de leer `localStorage` (y en el servidor)
-  // el estado local es el vacío, así que ahí no hay ni objetivos ni marcas.
-  const norm = normalizeRiotId(gameName, tagLine);
-  const myProfile = useLocalStore(selectMyProfile);
-  const mine =
-    myProfile !== null &&
-    normalizeRiotId(myProfile.gameName, myProfile.tagLine) === norm;
-  const selectData = useCallback(
-    (state: LocalState) => profileData(state, norm),
-    [norm],
-  );
-  const localData = useLocalStore(selectData);
-  const targets = useMemo(
-    () => (mine ? new Set(localData.targets) : NO_IDS),
-    [mine, localData.targets],
-  );
-  const manual = useMemo(
-    () => (mine ? new Set(localData.manual) : NO_IDS),
-    [mine, localData.manual],
-  );
+  // «Mi perfil», objetivos y marcas manuales (los del navegador; vacíos en un perfil ajeno).
+  const { norm, mine, targets, manual } = useProfileLocal(gameName, tagLine);
 
   // --- Acciones de los cromos (solo «mi perfil») ---
   // Conmutar un objetivo o marcar a mano puede mudar el cromo de banda, y entonces React lo
@@ -143,6 +128,27 @@ export function Album({ gameName, tagLine, album, nowMs }: AlbumProps) {
 
   // Cromos que se sellan ahora: los verificados que llegan con el polling o un refresco.
   const stamped = useStamped(album, norm);
+
+  // Enlace de un cromo verificado a la partida de su primer 1º (Partidas, con esa partida abierta).
+  const search = searchParams.toString();
+  const matchHref = useCallback(
+    (matchId: string) => buildMatchHref(pathname, search, matchId),
+    [pathname, search],
+  );
+
+  // Un clic (o Enter) en un cromo, o en una fila de la lista, abre el panel del campeón: pone
+  // `?campeon` sin tocar el resto de la query. Es una navegación (Atrás lo cierra); el panel llega
+  // del servidor con los datos de ese campeón.
+  const opener = useMemo<ChampionOpener>(
+    () => ({
+      href: (entry) => championHref(pathname, search, championSlug(entry)),
+      open: (entry) =>
+        router.push(championHref(pathname, search, championSlug(entry)), {
+          scroll: false,
+        }),
+    }),
+    [router, pathname, search],
+  );
 
   // --- URL y buscador ---
   const urlParams = useMemo(
@@ -371,57 +377,12 @@ export function Album({ gameName, tagLine, album, nowMs }: AlbumProps) {
           now={now}
           stamped={stamped}
           actions={actions}
+          matchHref={matchHref}
+          opener={opener}
           onShowAll={() => update({ filtro: "todos" })}
         />
       ))}
     </div>
-  );
-}
-
-// --- Controles ---------------------------------------------------------------------------
-
-/** `.seg-ctl`: botones pegados; las líneas entre ellos son el fondo (`gap-px`), también al partirse en filas. */
-function Segmented({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <fieldset className="inline-flex min-w-0 flex-wrap gap-px overflow-hidden rounded-md border border-line bg-line">
-      <legend className="sr-only">{label}</legend>
-      {children}
-    </fieldset>
-  );
-}
-
-function SegButton({
-  pressed,
-  tone = "gold",
-  onClick,
-  children,
-}: {
-  pressed: boolean;
-  /** Color de la marca inferior del botón activo: naranja solo para objetivos. */
-  tone?: "gold" | "target";
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={cn(
-        "inline-flex grow cursor-pointer items-center justify-center gap-1.5 bg-surface-1 px-3 py-2 text-sm whitespace-nowrap text-muted-foreground hover:text-foreground aria-pressed:bg-surface-2 aria-pressed:text-foreground",
-        tone === "target"
-          ? "aria-pressed:shadow-[inset_0_-2px_0_var(--target)]"
-          : "aria-pressed:shadow-[inset_0_-2px_0_var(--place-1)]",
-      )}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -441,6 +402,8 @@ function Band({
   now,
   stamped,
   actions,
+  matchHref,
+  opener,
   onShowAll,
 }: {
   section: AlbumSection;
@@ -450,6 +413,8 @@ function Band({
   now: number;
   stamped: ReadonlySet<number>;
   actions: CardActions | null;
+  matchHref: (matchId: string) => string;
+  opener: ChampionOpener;
   onShowAll: () => void;
 }) {
   const titleId = useId();
@@ -493,7 +458,12 @@ function Band({
           )}
         </p>
       ) : vista === "lista" ? (
-        <AlbumTable rows={rows} now={now} />
+        <AlbumTable
+          rows={rows}
+          now={now}
+          matchHref={matchHref}
+          opener={opener}
+        />
       ) : (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-x-2.5 gap-y-3 @max-[640px]:grid-cols-[repeat(auto-fill,minmax(64px,1fr))]">
           {rows.map(({ entry, state, target }) => (
@@ -504,6 +474,8 @@ function Band({
               target={target}
               stamp={stamped.has(entry.championId)}
               actions={actions}
+              matchHref={matchHref}
+              opener={opener}
             />
           ))}
         </ul>

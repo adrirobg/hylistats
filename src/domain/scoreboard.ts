@@ -17,6 +17,20 @@ export function placeTone(placement: number): PlaceTone {
   return placement <= 3 ? "p23" : "p46";
 }
 
+/** Fondo de cada familia de puesto (§6.1); lo comparten el marcador, la forma y las partidas. */
+export const TONE_BG: Record<PlaceTone, string> = {
+  p1: "bg-place-1",
+  p23: "bg-place-top",
+  p46: "bg-place-low",
+};
+
+/** Color del número sobre `TONE_BG`: sobre oro y verde agua va oscuro; sobre pizarra, claro. */
+export const CHIP_TEXT: Record<PlaceTone, string> = {
+  p1: "text-background",
+  p23: "text-background",
+  p46: "text-foreground",
+};
+
 export interface ScoreboardFigure {
   key: "games" | "firsts" | "firstRate" | "top3Rate" | "avgPlacement";
   /** Rótulo bajo la cifra (`.kpi small` de la maqueta). */
@@ -83,9 +97,12 @@ export interface DistributionSegment {
   tone: PlaceTone;
 }
 
-/** Los seis segmentos de la barra apilada, del 1º al 6º; vacío si no hay partidas. */
+/**
+ * Los seis segmentos de la barra apilada, del 1º al 6º; vacío si no hay partidas. Solo necesita la
+ * distribución: vale para el resumen del perfil y para el de un campeón.
+ */
 export function distributionSegments(
-  summary: StatsSummary,
+  summary: Pick<StatsSummary, "distribution">,
 ): DistributionSegment[] {
   const total = PLACEMENTS.reduce((sum, p) => sum + summary.distribution[p], 0);
   if (total === 0) return [];

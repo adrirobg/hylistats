@@ -132,6 +132,8 @@ export function verifiedChampions(
  */
 export interface TeammateRow {
   matchId: string;
+  /** Epoch en ms de la partida. */
+  gameCreation: number;
   puuid: string;
   riotIdGameName: string;
   riotIdTagline: string;
@@ -148,15 +150,21 @@ export interface TeammateStats {
   games: number;
   /** Partidas juntos en 1º puesto (`placement === 1`). */
   firsts: number;
+  /** Partidas juntos con `placement <= 3`. */
+  top3: number;
   /** Puesto medio en las partidas jugadas juntos (el puesto es común al trío). */
   avgPlacement: number;
+  /** Epoch en ms de la última partida juntos (el máximo de `gameCreation`). */
+  lastPlayedAt: number;
 }
 
 /**
  * Compañeros de trío del jugador `selfPuuid`: en cada partida, los participantes con el mismo
  * `playerSubteamId` que él y distinto `puuid` (siempre 2). Las partidas donde no aparece
- * `selfPuuid` se ignoran. El nombre es el de la última fila vista de cada compañero (Riot IDs
- * pueden cambiar): pasar las filas en orden cronológico deja el más reciente.
+ * `selfPuuid` se ignoran. Como en `computeSummary`, solo cuentan filas con `placement` 1..6: una
+ * fila con un puesto fuera de rango se ignora entera (cifras y nombre). El nombre es el de la fila
+ * más reciente por `gameCreation` de cada compañero (Riot IDs pueden cambiar; a igualdad gana la
+ * última fila vista) y `lastPlayedAt` su máximo, sin depender del orden de entrada.
  * Orden: más partidas juntos primero (desempate: más 1º, nombre, puuid).
  */
 export function computeTeammates(
@@ -177,7 +185,9 @@ export function computeTeammates(
       tagLine: string;
       games: number;
       firsts: number;
+      top3: number;
       placementSum: number;
+      lastPlayedAt: number;
     }
   >();
   for (const matchRows of byMatch.values()) {
@@ -186,17 +196,24 @@ export function computeTeammates(
     for (const row of matchRows) {
       if (row.puuid === selfPuuid) continue;
       if (row.playerSubteamId !== self.playerSubteamId) continue;
+      if (!isPlacement(row.placement)) continue;
       const entry = acc.get(row.puuid) ?? {
         gameName: row.riotIdGameName,
         tagLine: row.riotIdTagline,
         games: 0,
         firsts: 0,
+        top3: 0,
         placementSum: 0,
+        lastPlayedAt: row.gameCreation,
       };
-      entry.gameName = row.riotIdGameName;
-      entry.tagLine = row.riotIdTagline;
+      if (row.gameCreation >= entry.lastPlayedAt) {
+        entry.gameName = row.riotIdGameName;
+        entry.tagLine = row.riotIdTagline;
+        entry.lastPlayedAt = row.gameCreation;
+      }
       entry.games += 1;
       if (row.placement === 1) entry.firsts += 1;
+      if (row.placement <= 3) entry.top3 += 1;
       entry.placementSum += row.placement;
       acc.set(row.puuid, entry);
     }
@@ -209,7 +226,9 @@ export function computeTeammates(
       tagLine: e.tagLine,
       games: e.games,
       firsts: e.firsts,
+      top3: e.top3,
       avgPlacement: e.placementSum / e.games,
+      lastPlayedAt: e.lastPlayedAt,
     }))
     .sort(
       (a, b) =>

@@ -50,7 +50,7 @@ export function CardMenu({
       <Popover.Trigger
         data-card-part="menu"
         aria-label={`Más acciones: ${name}`}
-        // El clic no debe llegar al cromo (el panel de campeón de #3 se abrirá desde ahí).
+        // El clic no debe llegar al cromo: abriría el panel del campeón.
         onClick={(event) => event.stopPropagation()}
         className="absolute right-1 bottom-1 grid size-[26px] cursor-pointer place-items-center rounded-full bg-[rgba(15,16,19,.72)] text-muted-foreground opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 data-popup-open:opacity-100"
       >

@@ -1,28 +1,29 @@
+import Link from "next/link";
 import type { RecentGame } from "@/domain/album";
-import { formChipLabel, type PlaceTone, placeTone } from "@/domain/scoreboard";
+import {
+  CHIP_TEXT,
+  formChipLabel,
+  placeTone,
+  TONE_BG,
+} from "@/domain/scoreboard";
 import { cn } from "@/lib/utils";
-import { TONE_BG } from "./scoreboard";
+import { matchHref } from "./view-model";
 
 // Forma reciente (brief §4.7, `.form` y `.fc` de la maqueta): un chip redondo por partida con el
 // puesto dentro, la más reciente a la izquierda. Componente de servidor: el «hace cuánto» de cada
-// chip se calcula con la hora del servidor (`nowMs`) y se renueva con el `router.refresh()`. En #2
-// el chip no es un enlace: abrir la partida es de #3.
-
-/** Color del número: sobre oro y verde agua va oscuro; sobre pizarra, claro. */
-const CHIP_TEXT: Record<PlaceTone, string> = {
-  p1: "text-background",
-  p23: "text-background",
-  p46: "text-foreground",
-};
+// chip se calcula con la hora del servidor (`nowMs`) y se renueva con el `router.refresh()`. Cada
+// chip es un enlace a su partida abierta en la pestaña Partidas (`?tab=partidas&partida=…`).
 
 interface FormStripProps {
   /** Las últimas partidas, la más reciente primero (`ProfileView.form`). */
   games: readonly RecentGame[];
+  /** Segmento de la URL del perfil (`{nombre}-{tag}` codificado): de ahí sale el enlace. */
+  slug: string;
   /** Hora del servidor (ms) para el «hace cuánto». */
   nowMs: number;
 }
 
-export function FormStrip({ games, nowMs }: FormStripProps) {
+export function FormStrip({ games, slug, nowMs }: FormStripProps) {
   if (games.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -40,17 +41,23 @@ export function FormStrip({ games, nowMs }: FormStripProps) {
         const label = formChipLabel(game, nowMs);
         const tone = placeTone(game.placement);
         return (
-          <li
-            key={game.matchId}
-            title={label}
-            aria-label={label}
-            className={cn(
-              "grid size-6 place-items-center rounded-full font-display text-[13px] leading-none font-extrabold tabular-nums",
-              TONE_BG[tone],
-              CHIP_TEXT[tone],
-            )}
-          >
-            {game.placement}
+          <li key={game.matchId}>
+            <Link
+              // Sin prefetch: la pestaña Partidas es dinámica y son 20 enlaces.
+              prefetch={false}
+              // Sin `search`: un enlace limpio, sin filtros que dejen la partida fuera de la lista.
+              href={matchHref(`/euw/${slug}`, "", game.matchId)}
+              scroll={false}
+              title={label}
+              aria-label={`${label} · abrir partida`}
+              className={cn(
+                "grid size-6 place-items-center rounded-full font-display text-[13px] leading-none font-extrabold tabular-nums",
+                TONE_BG[tone],
+                CHIP_TEXT[tone],
+              )}
+            >
+              {game.placement}
+            </Link>
           </li>
         );
       })}

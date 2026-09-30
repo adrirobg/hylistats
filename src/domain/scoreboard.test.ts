@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { RecentGame } from "./album";
 import {
+  CHIP_TEXT,
   distributionSegments,
   formChipLabel,
   NO_FIGURE,
+  type PlaceTone,
   placeTone,
   scoreboardFigures,
+  TONE_BG,
 } from "./scoreboard";
 import {
   computeSummary,
@@ -170,6 +173,30 @@ describe("placeTone", () => {
       "p46",
       "p46",
     ]);
+  });
+});
+
+describe("colores por tono de puesto", () => {
+  const TONES: PlaceTone[] = ["p1", "p23", "p46"];
+
+  it("cada tono tiene fondo y color de número; ninguno es rojo", () => {
+    expect(TONE_BG).toEqual({
+      p1: "bg-place-1",
+      p23: "bg-place-top",
+      p46: "bg-place-low",
+    });
+    for (const tone of TONES) {
+      expect(CHIP_TEXT[tone]).toMatch(/^text-(background|foreground)$/);
+      expect(TONE_BG[tone]).not.toMatch(/danger|red/);
+    }
+  });
+
+  it("sobre oro y verde agua el número va oscuro; sobre pizarra, claro", () => {
+    expect(CHIP_TEXT).toEqual({
+      p1: "text-background",
+      p23: "text-background",
+      p46: "text-foreground",
+    });
   });
 });
 

@@ -70,8 +70,10 @@ export async function refreshAction(
 }
 
 /**
- * Una vez por visita (lo llama `AutoRefresh` al montarse): encola un refresco no interactivo si
- * la última sincronización tiene más de 2 min. El cliente refresca la página si encoló algo.
+ * Lo llama `AutoRefresh` al montarse, al volver a la pestaña y cada 60 s con ella visible: encola
+ * un refresco no interactivo si la última sincronización (y el último job) tiene más de 5 min.
+ * El guardia de 5 min está en el servidor (`ensureFreshOnView`); el resto de llamadas solo tocan
+ * la BD propia. El cliente refresca la página si encoló algo.
  */
 export async function ensureFreshOnViewAction(
   slug: string,

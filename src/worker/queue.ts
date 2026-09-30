@@ -15,8 +15,11 @@ import { normalizeRiotId } from "@/lib/riot-id";
 
 /** Cooldown del botón "Actualizar": no se encola otro refresco hasta 60 s después del último. */
 export const REFRESH_COOLDOWN_MS = 60_000;
-/** Al abrir un perfil se refresca si la última sincronización tiene más de 2 min. */
-export const STALE_AFTER_MS = 2 * 60_000;
+/**
+ * Disparos automáticos (montaje, volver a la pestaña, latido): como mucho uno cada 5 min por
+ * perfil (AC3 de #3). Es también el cooldown por defecto de `ensureFreshOnView`.
+ */
+export const STALE_AFTER_MS = 5 * 60_000;
 
 export type RefreshResult = "queued" | "active" | "cooldown";
 /** `fresh`: no hace falta refrescar (sincronizado hace poco, o el Riot ID no existe). */
@@ -234,10 +237,13 @@ export interface EnsureFreshOptions {
 }
 
 /**
- * Al abrir la página de un perfil: encola un refresco NO interactivo si la última
- * sincronización tiene más de `staleAfterMs` (o no la hay) y no hay job activo. Un perfil
- * `not_found` no se refresca solo (cada intento gastaría una petición de Account-V1): para
- * reintentarlo está `requestRefresh`.
+ * Guardia de los disparos automáticos de la página de un perfil (montaje, volver a la pestaña y
+ * latido de `AutoRefresh`): encola un refresco NO interactivo si la última sincronización tiene
+ * más de `staleAfterMs` (o no la hay) y no hay job activo. El cooldown por defecto es el mismo
+ * umbral (no los 60 s del botón), así un incremental que acaba en `error` sin tocar
+ * `lastSyncedAt` tampoco se repite antes de 5 min. Al vivir aquí, vale para varias pestañas y
+ * visitantes. Un perfil `not_found` no se refresca solo (cada intento gastaría una petición de
+ * Account-V1): para reintentarlo está `requestRefresh`.
  */
 export async function ensureFreshOnView(
   db: Db,
@@ -245,7 +251,7 @@ export async function ensureFreshOnView(
   {
     now = new Date(),
     staleAfterMs = STALE_AFTER_MS,
-    cooldownMs,
+    cooldownMs = STALE_AFTER_MS,
   }: EnsureFreshOptions = {},
 ): Promise<EnsureFreshResult> {
   const [profile] = await db

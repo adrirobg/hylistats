@@ -1,3 +1,138 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Dominio de compañeros: top 3, última partida y tests de tríos",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/3-companeros-partidas",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T01_dominio-companeros.md",
+      "created_at": "2026-09-30T08:10:00Z",
+      "updated_at": "2026-09-30T08:04:27Z"
+    },
+    {
+      "id": "T02",
+      "title": "Auto-refresco D10: al volver a la pestaña y cada 5 min si está visible",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/3-companeros-partidas",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T02_auto-refresco.md",
+      "created_at": "2026-09-30T08:10:00Z",
+      "updated_at": "2026-09-30T08:42:35Z"
+    },
+    {
+      "id": "T03",
+      "title": "Pestañas del perfil, estado en la URL y carga bajo demanda",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/3-companeros-partidas",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T03_pestanas-url.md",
+      "created_at": "2026-09-30T08:10:00Z",
+      "updated_at": "2026-09-30T08:53:46Z"
+    },
+    {
+      "id": "T04",
+      "title": "Pestaña Compañeros y top de compañeros en el raíl",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/3-companeros-partidas",
+      "worktree": null,
+      "depends_on": [
+        "T01",
+        "T03"
+      ],
+      "artifact_path": ".dev/tasks/task_T04_companeros-rail.md",
+      "created_at": "2026-09-30T08:10:00Z",
+      "updated_at": "2026-09-30T09:14:53Z"
+    },
+    {
+      "id": "T05",
+      "title": "Pestaña Partidas: filas, nuevo 1º, filtros, bloques de 50 y detalle 6×3",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/3-companeros-partidas",
+      "worktree": null,
+      "depends_on": [
+        "T03",
+        "T04"
+      ],
+      "artifact_path": ".dev/tasks/task_T05_partidas-detalle.md",
+      "created_at": "2026-09-30T08:10:00Z",
+      "updated_at": "2026-09-30T09:47:37Z"
+    },
+    {
+      "id": "T06",
+      "title": "Panel de campeón (?campeon=) con stats personales y enlaces externos",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/3-companeros-partidas",
+      "worktree": null,
+      "depends_on": [
+        "T03",
+        "T05"
+      ],
+      "artifact_path": ".dev/tasks/task_T06_panel-campeon.md",
+      "created_at": "2026-09-30T08:10:00Z",
+      "updated_at": "2026-09-30T10:17:15Z"
+    },
+    {
+      "id": "T07",
+      "title": "Pestaña Resumen: marcador, distribución, forma, curva D4 y destacados",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/3-companeros-partidas",
+      "worktree": null,
+      "depends_on": [
+        "T03",
+        "T05",
+        "T06"
+      ],
+      "artifact_path": ".dev/tasks/task_T07_resumen.md",
+      "created_at": "2026-09-30T08:10:00Z",
+      "updated_at": "2026-09-30T10:34:08Z"
+    },
+    {
+      "id": "T08",
+      "title": "Estados restantes de §5: límite, cola compartida, Arena fuera de rotación, oficial y perfil ajeno",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/3-companeros-partidas",
+      "worktree": null,
+      "depends_on": [
+        "T02",
+        "T04",
+        "T06"
+      ],
+      "artifact_path": ".dev/tasks/task_T08_estados-s5.md",
+      "created_at": "2026-09-30T08:10:00Z",
+      "updated_at": "2026-09-30T13:41:43Z"
+    },
+    {
+      "id": "T09",
+      "title": "Verificación E2E de iter-03 y verify-report",
+      "status": "done",
+      "owner": "orchestrator",
+      "branch": "feat/3-companeros-partidas",
+      "worktree": null,
+      "depends_on": [
+        "T01",
+        "T02",
+        "T03",
+        "T04",
+        "T05",
+        "T06",
+        "T07",
+        "T08"
+      ],
+      "artifact_path": ".dev/tasks/task_T09_verificacion-e2e.md",
+      "created_at": "2026-09-30T08:10:00Z",
+      "updated_at": "2026-09-30T14:01:39Z"
+    }
+  ]
 }

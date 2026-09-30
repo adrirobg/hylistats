@@ -1,10 +1,7 @@
-import {
-  distributionSegments,
-  type PlaceTone,
-  scoreboardFigures,
-} from "@/domain/scoreboard";
-import { PLACEMENTS, type StatsSummary } from "@/domain/stats";
+import { scoreboardFigures } from "@/domain/scoreboard";
+import type { StatsSummary } from "@/domain/stats";
 import { cn } from "@/lib/utils";
+import { DistributionBar } from "./distribution-bar";
 
 // Marcador del perfil (brief §4.6, `.kpis` y `.dist` de la maqueta): cinco cifras y la
 // distribución 1º–6º. Es un componente de servidor: las cifras salen de `data` y suben en vivo
@@ -14,17 +11,13 @@ import { cn } from "@/lib/utils";
 // `rail`: rejilla de cinco cifras de 30 px y la barra apilada (va en una `Box` del raíl).
 // `strip`: la misma información reducida a una franja de cifras en una fila (que se parte en dos
 // si no cabe), para cuando el raíl se oculta por debajo de 1100 px (`cabin.tsx`).
-
-/** Fondo de cada familia de puesto (§6.1); lo comparte la tira de forma. */
-export const TONE_BG: Record<PlaceTone, string> = {
-  p1: "bg-place-1",
-  p23: "bg-place-top",
-  p46: "bg-place-low",
-};
+// `full`: el marcador del Resumen (`.big-kpis` de la maqueta), a ancho de pestaña: cifras de 56 px
+// en una rejilla que reparte el ancho, la distribución con sus porcentajes a la vista y la
+// leyenda de qué es una victoria.
 
 interface ScoreboardProps {
   summary: StatsSummary;
-  variant: "rail" | "strip";
+  variant: "rail" | "strip" | "full";
 }
 
 export function Scoreboard({ summary, variant }: ScoreboardProps) {
@@ -53,7 +46,34 @@ export function Scoreboard({ summary, variant }: ScoreboardProps) {
     );
   }
 
-  const segments = distributionSegments(summary);
+  if (variant === "full") {
+    return (
+      <>
+        <dl className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-4 @max-[640px]:grid-cols-[repeat(auto-fit,minmax(96px,1fr))] @max-[640px]:gap-3">
+          {figures.map((figure) => (
+            <div key={figure.key} className="flex min-w-0 flex-col-reverse">
+              <dt className="mt-1 text-[13px] text-muted-foreground">
+                {figure.label}
+              </dt>
+              <dd
+                className={cn(
+                  "font-display text-[56px] leading-none font-extrabold tracking-tight whitespace-nowrap tabular-nums @max-[640px]:text-[40px]",
+                  figure.gold && "text-place-1",
+                )}
+              >
+                {figure.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <DistributionBar summary={summary} detailed className="mt-4" />
+        <p className="mt-2.5 text-[13px] text-muted-foreground">
+          Victoria = 1º puesto (de 6 equipos)
+        </p>
+      </>
+    );
+  }
+
   return (
     <>
       {/* Cada cifra ocupa lo suyo y el sobrante se reparte entre ellas: cinco columnas iguales
@@ -77,39 +97,7 @@ export function Scoreboard({ summary, variant }: ScoreboardProps) {
           </div>
         ))}
       </dl>
-      {/* Sin partidas no hay segmentos: la pista queda vacía. Un puesto sin partidas (0 %) no
-          ocupa sitio ni hueco, pero sigue en el árbol de accesibilidad (`sr-only`). */}
-      <figure
-        aria-label="Distribución de puestos"
-        className={cn(
-          "mt-3.5 flex h-2.5 gap-0.5 overflow-hidden rounded-[3px]",
-          segments.length === 0 && "bg-surface-2",
-        )}
-      >
-        {segments.map((segment) => (
-          <span
-            key={segment.placement}
-            role="img"
-            aria-label={segment.label}
-            title={segment.label}
-            className={cn(
-              "block",
-              TONE_BG[segment.tone],
-              segment.count === 0 && "sr-only",
-            )}
-            style={{ flex: segment.percent }}
-          />
-        ))}
-      </figure>
-      {/* Los segmentos ya se nombran solos: la leyenda es solo visual. */}
-      <div
-        aria-hidden="true"
-        className="mt-1 flex justify-between font-mono text-[11px] text-faint"
-      >
-        {PLACEMENTS.map((placement) => (
-          <span key={placement}>{placement}º</span>
-        ))}
-      </div>
+      <DistributionBar summary={summary} className="mt-3.5" />
     </>
   );
 }

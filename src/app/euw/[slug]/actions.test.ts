@@ -155,18 +155,18 @@ describe("ensureFreshOnViewAction", () => {
     expect(await ensureFreshOnViewAction(SLUG)).toBe("active");
   });
 
-  it("sincronizado hace poco: fresh; hace más de 2 min: queued (no interactivo)", async () => {
+  it("sincronizado hace poco: fresh; hace más de 5 min: queued (no interactivo)", async () => {
     const profile = await register();
     await finishJob(profile.id, 30_000);
     expect(await ensureFreshOnViewAction(SLUG)).toBe("fresh");
 
     await db
       .update(profiles)
-      .set({ lastSyncedAt: new Date(Date.now() - 5 * 60_000) })
+      .set({ lastSyncedAt: new Date(Date.now() - 6 * 60_000) })
       .where(eq(profiles.id, profile.id));
     await db
       .update(syncJobs)
-      .set({ finishedAt: new Date(Date.now() - 5 * 60_000) })
+      .set({ finishedAt: new Date(Date.now() - 6 * 60_000) })
       .where(eq(syncJobs.profileId, profile.id));
     expect(await ensureFreshOnViewAction(SLUG)).toBe("queued");
     expect((await jobs()).at(-1)).toMatchObject({

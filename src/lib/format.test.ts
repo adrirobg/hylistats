@@ -4,6 +4,7 @@ import {
   formatDecimal,
   formatPercent,
   formatRelative,
+  formatShortDate,
 } from "./format";
 
 const NOW = Date.UTC(2026, 8, 29, 15, 0, 0);
@@ -54,6 +55,21 @@ describe("formatRelative", () => {
   it("la fecha corta va en UTC, no en la zona del proceso", () => {
     // 23:30 UTC del 12-ene: en zonas por delante de UTC ya sería el 13.
     expect(formatRelative(Date.UTC(2026, 0, 12, 23, 30), NOW)).toBe("12 ene");
+  });
+});
+
+describe("formatShortDate", () => {
+  it("fecha corta en UTC, sin año si es el actual y con año si no lo es", () => {
+    expect(formatShortDate(Date.UTC(2026, 0, 12), NOW)).toBe("12 ene");
+    expect(formatShortDate(Date.UTC(2025, 11, 5), NOW)).toBe("5 dic 2025");
+  });
+
+  it("no depende de cuánto hace: una fecha de ayer sigue siendo una fecha", () => {
+    expect(formatShortDate(NOW - DAY, NOW)).toBe("28 sept");
+  });
+
+  it("va en UTC, no en la zona del proceso", () => {
+    expect(formatShortDate(Date.UTC(2026, 0, 12, 23, 30), NOW)).toBe("12 ene");
   });
 });
 

@@ -53,6 +53,7 @@ function selfRow(match: MatchDto): PlayerMatchRow {
 function allRows(match: MatchDto): TeammateRow[] {
   return match.info.participants.map((p) => ({
     matchId: match.metadata.matchId,
+    gameCreation: match.info.gameCreation,
     puuid: p.puuid,
     riotIdGameName: p.riotIdGameName,
     riotIdTagline: p.riotIdTagline,
@@ -263,6 +264,8 @@ describe("computeTeammates", () => {
     //   046 en #3..#7 -> puestos [3,5,6,4,4] -> media 22/5 = 4,4
     //   115 en #1 y #2 -> puestos [3,3] -> media 3
     //   012 en #9 -> [2];  022 en #8 -> [2];  152 en #0 -> [5]
+    // top3 = puestos <= 3 (013: 5; 046: 1; 115: 2; 012 y 022: 1; 152: 0) y `lastPlayedAt` es el
+    // `gameCreation` de la última partida juntos (013 y 012: #9; 046: #7; 115: #2; 022: #8; 152: #0).
     // El trío es común, así que ningún compañero tiene 1º (la muestra no tiene ninguno).
     const teammates = computeTeammates(rows, SELF_PUUID);
     expect(teammates).toEqual([
@@ -272,7 +275,9 @@ describe("computeTeammates", () => {
         tagLine: "ANON",
         games: 10,
         firsts: 0,
+        top3: 5,
         avgPlacement: 3.7,
+        lastPlayedAt: 1790682703953,
       },
       {
         puuid: "anon-puuid-046",
@@ -280,7 +285,9 @@ describe("computeTeammates", () => {
         tagLine: "ANON",
         games: 5,
         firsts: 0,
+        top3: 1,
         avgPlacement: 4.4,
+        lastPlayedAt: 1790633861469,
       },
       {
         puuid: "anon-puuid-115",
@@ -288,7 +295,9 @@ describe("computeTeammates", () => {
         tagLine: "ANON",
         games: 2,
         firsts: 0,
+        top3: 2,
         avgPlacement: 3,
+        lastPlayedAt: 1790621786516,
       },
       // Empate a 1 partida: desempata el nombre.
       {
@@ -297,7 +306,9 @@ describe("computeTeammates", () => {
         tagLine: "ANON",
         games: 1,
         firsts: 0,
+        top3: 1,
         avgPlacement: 2,
+        lastPlayedAt: 1790682703953,
       },
       {
         puuid: "anon-puuid-022",
@@ -305,7 +316,9 @@ describe("computeTeammates", () => {
         tagLine: "ANON",
         games: 1,
         firsts: 0,
+        top3: 1,
         avgPlacement: 2,
+        lastPlayedAt: 1790680293890,
       },
       {
         puuid: "anon-puuid-152",
@@ -313,7 +326,9 @@ describe("computeTeammates", () => {
         tagLine: "ANON",
         games: 1,
         firsts: 0,
+        top3: 0,
         avgPlacement: 5,
+        lastPlayedAt: 1790618903881,
       },
     ]);
     expect(teammates.reduce((total, t) => total + t.games, 0)).toBe(20);
@@ -336,6 +351,7 @@ describe("computeTeammates", () => {
     //   013 -> puestos [5,3,3,3,5,1,4,4,2,1] -> 2 1º, media 31/10 = 3,1
     //   046 -> puestos [3,5,1,4,4] -> 1 1º, media 17/5 = 3,4
     //   012 -> puestos [1] -> 1 1º, media 1
+    // top3: 013 -> [5,3,3,3,5,1,4,4,2,1] = 6; 046 -> [3,5,1,4,4] = 2; 012 -> [1] = 1.
     const promoted = fixtures.flatMap((f, index) => {
       const match =
         index === 5 || index === 9
@@ -350,21 +366,25 @@ describe("computeTeammates", () => {
     expect(byPuuid.get("anon-puuid-013")).toMatchObject({
       games: 10,
       firsts: 2,
+      top3: 6,
       avgPlacement: 3.1,
     });
     expect(byPuuid.get("anon-puuid-046")).toMatchObject({
       games: 5,
       firsts: 1,
+      top3: 2,
       avgPlacement: 3.4,
     });
     expect(byPuuid.get("anon-puuid-012")).toMatchObject({
       games: 1,
       firsts: 1,
+      top3: 1,
       avgPlacement: 1,
     });
     // Un compañero de otra partida no se ve afectado.
     expect(byPuuid.get("anon-puuid-115")).toMatchObject({
       firsts: 0,
+      top3: 2,
       avgPlacement: 3,
     });
   });
@@ -381,35 +401,208 @@ describe("computeTeammates", () => {
     expect(computeTeammates([], SELF_PUUID)).toEqual([]);
   });
 
-  it("usa el Riot ID de la última fila de cada compañero", () => {
+  it("una partida de tríos da exactamente 2 compañeros, aunque se pasen las 18 filas", () => {
+    // #0: jugador (subteam 2) + 013 y 152; los otros 15 participantes son rivales.
+    const match = fixtures[0].match;
+    const matchRows = allRows(match);
+    expect(matchRows).toHaveLength(18);
+    const teammates = computeTeammates(matchRows, SELF_PUUID);
+    expect(teammates.map((t) => t.puuid).sort()).toEqual([
+      "anon-puuid-013",
+      "anon-puuid-152",
+    ]);
+    expect(teammates.map((t) => t.games)).toEqual([1, 1]);
+  });
+
+  it("las filas de otros subteams no cuentan", () => {
+    // Un rival con más partidas que nadie no debe aparecer aunque comparta partida.
+    const row = (
+      matchId: string,
+      puuid: string,
+      playerSubteamId: number,
+      gameCreation = 1,
+    ): TeammateRow => ({
+      matchId,
+      gameCreation,
+      puuid,
+      riotIdGameName: puuid,
+      riotIdTagline: "EUW",
+      placement: 2,
+      playerSubteamId,
+    });
+    const mixed = [
+      row("m1", SELF_PUUID, 1),
+      row("m1", "aliado", 1),
+      row("m1", "rival", 2),
+      row("m2", SELF_PUUID, 3),
+      row("m2", "aliado", 3),
+      row("m2", "rival", 2),
+      row("m3", SELF_PUUID, 1),
+      row("m3", "rival", 4),
+    ];
+    const teammates = computeTeammates(mixed, SELF_PUUID);
+    expect(teammates.map((t) => [t.puuid, t.games])).toEqual([["aliado", 2]]);
+  });
+
+  it("si en una partida falta la fila propia, esa partida se ignora", () => {
+    const row = (
+      matchId: string,
+      puuid: string,
+      gameCreation: number,
+    ): TeammateRow => ({
+      matchId,
+      gameCreation,
+      puuid,
+      riotIdGameName: puuid,
+      riotIdTagline: "EUW",
+      placement: 1,
+      playerSubteamId: 4,
+    });
+    const teammates = computeTeammates(
+      [
+        row("m1", SELF_PUUID, 100),
+        row("m1", "mate", 100),
+        // m2 sin la fila propia: no se sabe su subteam, no cuenta (ni para lastPlayedAt).
+        row("m2", "mate", 200),
+        row("m2", "otro", 200),
+      ],
+      SELF_PUUID,
+    );
+    expect(teammates).toEqual([
+      {
+        puuid: "mate",
+        gameName: "mate",
+        tagLine: "EUW",
+        games: 1,
+        firsts: 1,
+        top3: 1,
+        avgPlacement: 1,
+        lastPlayedAt: 100,
+      },
+    ]);
+  });
+
+  it("top3 y lastPlayedAt: el máximo por gameCreation, no la última fila recibida", () => {
+    const row = (
+      matchId: string,
+      puuid: string,
+      placement: number,
+      gameCreation: number,
+    ): TeammateRow => ({
+      matchId,
+      gameCreation,
+      puuid,
+      riotIdGameName: puuid,
+      riotIdTagline: "EUW",
+      placement,
+      playerSubteamId: 4,
+    });
+    // Tres partidas juntos (puestos 6, 3 y 1) entregadas en desorden: la más reciente (t=300,
+    // puesto 3) llega en medio y la más antigua (t=100, puesto 6) la última.
+    const shuffled = [
+      row("m2", SELF_PUUID, 1, 200),
+      row("m2", "mate", 1, 200),
+      row("m3", SELF_PUUID, 3, 300),
+      row("m3", "mate", 3, 300),
+      row("m1", SELF_PUUID, 6, 100),
+      row("m1", "mate", 6, 100),
+    ];
+    const [mate] = computeTeammates(shuffled, SELF_PUUID);
+    expect(mate).toMatchObject({
+      games: 3,
+      firsts: 1,
+      top3: 2, // los puestos 1 y 3; el 6 no cuenta
+      lastPlayedAt: 300,
+    });
+    expect(mate.avgPlacement).toBeCloseTo(10 / 3, 10);
+  });
+
+  it("el nombre más reciente gana, con las filas en cualquier orden", () => {
     const row = (
       matchId: string,
       name: string,
+      gameCreation: number,
       puuid = "mate",
     ): TeammateRow => ({
       matchId,
+      gameCreation,
       puuid,
       riotIdGameName: name,
       riotIdTagline: "EUW",
       placement: 1,
       playerSubteamId: 4,
     });
-    const rowsWithRename = [
-      row("m1", "Self", SELF_PUUID),
-      row("m1", "Antiguo"),
-      row("m2", "Self", SELF_PUUID),
-      row("m2", "Nuevo"),
+    const chronological = [
+      row("m1", "Self", 100, SELF_PUUID),
+      row("m1", "Antiguo", 100),
+      row("m2", "Self", 200, SELF_PUUID),
+      row("m2", "Nuevo", 200),
     ];
-    expect(computeTeammates(rowsWithRename, SELF_PUUID)).toEqual([
+    const expected = [
       {
         puuid: "mate",
         gameName: "Nuevo",
         tagLine: "EUW",
         games: 2,
         firsts: 2,
+        top3: 2,
         avgPlacement: 1,
+        lastPlayedAt: 200,
+      },
+    ];
+    expect(computeTeammates(chronological, SELF_PUUID)).toEqual(expected);
+    // La partida antigua llega la última: el nombre sigue siendo el de la más reciente.
+    expect(computeTeammates([...chronological].reverse(), SELF_PUUID)).toEqual(
+      expected,
+    );
+  });
+
+  it("un puesto fuera de 1..6 no cuenta (ni partida, ni nombre, ni fecha)", () => {
+    const row = (
+      matchId: string,
+      placement: number,
+      name: string,
+      gameCreation: number,
+      puuid = "mate",
+    ): TeammateRow => ({
+      matchId,
+      gameCreation,
+      puuid,
+      riotIdGameName: name,
+      riotIdTagline: "EUW",
+      placement,
+      playerSubteamId: 4,
+    });
+    const teammates = computeTeammates(
+      [
+        row("m1", 2, "Self", 100, SELF_PUUID),
+        row("m1", 2, "Valido", 100),
+        row("m2", 0, "Self", 200, SELF_PUUID),
+        row("m2", 0, "Cero", 200),
+        row("m3", 7, "Self", 300, SELF_PUUID),
+        row("m3", 7, "Siete", 300),
+      ],
+      SELF_PUUID,
+    );
+    expect(teammates).toEqual([
+      {
+        puuid: "mate",
+        gameName: "Valido",
+        tagLine: "EUW",
+        games: 1,
+        firsts: 0,
+        top3: 1,
+        avgPlacement: 2,
+        lastPlayedAt: 100,
       },
     ]);
+    // Si todas las partidas juntos son inválidas, el compañero no aparece.
+    expect(
+      computeTeammates(
+        [row("m1", 7, "Self", 100, SELF_PUUID), row("m1", 7, "Siete", 100)],
+        SELF_PUUID,
+      ),
+    ).toEqual([]);
   });
 });
 
