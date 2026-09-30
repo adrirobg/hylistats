@@ -123,6 +123,7 @@ function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
           slug={slug}
           gameName={data.gameName}
           tagLine={data.tagLine}
+          iconUrl={data.profileIconUrl}
           nowMs={Date.now()}
           lastGameAt={data.lastGameAt}
           lastSyncedAt={data.lastSyncedAt?.getTime() ?? null}

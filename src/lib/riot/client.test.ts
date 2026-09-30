@@ -175,6 +175,28 @@ describe("createRiotClient: peticiones y esquemas con los fixtures", () => {
     expect(arenaGod).toMatchObject({ value: 75, level: "MASTER" });
   });
 
+  it("getSummonerByPuuid: host euw1, ruta Summoner-V4 y profileIconId", async () => {
+    const { client, calls } = setup([
+      json({
+        puuid: "anon-puuid-self",
+        profileIconId: 7176,
+        revisionDate: 1_790_000_000_000,
+        summonerLevel: 869,
+      }),
+    ]);
+    const data = await client.getSummonerByPuuid("anon-puuid-self", 0);
+    expect(calls[0]?.url).toBe(
+      `${EUW1}/lol/summoner/v4/summoners/by-puuid/anon-puuid-self`,
+    );
+    expect(data).toEqual({ puuid: "anon-puuid-self", profileIconId: 7176 });
+  });
+
+  it("getSummonerByPuuid: sin profileIconId es un error de esquema", async () => {
+    const { client } = setup([json({ puuid: "p", summonerLevel: 1 })]);
+    const error = await catchError(client.getSummonerByPuuid("p", 1));
+    expect(error).toBeInstanceOf(RiotSchemaError);
+  });
+
   it("cada método pide hueco al limitador de SU host con la prioridad indicada, antes del fetch", async () => {
     const events: string[] = [];
     const spy = (host: string): Limiter => ({
@@ -189,6 +211,7 @@ describe("createRiotClient: peticiones y esquemas con los fixtures", () => {
       json([]),
       new Response(readFixtureText(`matches/${matchId}.json`)),
       json(readFixtureJson("player-data.json")),
+      json({ puuid: "p", profileIconId: 1 }),
     ];
     const { client } = setup([], {
       limiters: { europe: spy("europe"), euw1: spy("euw1") },
@@ -201,6 +224,7 @@ describe("createRiotClient: peticiones y esquemas con los fixtures", () => {
     await client.getMatchIds("p", { start: 0, count: 5, queue: 1750 }, 1);
     await client.getMatch(matchId, 2);
     await client.getPlayerData("p", 1);
+    await client.getSummonerByPuuid("p", 1);
     expect(events).toEqual([
       "acquire:europe:0",
       "fetch:europe",
@@ -208,6 +232,8 @@ describe("createRiotClient: peticiones y esquemas con los fixtures", () => {
       "fetch:europe",
       "acquire:europe:2",
       "fetch:europe",
+      "acquire:euw1:1",
+      "fetch:euw1",
       "acquire:euw1:1",
       "fetch:euw1",
     ]);
@@ -634,6 +660,7 @@ describe("createRiotClient: métricas", () => {
       empty(500), // match (intento fallido)
       new Response(readFixtureText(`matches/${listMatchFixtureIds()[0]}.json`)), // match
       json(readFixtureJson("player-data.json")), // playerData
+      json({ puuid: "p", profileIconId: 1 }), // summoner
       json(readFixtureJson("account.json")), // validate
     ]);
     expect(metrics.lastRequestAt).toBeNull();
@@ -641,12 +668,14 @@ describe("createRiotClient: métricas", () => {
     await client.getMatchIds("p", { start: 0, count: 1, queue: 1750 }, 1);
     await client.getMatch(listMatchFixtureIds()[0] as string, 2);
     await client.getPlayerData("p", 1);
+    await client.getSummonerByPuuid("p", 1);
     await client.validateKey(KEY);
     expect(metrics.requests).toEqual({
       account: 1,
       matchIds: 1,
       match: 2,
       playerData: 1,
+      summoner: 1,
       validate: 1,
     });
     expect(metrics.retries).toBe(1);

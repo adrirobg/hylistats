@@ -73,6 +73,19 @@ export function parseChampionJson(
   return { version, champions };
 }
 
+/**
+ * URL del icono de invocador en Data Dragon para la versión del catálogo en uso; `null` si el
+ * perfil no tiene icono guardado o no hay versión (catálogo no cargado): la cabecera usa entonces
+ * el placeholder.
+ */
+export function profileIconUrl(
+  version: string | null,
+  profileIconId: number | null,
+): string | null {
+  if (version === null || profileIconId === null) return null;
+  return `${DDRAGON_URL}/cdn/${encodeURIComponent(version)}/img/profileicon/${profileIconId}.png`;
+}
+
 async function fetchJson(
   fetchImpl: typeof fetch,
   url: string,

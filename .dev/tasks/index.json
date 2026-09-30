@@ -81,7 +81,7 @@
     {
       "id": "T07",
       "title": "Icono de invocador (Summoner-V4) en la cabecera",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/7-stats-personales",
       "worktree": null,
@@ -90,7 +90,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T07_icono-invocador.md",
       "created_at": "2026-09-30T20:30:00Z",
-      "updated_at": "2026-09-30T20:30:00Z"
+      "updated_at": "2026-09-30T21:27:13Z"
     },
     {
       "id": "T08",

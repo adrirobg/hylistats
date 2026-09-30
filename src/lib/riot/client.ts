@@ -11,7 +11,13 @@ import {
 } from "./errors";
 import { getRiotApiKey, type RiotKey } from "./key";
 import { HostLimiter, type Limiter, type Priority, sleep } from "./limiter";
-import { AccountDto, MatchDto, MatchIdsDto, PlayerDataDto } from "./schemas";
+import {
+  AccountDto,
+  MatchDto,
+  MatchIdsDto,
+  PlayerDataDto,
+  SummonerDto,
+} from "./schemas";
 
 // Cliente fino de la Riot API (stack.md §6): limitador por host -> `fetch` con la key ->
 // política de errores de sync-strategy.md §2. Todo se inyecta para poder probarlo sin red.
@@ -24,11 +30,16 @@ export const RIOT_HOSTS = {
 } as const;
 export type RiotHost = keyof typeof RIOT_HOSTS;
 
+// Un valor por método de la API que se usa (cuenta las peticiones en `RiotMetrics`). Los límites
+// de método (`riot-api.md` §3) nunca son el límite efectivo (gobierna el de app por host, en
+// `limiter.ts`), así que el limitador no los modela: account `1000:60`, matchIds/match `2000:10`,
+// summoner `2000:60`, playerData `20000:10,1200000:600`.
 export type RiotEndpoint =
   | "account"
   | "matchIds"
   | "match"
   | "playerData"
+  | "summoner"
   | "validate";
 
 export const REQUEST_TIMEOUT_MS = 10_000;
@@ -87,6 +98,8 @@ export interface RiotApi {
   ): Promise<{ match: MatchDto; raw: string }>;
   /** Challenges-V1 `player-data` (`euw1`, ~41 KB). */
   getPlayerData(puuid: string, priority: Priority): Promise<PlayerDataDto>;
+  /** Summoner-V4 `by-puuid` (`euw1`): icono de perfil y nivel. */
+  getSummonerByPuuid(puuid: string, priority: Priority): Promise<SummonerDto>;
   /** Comprueba una key candidata (la de `/admin`) sin guardarla ni usar `getKey`. */
   validateKey(candidateKey: string): Promise<KeyValidation>;
 }
@@ -103,7 +116,14 @@ export interface RiotMetrics {
 
 export function createRiotMetrics(): RiotMetrics {
   return {
-    requests: { account: 0, matchIds: 0, match: 0, playerData: 0, validate: 0 },
+    requests: {
+      account: 0,
+      matchIds: 0,
+      match: 0,
+      playerData: 0,
+      summoner: 0,
+      validate: 0,
+    },
     status429: 0,
     retries: 0,
     lastRequestAt: null,
@@ -400,6 +420,19 @@ export function createRiotClient(
         logPath: "/lol/challenges/v1/player-data/:puuid",
         priority,
         schema: PlayerDataDto,
+        maxAttempts: MAX_ATTEMPTS,
+      });
+      return data;
+    },
+
+    async getSummonerByPuuid(puuid, priority) {
+      const { data } = await request({
+        endpoint: "summoner",
+        host: "euw1",
+        path: `/lol/summoner/v4/summoners/by-puuid/${encodeURIComponent(puuid)}`,
+        logPath: "/lol/summoner/v4/summoners/by-puuid/:puuid",
+        priority,
+        schema: SummonerDto,
         maxAttempts: MAX_ATTEMPTS,
       });
       return data;

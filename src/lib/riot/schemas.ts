@@ -90,3 +90,10 @@ export const PlayerDataDto = z.object({
   ),
 });
 export type PlayerDataDto = z.infer<typeof PlayerDataDto>;
+
+/** Summoner-V4 `by-puuid`: solo el icono de perfil (ya no trae `id` ni `name`). */
+export const SummonerDto = z.object({
+  puuid: z.string().min(1),
+  profileIconId: int,
+});
+export type SummonerDto = z.infer<typeof SummonerDto>;

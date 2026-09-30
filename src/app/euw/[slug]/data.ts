@@ -56,7 +56,7 @@ import {
   ARENA_QUIET_DAYS,
   getSeasonStart,
 } from "@/lib/config";
-import type { ChampionCatalog } from "@/lib/ddragon";
+import { type ChampionCatalog, profileIconUrl } from "@/lib/ddragon";
 import { EMPTY_GAME_DATA, type GameData } from "@/lib/game-data";
 import { classifyRetry } from "@/lib/riot/errors";
 import { normalizeRiotId } from "@/worker/queue";
@@ -191,6 +191,11 @@ export interface ProfileView {
   gameName: string;
   tagLine: string;
   seasonStart: Date;
+  /**
+   * Icono de invocador en Data Dragon (versión del catálogo); `null` si el perfil aún no lo tiene
+   * o el catálogo no cargó: la cabecera pinta entonces el placeholder con las iniciales.
+   */
+  profileIconUrl: string | null;
   lastSyncedAt: Date | null;
   /** Epoch en ms de la última partida de la temporada; `null` sin partidas. */
   lastGameAt: number | null;
@@ -495,6 +500,7 @@ export async function loadProfilePage(
       tagLine: profiles.tagLine,
       status: profiles.status,
       lastSyncedAt: profiles.lastSyncedAt,
+      profileIconId: profiles.profileIconId,
     })
     .from(profiles)
     .where(eq(profiles.riotIdNorm, normalizeRiotId(gameName, tagLine)))
@@ -558,6 +564,10 @@ export async function loadProfilePage(
     gameName: profile.gameName,
     tagLine: profile.tagLine,
     seasonStart,
+    profileIconUrl: profileIconUrl(
+      championCatalog.version,
+      profile.profileIconId,
+    ),
     lastSyncedAt: profile.lastSyncedAt,
     lastGameAt: stats.lastGameAt,
     sync,

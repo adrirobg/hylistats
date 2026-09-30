@@ -723,17 +723,20 @@ async function registerFetchFailure(
 }
 
 /**
- * Cierre: contador del challenge 602002 (Challenges-V1, host `euw1`), `lastSyncedAt` y job
- * `done`. También en el incremental sin partidas nuevas: el criterio AC5 cuenta peticiones de
- * ids (1 por cola), y refrescar el contador oficial en cada sync es lo que permite compararlo con la
- * lista verificada (va a otro host, con su propia ventana de límite). Si `player-data` falla
- * por algo que no es la key, se anota en `lastError` y el job se cierra igualmente.
+ * Cierre: contador del challenge 602002 (Challenges-V1, host `euw1`), icono de invocador
+ * (Summoner-V4, host `euw1`), `lastSyncedAt` y job `done`. También en el incremental sin
+ * partidas nuevas: el criterio AC5 cuenta peticiones de ids (1 por cola), y refrescar el contador
+ * oficial en cada sync es lo que permite compararlo con la lista verificada (va a otro host, con
+ * su propia ventana de límite). Si `player-data` falla por algo que no es la key, se anota en
+ * `lastError` y el job se cierra igualmente. Con el icono igual (`summoner: …`): las dos
+ * llamadas son independientes y un fallo de una no quita la otra.
  */
 async function closeJob(deps: StepDeps, row: JobRow, now: Date) {
   const { db } = deps;
   const { job } = row;
   let challenge: ReturnType<typeof extractChallenge> = null;
-  let closeError: string | null = null;
+  let profileIconId: number | null = null;
+  const closeErrors: string[] = [];
   if (row.puuid) {
     try {
       const playerData = await deps.riot.getPlayerData(
@@ -743,15 +746,28 @@ async function closeJob(deps: StepDeps, row: JobRow, now: Date) {
       challenge = extractChallenge(playerData, CHALLENGE_ARENA_GOD);
     } catch (error) {
       if (error instanceof RiotAuthError) throw error;
-      closeError = `player-data: ${safeErrorMessage(error)}`;
+      closeErrors.push(`player-data: ${safeErrorMessage(error)}`);
+    }
+    try {
+      const summoner = await deps.riot.getSummonerByPuuid(
+        row.puuid,
+        priorityOf(job, PRIORITY.list),
+      );
+      profileIconId = summoner.profileIconId;
+    } catch (error) {
+      if (error instanceof RiotAuthError) throw error;
+      closeErrors.push(`summoner: ${safeErrorMessage(error)}`);
     }
   }
+  const closeError = closeErrors.length > 0 ? closeErrors.join("; ") : null;
 
   await db.transaction(async (tx) => {
     await tx
       .update(profiles)
       .set({
         lastSyncedAt: now,
+        // Si falla la llamada se conserva el icono que ya hubiera.
+        ...(profileIconId !== null ? { profileIconId } : {}),
         ...(challenge
           ? {
               challengeValue: challenge.value,

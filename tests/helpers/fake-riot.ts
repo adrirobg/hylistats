@@ -10,11 +10,19 @@ import { readFixtureJson } from "./riot";
 // variantes que se añadan), sintetiza las páginas de ids a partir de ellas y registra cada
 // llamada. Sin red ni key.
 
-export type FakeMethod = "account" | "matchIds" | "match" | "playerData";
+export type FakeMethod =
+  | "account"
+  | "matchIds"
+  | "match"
+  | "playerData"
+  | "summoner";
+
+/** `profileIconId` que devuelve el falso de Summoner-V4. */
+export const FAKE_PROFILE_ICON_ID = 4321;
 
 export interface FakeCall {
   method: FakeMethod;
-  /** Riot ID (`account`), puuid (`matchIds`, `playerData`) o matchId (`match`). */
+  /** Riot ID (`account`), puuid (`matchIds`, `playerData`, `summoner`) o matchId (`match`). */
   arg: string;
   query?: MatchIdsQuery;
   priority: number;
@@ -127,6 +135,11 @@ export function createFakeRiot(
         return readFixtureJson<PlayerDataDto>("player-data.json");
       }
       return { challenges: [] };
+    },
+
+    async getSummonerByPuuid(puuid, priority) {
+      record({ method: "summoner", arg: puuid, priority });
+      return { puuid, profileIconId: FAKE_PROFILE_ICON_ID };
     },
 
     async validateKey() {

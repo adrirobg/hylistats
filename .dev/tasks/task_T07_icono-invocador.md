@@ -1,7 +1,7 @@
 # Task T07 — Icono de invocador (Summoner-V4) en la cabecera
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -33,11 +33,34 @@ El sync guarda el `profileIconId` de cada perfil desde Summoner-V4 y la cabecera
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `getSummonerByPuuid` en el cliente con su endpoint en `euw1`.
-- [ ] El sync guarda `profileIconId`; un fallo no-auth no rompe el job (test).
-- [ ] Cabecera con icono o placeholder.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] `getSummonerByPuuid` en el cliente con su endpoint en `euw1`.
+- [x] El sync guarda `profileIconId`; un fallo no-auth no rompe el job (test).
+- [x] Cabecera con icono o placeholder.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- Cliente:
+  - `getSummonerByPuuid(puuid, priority)` en `RiotApi` pide `GET euw1 /lol/summoner/v4/summoners/by-puuid/{puuid}`.
+  - El endpoint `summoner` está en `RiotEndpoint`, con límite de método 2000:60 según `riot-api.md` §1.7/§8.
+  - El limitador solo modela ventanas por host y no hace falta tocarlo.
+  - `SummonerDto` está en `schemas.ts`.
+- `closeJob`: después de `getPlayerData` hay un `try` independiente para el summoner.
+  - `RiotAuthError` se propaga.
+  - Cualquier otro error va a `lastError` como `summoner: …` (junto a `player-data: …` si también falla) y el job se cierra en `done`.
+  - El icono solo se escribe si la llamada va bien; si falla, se conserva el anterior.
+- Cabecera: `profileIconUrl(version, id)` (`ddragon.ts`) monta la URL con la versión del catálogo en uso. Es un `<Image>` redondo con `alt=""`. Sin icono, o si la imagen no carga, se ven las iniciales.
+- Tests:
+  - 4 del worker: OK guarda el id; un 500 deja el job `done` con «summoner» en `lastError` y el perfil sin icono; un fallo posterior no borra el icono; un 403 pausa el worker como hoy.
+  - Del cliente, de `ddragon` y de `data.ts`.
+  - Se ajustaron los conteos de llamadas del cierre (+1 `summoner` en `euw1`).
+- API real, con la dev key vigente y el preview `hylistats-dev` con worker: los incrementales en cola (jobs 95–98) cerraron `done` sin `last_error` y guardaron el icono. Iconos guardados:
+  - Azpekaa 539
+  - BEJITO MAMBO 7176
+  - Hylimichi 7146
+  - TheCIutch 4070
+  - zapas14 7027
+
+  Krill1nt y elruffles quedan a la espera de su próximo sync.
+- Navegador: la cabecera de Hylimichi carga `https://ddragon.leagueoflegends.com/cdn/16.19.1/img/profileicon/7146.png` (redondo). Mientras se sincronizaba, zapas14 mostraba el placeholder de iniciales.
+- `npm run lint && npm run typecheck && npm test && npm run build`: en verde (50 ficheros, 1100 tests).

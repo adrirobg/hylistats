@@ -3,6 +3,7 @@ import {
   getChampionCatalog,
   loadChampionCatalog,
   parseChampionJson,
+  profileIconUrl,
 } from "./ddragon";
 
 // Datos mínimos escritos a mano con la forma real de `champion.json` (`data[id]` con `key`
@@ -135,6 +136,19 @@ describe("parseChampionJson", () => {
     expect(() => parseChampionJson({}, VERSION)).toThrow();
     expect(() => parseChampionJson(null, VERSION)).toThrow();
     expect(() => parseChampionJson({ data: [] }, VERSION)).toThrow();
+  });
+});
+
+describe("profileIconUrl", () => {
+  it("construye la URL con la versión del catálogo", () => {
+    expect(profileIconUrl(VERSION, 7176)).toBe(
+      `${CDN}/cdn/${VERSION}/img/profileicon/7176.png`,
+    );
+  });
+
+  it("sin versión o sin icono: null", () => {
+    expect(profileIconUrl(null, 7176)).toBeNull();
+    expect(profileIconUrl(VERSION, null)).toBeNull();
   });
 });
 

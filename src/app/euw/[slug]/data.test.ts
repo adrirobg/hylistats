@@ -184,6 +184,42 @@ describe("loadProfilePage", () => {
     });
   });
 
+  describe("icono de invocador", () => {
+    const loadWith = (catalog?: ChampionCatalog) =>
+      loadProfilePage(
+        db,
+        "BEJITO MAMBO",
+        "1991",
+        { tab: "campeones" },
+        seasonStart,
+        catalog,
+      );
+
+    it("con icono guardado y versión de Data Dragon: la URL del icono", async () => {
+      await insertProfile({ profileIconId: 7176 });
+      const data = await loadWith({ version: "16.19.1", champions: [] });
+      expect(data).toMatchObject({
+        kind: "profile",
+        profileIconUrl:
+          "https://ddragon.leagueoflegends.com/cdn/16.19.1/img/profileicon/7176.png",
+      });
+    });
+
+    it("sin icono guardado: null (la cabecera usa el placeholder)", async () => {
+      await insertProfile();
+      const data = await loadWith({ version: "16.19.1", champions: [] });
+      expect(data).toMatchObject({ kind: "profile", profileIconUrl: null });
+    });
+
+    it("con icono pero sin catálogo (sin versión): null", async () => {
+      await insertProfile({ profileIconId: 7176 });
+      expect(await loadWith()).toMatchObject({
+        kind: "profile",
+        profileIconUrl: null,
+      });
+    });
+  });
+
   it("perfil recién registrado (sin puuid): job pending = resolviendo y stats vacías", async () => {
     const profile = await insertProfile({
       puuid: null,
