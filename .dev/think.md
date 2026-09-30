@@ -1,5 +1,5 @@
 # Think: hylistats
-**Estado**: iter-03 en curso (issue #3, rama `feat/3-companeros-partidas`)
+**Estado**: iter-03 cerrada — sin iteración activa
 **Ultima sesion**: 2026-09-30
 **Sesiones**: 2026-09-29 (Webapp de estadísticas de perfil de jugador para trackear progreso en el modo Arena de LoL usando la Riot API (inspiración: lolalytics.com/arena, op.gg/lol/modes/arena, metasrc.com/lol/arena, arenasweats.lol, arena.trott.dev))
 **Grill**: cerrado (2026-09-29) — gate confirmado; §1 cerrada; I1–I4 entregadas. El supervisor da paso a desarrollo (2026-09-29)
@@ -104,7 +104,8 @@ Webapp sin login (F5) que, dado un Riot ID, muestra y mantiene las stats de Aren
 | Hilo | Owner | Siguiente accion |
 |------|-------|-------------------|
 | Hosting/publicación y código de acceso (Heroku, Railway, Fly, Azure…) | Supervisor | Tras v1 en local |
-| Pulido y mejora de la UI base (D1–D13 aplicadas por defecto en iter-02; el supervisor prefiere prototipar ya, 2026-09-29) | Supervisor | Tras v1. Deuda concreta de iter-02 (payload RSC del polling, raíl de 380 px inalcanzable, desviaciones de la maqueta): `archive/iter-02/learn.md` → Deuda y gaps |
+| Pulido y mejora de la UI base (D1–D13 aplicadas por defecto en iter-02; el supervisor prefiere prototipar ya, 2026-09-29) | Supervisor | Tras v1. Deuda concreta de iter-02 (payload RSC del polling, raíl de 380 px inalcanzable, desviaciones de la maqueta): `archive/iter-02/learn.md` → Deuda y gaps. De iter-03 (texto de perfil ajeno, tope de "Ver todos", eje de la curva a 375 px, ETA de cola compartida aproximada): `archive/iter-03/learn.md` → Deuda y gaps |
+| AC5 de #3 pendiente (criterio de terminado de la v1, F4): en una sesión real de Arena el grupo elige campeón y consulta stats y compañeros sin abrir otra web; el recuento cuadra con el contador oficial o la app explica la diferencia. La PR #6 se mergeó con este gate abierto | Supervisor | Próxima sesión de Arena con el grupo (renovar antes la dev key, que caduca el 2026-09-30 a las 18:30 UTC); si falla, issue de corrección |
 | AC8 de #2 pendiente: aceptación manual en una partida real (elegir campeón desde "Objetivos sin ganar"); la PR #5 se mergeó por delegación con este gate abierto | Supervisor | Próxima partida de Arena; si falla, issue de corrección |
 | Registro del producto en el portal de Riot para obtener Personal key (requisitos, cuándo es viable) | Supervisor | Tras tener prototipo con dev key |
 | Qué cuenta como "public consumption" con Personal key para web accesible por URL (I1 §11) | Supervisor | Revisar en Spec; F9 prevé código de acceso si hace falta |
