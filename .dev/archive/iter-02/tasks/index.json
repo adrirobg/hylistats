@@ -1,0 +1,159 @@
+{
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Colas de Arena 1750 + 1740 en backfill, incremental y stats",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/2-perfil-y-album",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T01_colas-arena.md",
+      "created_at": "2026-09-29T20:30:00Z",
+      "updated_at": "2026-09-29T19:18:48Z"
+    },
+    {
+      "id": "T02",
+      "title": "Sistema visual base: tokens, fuentes, tema oscuro y layout raíz",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/2-perfil-y-album",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T02_sistema-visual.md",
+      "created_at": "2026-09-29T20:30:00Z",
+      "updated_at": "2026-09-29T19:28:42Z"
+    },
+    {
+      "id": "T03",
+      "title": "Catálogo de campeones (Data Dragon) y dominio del álbum",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/2-perfil-y-album",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T03_catalogo-album.md",
+      "created_at": "2026-09-29T20:30:00Z",
+      "updated_at": "2026-09-29T19:33:38Z"
+    },
+    {
+      "id": "T04",
+      "title": "Capa de navegador (F6) y parser de entrada de Riot ID",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/2-perfil-y-album",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T04_capa-navegador.md",
+      "created_at": "2026-09-29T20:30:00Z",
+      "updated_at": "2026-09-29T19:42:43Z"
+    },
+    {
+      "id": "T05",
+      "title": "Landing: buscador, recientes/favoritos y redirección a mi perfil",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/2-perfil-y-album",
+      "worktree": null,
+      "depends_on": [
+        "T02",
+        "T04"
+      ],
+      "artifact_path": ".dev/tasks/task_T05_landing.md",
+      "created_at": "2026-09-29T20:30:00Z",
+      "updated_at": "2026-09-29T22:39:20Z"
+    },
+    {
+      "id": "T06",
+      "title": "Perfil: layout cabina, header, sincronización y estados",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/2-perfil-y-album",
+      "worktree": null,
+      "depends_on": [
+        "T02",
+        "T03",
+        "T04",
+        "T05"
+      ],
+      "artifact_path": ".dev/tasks/task_T06_perfil-header-sync.md",
+      "created_at": "2026-09-29T20:30:00Z",
+      "updated_at": "2026-09-29T23:09:44Z"
+    },
+    {
+      "id": "T07",
+      "title": "Barra Arena God de tres capas y aviso de descuadre",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/2-perfil-y-album",
+      "worktree": null,
+      "depends_on": [
+        "T06"
+      ],
+      "artifact_path": ".dev/tasks/task_T07_barra-arena-god.md",
+      "created_at": "2026-09-29T20:30:00Z",
+      "updated_at": "2026-09-29T23:24:14Z"
+    },
+    {
+      "id": "T08",
+      "title": "Álbum: cromos, bandas, filtros, búsqueda, orden, vista y URL",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/2-perfil-y-album",
+      "worktree": null,
+      "depends_on": [
+        "T03",
+        "T06"
+      ],
+      "artifact_path": ".dev/tasks/task_T08_album.md",
+      "created_at": "2026-09-29T20:30:00Z",
+      "updated_at": "2026-09-29T23:44:20Z"
+    },
+    {
+      "id": "T09",
+      "title": "Álbum: objetivos, marcado manual, atajos de teclado y sellado",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/2-perfil-y-album",
+      "worktree": null,
+      "depends_on": [
+        "T08"
+      ],
+      "artifact_path": ".dev/tasks/task_T09_album-interaccion.md",
+      "created_at": "2026-09-29T20:30:00Z",
+      "updated_at": "2026-09-30T00:02:52Z"
+    },
+    {
+      "id": "T10",
+      "title": "Raíl: marcador, distribución 1º–6º y forma de las últimas 20",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/2-perfil-y-album",
+      "worktree": null,
+      "depends_on": [
+        "T06",
+        "T08"
+      ],
+      "artifact_path": ".dev/tasks/task_T10_rail.md",
+      "created_at": "2026-09-29T20:30:00Z",
+      "updated_at": "2026-09-30T00:21:54Z"
+    },
+    {
+      "id": "T11",
+      "title": "Verificación E2E con la UI y re-backfill real de la cola 1740",
+      "status": "done",
+      "owner": "orchestrator",
+      "branch": "feat/2-perfil-y-album",
+      "worktree": null,
+      "depends_on": [
+        "T01",
+        "T07",
+        "T09",
+        "T10"
+      ],
+      "artifact_path": ".dev/tasks/task_T11_verificacion-e2e.md",
+      "created_at": "2026-09-29T20:30:00Z",
+      "updated_at": "2026-09-30T03:37:39Z"
+    }
+  ]
+}
