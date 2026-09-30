@@ -72,7 +72,7 @@ AC11 (sesión real del grupo) queda como gate manual, junto con AC5 de #3 y AC8 
 
 | Accion | Destino canonico | Prioridad |
 |--------|-----------------|-----------|
-| Sesión real de Arena con el grupo: AC11 de #7, AC5 de #3 y AC8 de #2; recoger impresiones sobre la cantidad de 🔥/❄️ | Supervisor / think.md §Hilos abiertos | alta |
+| Sesión real de Arena con el grupo: AC11 de #7, AC5 de #3 y AC8 de #2; recoger impresiones sobre la cantidad de 🔥/❄️. **Diferida tras iter-05 por decisión del supervisor (F18, 2026-10-01)**: una sola sesión valida iter-04 e iter-05 | Supervisor / think.md §Hilos abiertos | diferida (F18) |
 | `/dev-grill` de iter-05 (capa de grupo, F15): qué es el grupo, comparativas, tríos, rankings y títulos, sobre las métricas de `records.ts` y el `Badge` | think.md (Think de iter-05) | alta |
 | Al descomponer la spec en tasks, mapear cada cláusula de cada AC a un criterio de task; en los prompts, citar la regla de negocio y no un atajo técnico sin comprobar | Runbook `research/orquestacion-v1.md` (paso 4) | media |
 | Al cerrar Verify, encadenar Learn → Ship sin consultar (memoria `bucle-iteracion-orden-fases`) | Runbook `research/orquestacion-v1.md` (pasos 6–9) | media |
