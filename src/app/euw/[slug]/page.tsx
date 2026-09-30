@@ -5,16 +5,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getDb } from "@/db";
 import { ARENA_GOD_THRESHOLD, getSeasonStart } from "@/lib/config";
 import { getChampionCatalog } from "@/lib/ddragon";
-import { formatDateTime, formatDecimal, formatPercent } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { parseProfileSlug, profileSlug } from "@/lib/riot-id";
-import { cn } from "@/lib/utils";
 import { Album } from "./album";
 import { ArenaGodBar } from "./arena-god";
 import { AutoRefresh } from "./auto-refresh";
 import { Cabin } from "./cabin";
 import { loadProfilePage, type ProfileView } from "./data";
+import { FormStrip } from "./form-strip";
 import { ProfileHeader } from "./header";
 import { NotFoundCard, UnregisteredCard } from "./profile-states";
+import { Scoreboard } from "./scoreboard";
 import { SyncBand } from "./sync-band";
 import { TopBar } from "./top-bar";
 import {
@@ -131,9 +132,10 @@ function ProfileCabin({
           nowMs={Date.now()}
         />
       }
+      strip={<Scoreboard summary={data.summary} variant="strip" />}
       tabs={<Tabs active={tab} />}
       main={<ChampionsPanel data={data} />}
-      rail={<RailPlaceholders summary={data.summary} />}
+      rail={<RailBoxes data={data} />}
     />
   );
 }
@@ -228,60 +230,42 @@ function AlbumSkeleton() {
 
 // --- Raíl --------------------------------------------------------------------------------
 
-function Kpi({
-  value,
-  label,
-  gold,
-}: {
-  value: string;
-  label: string;
-  gold?: boolean;
-}) {
+/**
+ * Título de una `Box` con nota (`hint`): a la vista son dos textos separados, como en la maqueta;
+ * el « · » oculto hace que el encabezado se lea entero («Marcador · 1º = victoria»).
+ */
+function Titled({ children }: { children: string }) {
   return (
-    <div>
-      <b
-        className={cn(
-          "block font-display text-[30px] leading-none font-extrabold",
-          gold && "text-place-1",
-        )}
-      >
-        {value}
-      </b>
-      <small className="mt-1 block text-[11px] text-muted-foreground">
-        {label}
-      </small>
-    </div>
+    <>
+      {children}
+      <span className="sr-only"> · </span>
+    </>
   );
 }
 
 /**
- * Marcadores de posición del raíl (T10): las cifras que ya existían, sin la distribución 1º–6º ni
- * la forma. T10 los sustituye por el marcador completo, la distribución y la tira de 20.
+ * Bloques del raíl (D2). A partir de 1100 px de contenedor el marcador vive aquí; por debajo lo
+ * sustituye la franja bajo la barra Arena God (`strip`) y solo queda la forma, que el `Cabin`
+ * deja al final del main. Todo sale de `data` en el servidor: sube en vivo con el `AutoRefresh`
+ * durante el backfill.
  */
-function RailPlaceholders({ summary }: { summary: ProfileView["summary"] }) {
+function RailBoxes({ data }: { data: ProfileView }) {
   return (
     <>
-      <Box title="Marcador" titleAs="h2" hint="temporada">
-        {/* T10: marcador completo (KPIs y distribución 1º–6º). */}
-        <div className="grid grid-cols-4 gap-1.5">
-          <Kpi value={String(summary.games)} label="partidas" />
-          <Kpi value={String(summary.firsts)} label="1º" gold />
-          <Kpi value={formatPercent(summary.top3Rate, 0)} label="top 3" />
-          <Kpi
-            value={
-              summary.avgPlacement === null
-                ? "-"
-                : formatDecimal(summary.avgPlacement)
-            }
-            label="medio"
-          />
-        </div>
+      <Box
+        title={<Titled>Marcador</Titled>}
+        hint="1º = victoria"
+        titleAs="h2"
+        className="@max-[1100px]:hidden"
+      >
+        <Scoreboard summary={data.summary} variant="rail" />
       </Box>
-      <Box title="Forma" titleAs="h2" hint="últimas 20">
-        {/* T10: tira de las últimas 20 partidas. */}
-        <p className="text-sm text-muted-foreground">
-          Las últimas partidas aparecerán aquí.
-        </p>
+      <Box
+        title={<Titled>Forma</Titled>}
+        hint="últimas 20 · más reciente a la izquierda"
+        titleAs="h2"
+      >
+        <FormStrip games={data.form} nowMs={Date.now()} />
       </Box>
     </>
   );

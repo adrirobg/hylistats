@@ -31,6 +31,7 @@ export default function Loading() {
             <Skeleton className="h-3.5 w-full" />
           </>
         }
+        strip={<Skeleton className="h-10 w-full" />}
         tabs={
           <div className="mb-4 flex border-b border-line py-3.5">
             <Skeleton className="h-5 w-24" />
@@ -46,7 +47,8 @@ export default function Loading() {
         }
         rail={
           <>
-            <Skeleton className="h-32" />
+            {/* El marcador del raíl solo existe a partir de 1100 px (por debajo, la franja). */}
+            <Skeleton className="h-32 @max-[1100px]:hidden" />
             <Skeleton className="h-24" />
           </>
         }

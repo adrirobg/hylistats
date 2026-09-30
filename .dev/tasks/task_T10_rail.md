@@ -1,7 +1,7 @@
 # Task T10 — Raíl: marcador, distribución 1º–6º y forma de las últimas 20
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -60,11 +60,30 @@ Entre 640 y 1099 px, el marcador pasa a ser una **franja compacta** de 5 cifras 
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] El raíl a partir de 1100 px muestra marcador (5 cifras), distribución 1º–6º y forma (20) según la maqueta.
-- [ ] Entre 640 y 1099 px y en móvil hay una franja compacta de 5 cifras bajo la barra, sin scroll horizontal a 375 y 960 px.
-- [ ] Cifras en `es-ES` con `tabular-nums`; puestos 4º–6º en pizarra, nunca rojo; chips con número y `aria-label`.
-- [ ] Funciones puras probadas; los cuatro checks en verde.
+- [x] El raíl a partir de 1100 px muestra marcador (5 cifras), distribución 1º–6º y forma (20) según la maqueta.
+- [x] Entre 640 y 1099 px y en móvil hay una franja compacta de 5 cifras bajo la barra, sin scroll horizontal a 375 y 960 px.
+- [x] Cifras en `es-ES` con `tabular-nums`; puestos 4º–6º en pizarra, nunca rojo; chips con número y `aria-label`.
+- [x] Funciones puras probadas; los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- Lógica pura en `src/domain/scoreboard.ts`: `scoreboardFigures` (5 cifras `es-ES`, "—" sin partidas), `distributionSegments` (6 segmentos que suman 100, `[]` sin partidas), `placeTone` y `formChipLabel`. Componentes de servidor `scoreboard.tsx` (variantes `rail`/`strip`) y `form-strip.tsx`; suben en vivo con el `router.refresh()` de `AutoRefresh`, sin polling propio.
+- `ProfileView.form` = `recentForm(playerRows, 20)` con el nombre de visualización del álbum; sin `puuid`.
+- `Cabin` gana el slot `strip` bajo la barra Arena God (`@min-[1100px]:hidden`); el marcador del raíl se oculta por debajo de 1100 px (`@max-[1100px]:hidden`) y la forma queda al final del main (el `aside` ya cae debajo). El marcador existe dos veces en el DOM (una siempre `display: none`).
+- Desviaciones menores (no se sobrediseña):
+  - "1º" y "% 1º" en oro, como `renderKpis` de la maqueta; la task solo marcaba "1º".
+  - En el raíl de 340 px, 5 columnas iguales (49 px) no caben con "16,5%" en display de 30 px (~64 px): se usa `flex justify-between` con `tracking-tight` y se quita el espacio antes de "%" solo en el raíl, como la maqueta.
+  - La franja (< 1100 px) lleva solo las 5 cifras: la barra 1º–6º solo existe en el raíl.
+  - `tabular-nums` está puesto, pero no tiene efecto en `font-display` (Big Shoulders sin `tnum`); son KPIs sueltos, se acepta.
+
 ## Evidencias <!-- MUST -->
+
+- Navegador integrado (orquestador, 2026-09-30) contra `hylistats_test` (`hylistats-testdb`, semilla `synced 30000`), perfil `Jugador Uno#EUW`:
+  - 1440 px: raíl de 340 px con `h2` "Marcador · 1º = victoria" y "Forma · últimas 20 · más reciente a la izquierda"; cifras `11 · 1 · 9,1% · 55% · 3,45` (`font-variant-numeric: tabular-nums`); 6 segmentos "1º: 9,1 %", "2º: 18,2 %", "3º: 27,3 %", "4º: 18,2 %", "5º: 18,2 %", "6º: 9,1 %"; 11 chips en `ol[aria-label="Forma: últimas 20 partidas, la más reciente primero"]`, p. ej. "Blitzcrank · 1º · hace 20 min". Colores: 1º `rgb(232,182,76)`, 2º–3º `rgb(79,179,163)`, 4º–6º `rgb(91,97,109)` (pizarra, sin rojo). `[data-slot=strip]` `display: none`. `scrollWidth = innerWidth = 1440`.
+  - 1920 px: raíl 340 px (desviación conocida del rango de 380), franja oculta, `scrollWidth = 1920`.
+  - 960 px: franja `11 · 1 · 9,1 % · 55 % · 3,45` justo tras `[data-slot=arena-god]`; en el `aside`, "Marcador" `display: none` y "Forma" visible al final del main. `scrollWidth = innerWidth = 960`.
+  - 375 px: franja en una sola fila (borde derecho 323 px), forma hasta 329 px, `scrollWidth = innerWidth = 375`.
+  - En vivo (AC5): semilla `backfill`, banda "Descargando la temporada: 212 / 504 partidas"; `finish-perfil newgame` → sin recargar (marcador de `window` intacto) el marcador pasa a `12 · 2 · 16,7% · 58% · 3,25`, 12 chips y el primero "Rakan · 1º · hace 1 min"; la banda desaparece.
+  - `Vacio Demo#EUW`: cifras `0 · — · — · — · —`, 0 segmentos, forma "Aún no hay partidas: aquí aparecerán las últimas 20, la más reciente a la izquierda."
+- Checks (orquestador): `npm run lint` OK (121 ficheros) · `npm run typecheck` OK · `npm test` 36 ficheros, 623 tests en verde (+12 `scoreboard.test.ts`, +3 `data.test.ts`) · `npm run build` OK.
+- Commit: ver `git log` (`feat(ui): raíl con marcador, distribución 1º–6º y forma de las últimas 20`).

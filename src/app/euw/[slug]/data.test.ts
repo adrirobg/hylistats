@@ -373,6 +373,87 @@ describe("loadProfilePage", () => {
     });
   });
 
+  describe("forma reciente", () => {
+    /** Las 10 partidas reales más `extra` variantes posteriores de Blitzcrank, una por minuto. */
+    async function seedWithLater(extra: number) {
+      await storeAll();
+      for (let i = 0; i < extra; i += 1) {
+        await storeVariant(fixtures[1], `EUW1_TEST_LATE_${i}`, (j) => {
+          j.info.gameCreation = 1_790_800_000_000 + i * 60_000;
+        });
+      }
+      await insertProfile();
+    }
+
+    it("las últimas 20 partidas, la más reciente primero", async () => {
+      await seedWithLater(12); // 22 partidas en total: las dos más antiguas quedan fuera
+      const { form } = await loadProfile();
+
+      expect(form).toHaveLength(20);
+      const lateIds = Array.from({ length: 12 }, (_, i) => i)
+        .reverse()
+        .map((i) => `EUW1_TEST_LATE_${i}`);
+      const realIds = fixtures
+        .map((f) => f.match)
+        .sort((a, b) => b.info.gameCreation - a.info.gameCreation)
+        .slice(0, 8)
+        .map((m) => m.metadata.matchId);
+      expect(form.map((g) => g.matchId)).toEqual([...lateIds, ...realIds]);
+      expect(form[0]).toMatchObject({
+        matchId: "EUW1_TEST_LATE_11",
+        championId: 53,
+        gameCreation: 1_790_800_000_000 + 11 * 60_000,
+      });
+      // Orden estrictamente descendente en el tiempo.
+      for (let i = 1; i < form.length; i += 1) {
+        expect(form[i - 1].gameCreation).toBeGreaterThan(form[i].gameCreation);
+      }
+    });
+
+    it("con menos de 20 partidas salen las que hay; el nombre lo pone el catálogo si existe", async () => {
+      await seedWithLater(0);
+      const named: ChampionCatalog = {
+        version: "16.19.1",
+        champions: [
+          {
+            championId: 53,
+            ddId: "Blitzcrank",
+            name: "Blitzcrank (catálogo)",
+            portraitUrl: "https://cdn.test/Blitzcrank.png",
+          },
+        ],
+      };
+      const data = await loadProfilePage(
+        db,
+        "BEJITO MAMBO",
+        "1991",
+        seasonStart,
+        named,
+      );
+      if (data.kind !== "profile") throw new Error(`kind: ${data.kind}`);
+
+      expect(data.form).toHaveLength(10);
+      // Blitzcrank está en el catálogo: sale con su nombre de visualización...
+      expect(data.form.find((g) => g.championId === 53)?.championName).toBe(
+        "Blitzcrank (catálogo)",
+      );
+      // ...y Thresh, que no está, conserva el de la partida.
+      expect(data.form.find((g) => g.championId === 412)?.championName).toBe(
+        "Thresh",
+      );
+      // Sin catálogo todos salen con el nombre de la partida.
+      const bare = await loadProfile();
+      expect(bare.form.find((g) => g.championId === 53)?.championName).toBe(
+        "Blitzcrank",
+      );
+    });
+
+    it("sin partidas: forma vacía", async () => {
+      await insertProfile();
+      expect((await loadProfile()).form).toEqual([]);
+    });
+  });
+
   it("acota a la temporada pedida", async () => {
     await storeAll();
     await insertProfile();

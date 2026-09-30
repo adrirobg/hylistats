@@ -126,7 +126,7 @@
     {
       "id": "T10",
       "title": "Raíl: marcador, distribución 1º–6º y forma de las últimas 20",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/2-perfil-y-album",
       "worktree": null,
@@ -136,7 +136,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T10_rail.md",
       "created_at": "2026-09-29T20:30:00Z",
-      "updated_at": "2026-09-29T20:30:00Z"
+      "updated_at": "2026-09-30T00:21:54Z"
     },
     {
       "id": "T11",

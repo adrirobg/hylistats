@@ -1,7 +1,12 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { ACTIVE_SYNC_JOB_STATUSES, profiles, syncJobs } from "@/db/schema";
-import { type AlbumEntry, buildAlbum } from "@/domain/album";
+import {
+  type AlbumEntry,
+  buildAlbum,
+  type RecentGame,
+  recentForm,
+} from "@/domain/album";
 import { getProfileStats, type ProfileChallenge } from "@/domain/queries";
 import type { StatsSummary, VerifiedChampion } from "@/domain/stats";
 import { getKeyStatus } from "@/lib/admin/key-service";
@@ -48,6 +53,11 @@ export interface ProfileView {
   verifiedChampions: VerifiedChampion[];
   /** Todos los campeones del catálogo más los jugados ausentes de él, con su estado de dominio. */
   album: AlbumEntry[];
+  /**
+   * Las últimas 20 partidas (la más reciente primero) para la tira de forma del raíl. El nombre
+   * del campeón es el de visualización (el del álbum); sin `puuid`, como el resto.
+   */
+  form: RecentGame[];
   challenge: ProfileChallenge;
 }
 
@@ -170,6 +180,10 @@ export async function loadProfilePage(
   ]);
   if (!stats) return unregistered; // borrado entre las dos consultas
 
+  const album = buildAlbum(championCatalog, stats.playerRows);
+  // La forma nombra a cada campeón como el álbum (catálogo o, sin él, la partida más reciente).
+  const displayName = new Map(album.map((e) => [e.championId, e.name]));
+
   return {
     kind: "profile",
     gameName: profile.gameName,
@@ -182,7 +196,11 @@ export async function loadProfilePage(
     paused: key.status === "invalid",
     summary: stats.summary,
     verifiedChampions: stats.verifiedChampions,
-    album: buildAlbum(championCatalog, stats.playerRows),
+    album,
+    form: recentForm(stats.playerRows, 20).map((game) => ({
+      ...game,
+      championName: displayName.get(game.championId) ?? game.championName,
+    })),
     challenge: stats.challenge,
   };
 }
