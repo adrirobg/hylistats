@@ -1,5 +1,5 @@
 # Think: hylistats
-**Estado**: iter-04 cerrada — sin iteración activa
+**Estado**: iter-05 en curso — capa de grupo (spec aprobada en #9, rama `feat/9-capa-de-grupo`)
 **Ultima sesion**: 2026-10-01
 **Sesiones**: 2026-10-01 (grill de iter-05 sobre la capa de grupo); 2026-09-30 (grill de iter-04 sobre las ideas del grupo); 2026-09-29 (Webapp de estadísticas de perfil de jugador para trackear progreso en el modo Arena de LoL usando la Riot API (inspiración: lolalytics.com/arena, op.gg/lol/modes/arena, metasrc.com/lol/arena, arenasweats.lol, arena.trott.dev))
 **Grill**: cerrado (2026-09-29) — gate confirmado; §1 cerrada; I1–I4 entregadas. El supervisor da paso a desarrollo (2026-09-29). Grill de iter-04 (2026-09-30): §2 cerrada (F15–F17); gate confirmado, pasa a Spec. Grill de iter-05 (2026-10-01): §3 cerrada (F19–F21); gate confirmado, pasa a Spec
