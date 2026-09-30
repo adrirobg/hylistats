@@ -242,3 +242,21 @@ export function tabHref(
   const query = params.toString();
   return query === "" ? pathname : `${pathname}?${query}`;
 }
+
+/** Parámetro de la partida abierta en Partidas (`?partida={matchId}`). */
+export const MATCH_PARAM = "partida";
+
+/**
+ * Enlace a una partida: la pestaña Partidas con `?partida={matchId}` abierta. Viene de otra pestaña
+ * o de otra partida, así que parte de `tabHref`: quita los filtros de las demás pestañas (los del
+ * álbum) y conserva el resto (`?campeon`…). Desde el raíl, `search` vacío da un enlace limpio, sin
+ * filtros de Partidas que pudieran dejar la partida fuera de la lista.
+ */
+export function matchHref(
+  pathname: string,
+  search: string,
+  matchId: string,
+): string {
+  const [path, query = ""] = tabHref(pathname, search, "partidas").split("?");
+  return withSearchParam(path, query, MATCH_PARAM, matchId);
+}

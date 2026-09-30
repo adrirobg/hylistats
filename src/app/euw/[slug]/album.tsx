@@ -43,6 +43,7 @@ import {
   withQuery,
 } from "./album-view";
 import { useStamped } from "./use-stamped";
+import { matchHref as buildMatchHref } from "./view-model";
 
 // Álbum de campeones (brief §4.4 y §4.5, `.controls`, `.band` y `.grid` de la maqueta): buscador,
 // filtro segmentado, orden, vista álbum/lista y las bandas de cromos. Todo el estado de la vista
@@ -57,7 +58,7 @@ import { useStamped } from "./use-stamped";
 // Interacción (T09, brief §4.4 y §7): en «mi perfil» cada cromo lleva la diana y el menú ⋯ (las
 // acciones de `actions`), y `o` conmuta el objetivo del cromo enfocado. Las flechas, `Home` y `End`
 // recorren los cromos también en perfiles ajenos. Un 1º nuevo entre dos renders sella su cromo
-// (`use-stamped.ts`).
+// (`use-stamped.ts`). El cromo verificado enlaza a la partida de su primer 1º.
 
 export interface AlbumProps {
   /** Forma canónica de Riot: con ella se decide si el perfil es «mi perfil». */
@@ -143,6 +144,13 @@ export function Album({ gameName, tagLine, album, nowMs }: AlbumProps) {
 
   // Cromos que se sellan ahora: los verificados que llegan con el polling o un refresco.
   const stamped = useStamped(album, norm);
+
+  // Enlace de un cromo verificado a la partida de su primer 1º (Partidas, con esa partida abierta).
+  const search = searchParams.toString();
+  const matchHref = useCallback(
+    (matchId: string) => buildMatchHref(pathname, search, matchId),
+    [pathname, search],
+  );
 
   // --- URL y buscador ---
   const urlParams = useMemo(
@@ -371,6 +379,7 @@ export function Album({ gameName, tagLine, album, nowMs }: AlbumProps) {
           now={now}
           stamped={stamped}
           actions={actions}
+          matchHref={matchHref}
           onShowAll={() => update({ filtro: "todos" })}
         />
       ))}
@@ -394,6 +403,7 @@ function Band({
   now,
   stamped,
   actions,
+  matchHref,
   onShowAll,
 }: {
   section: AlbumSection;
@@ -403,6 +413,7 @@ function Band({
   now: number;
   stamped: ReadonlySet<number>;
   actions: CardActions | null;
+  matchHref: (matchId: string) => string;
   onShowAll: () => void;
 }) {
   const titleId = useId();
@@ -446,7 +457,7 @@ function Band({
           )}
         </p>
       ) : vista === "lista" ? (
-        <AlbumTable rows={rows} now={now} />
+        <AlbumTable rows={rows} now={now} matchHref={matchHref} />
       ) : (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-x-2.5 gap-y-3 @max-[640px]:grid-cols-[repeat(auto-fill,minmax(64px,1fr))]">
           {rows.map(({ entry, state, target }) => (
@@ -457,6 +468,7 @@ function Band({
               target={target}
               stamp={stamped.has(entry.championId)}
               actions={actions}
+              matchHref={matchHref}
             />
           ))}
         </ul>

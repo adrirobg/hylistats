@@ -1,7 +1,7 @@
 # Task T05 — Pestaña Partidas: filas, "nuevo 1º", filtros, bloques de 50 y detalle 6×3
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -64,13 +64,48 @@ La pestaña Partidas (§3.5) lista las partidas de la temporada en filas compact
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Filas con campeón, chip de puesto, compañeros, duración y hace cuánto; "★ nuevo 1º" en el primer 1º de cada campeón.
-- [ ] Filtros `?q`, `?puesto` y `?companero` y bloques de 50 (`?n`) en la URL, con total y vacío con filtros.
-- [ ] `?partida=` abre por URL directa el detalle 6×3 con el propio equipo resaltado; augments e items ausentes no se pintan ("sin datos").
-- [ ] Forma y cromo verificado enlazan a su partida; `TONE_BG` junto a `placeTone`.
-- [ ] Sin `puuid` en HTML ni URL (test de `data.test.ts`); consultas probadas contra `hylistats_test`; los cuatro checks en verde.
-- [ ] (Orquestador) Sin scroll horizontal a 375, 960 y 1440 px con una partida expandida.
+- [x] Filas con campeón, chip de puesto, compañeros, duración y hace cuánto; "★ nuevo 1º" en el primer 1º de cada campeón.
+- [x] Filtros `?q`, `?puesto` y `?companero` y bloques de 50 (`?n`) en la URL, con total y vacío con filtros.
+- [x] `?partida=` abre por URL directa el detalle 6×3 con el propio equipo resaltado; augments e items ausentes no se pintan ("sin datos").
+- [x] Forma y cromo verificado enlazan a su partida; `TONE_BG` junto a `placeTone`.
+- [x] Sin `puuid` en HTML ni URL (test de `data.test.ts`); consultas probadas contra `hylistats_test`; los cuatro checks en verde.
+- [x] (Orquestador) Sin scroll horizontal a 375, 960 y 1440 px con una partida expandida.
 
 ## Notas de implementacion <!-- MAY -->
 
+- **Dominio** (`src/domain/matches.ts`):
+  - `getMatchList(db, puuid, seasonStart, { championIds?, puesto?, companero?, limit })` devuelve `{ rows (con trio), total }`; el total sale de `count(*) over ()`.
+  - `getMatchDetail` devuelve los 6 equipos por puesto con `isOwnTeam`/`isSelf`.
+  - `getProfileMatches` resuelve el `puuid` dentro, así que `data.ts` sigue sin leerlo.
+  - El filtro de compañero casa por el `puuid` del Riot ID, igual que la pestaña Compañeros, e incluye las partidas de antes de un cambio de nombre.
+- **Datos estáticos** (`src/lib/game-data.ts`, server-only): objetos de DDragon `item.json` (es_ES) y augments de CDragon `cherry-augments.json` (es_es). Caché de 24 h y nunca lanza. Solo se pide con `?tab=partidas&partida=`.
+- **Vista**:
+  - `matches-view.ts` (puro, 43 tests), `matches-panel.tsx`, `match-detail.tsx` y `match-parts.tsx`.
+  - `?q` se resuelve a `championIds` con el plegado del álbum.
+  - Cambiar un filtro pone `n` a 1 y cierra la partida.
+  - Si `?partida` no está en la lista (otro filtro o fuera del bloque), se pinta aparte encima con una nota.
+  - `?n` va de 1 a 10 bloques (500 como máximo).
+- **Colores de puesto**: `TONE_BG` y `CHIP_TEXT` pasan a `src/domain/scoreboard.ts`, junto a `placeTone` (deuda de iter-02).
+- **Enlaces a la partida**:
+  - Los chips de la forma son `Link` a `?tab=partidas&partida=…`, con URL limpia que no conserva `?campeon`.
+  - Cromo verificado: el sello "1º" enlaza a `firstWinMatchId`. En la vista lista sale "Ganado · ver partida".
+- **Payload**: 50 filas añaden unos 12–15 kB al RSC de la pestaña Partidas.
+
 ## Evidencias <!-- MUST -->
+
+- **Checks (orquestador)**:
+  - `npm run lint`: OK, 141 ficheros;
+  - `npm run typecheck`: OK;
+  - `npm test`: 41 ficheros y 792 tests en verde (+99);
+  - `npm run build`: OK.
+- **Navegador integrado** (orquestador, `hylistats-testdb`, semilla `synced 30000`):
+  - `/euw/Jugador%20Uno-EUW?tab=partidas&partida=EUW1_DEMO_FIRST` por URL directa:
+    - 11 filas;
+    - la expandida es "Blitzcrank ★ nuevo 1º · con Player115 · Player013 · 23 min · hace 20 min";
+    - 6×3 con "1º · tu equipo" resaltado en oro;
+    - K/D/A, nivel, daño y oro por jugador, e iconos de augments y objetos (DDragon y CDragon);
+    - "Copiar enlace" presente;
+    - sin `anon-puuid` en el HTML.
+  - Sin scroll horizontal con la partida abierta: `scrollWidth` ≤ `innerWidth` a 1440, 960 y 375 px.
+  - Forma: 11 chips `a` con `href` `?tab=partidas&partida=…` y `aria-label` "Blitzcrank · 1º · hace 20 min · abrir partida".
+- **Commit**: ver `git log` (`feat(ui): pestaña Partidas con filtros, nuevo 1º y detalle 6×3`).

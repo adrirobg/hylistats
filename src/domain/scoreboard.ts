@@ -17,6 +17,20 @@ export function placeTone(placement: number): PlaceTone {
   return placement <= 3 ? "p23" : "p46";
 }
 
+/** Fondo de cada familia de puesto (§6.1); lo comparten el marcador, la forma y las partidas. */
+export const TONE_BG: Record<PlaceTone, string> = {
+  p1: "bg-place-1",
+  p23: "bg-place-top",
+  p46: "bg-place-low",
+};
+
+/** Color del número sobre `TONE_BG`: sobre oro y verde agua va oscuro; sobre pizarra, claro. */
+export const CHIP_TEXT: Record<PlaceTone, string> = {
+  p1: "text-background",
+  p23: "text-background",
+  p46: "text-foreground",
+};
+
 export interface ScoreboardFigure {
   key: "games" | "firsts" | "firstRate" | "top3Rate" | "avgPlacement";
   /** Rótulo bajo la cifra (`.kpi small` de la maqueta). */

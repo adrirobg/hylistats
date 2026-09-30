@@ -29,35 +29,17 @@ export function TabPanel({
   );
 }
 
-const ROWS = (count: number) => Array.from({ length: count }, (_, i) => i);
-
 /**
- * Esqueleto de las pestañas cuyo contenido aún no existe (Resumen y Partidas, T05 y T07): la forma
- * aproximada de cada una, con huecos. Cada pestaña lo sustituye por su panel.
+ * Esqueleto de la pestaña cuyo contenido aún no existe (Resumen, T07): la forma aproximada, con
+ * huecos. Cuando llegue, la pestaña lo sustituye por su panel.
  */
-export function PendingPanel({
-  tab,
-}: {
-  tab: Exclude<ProfileTab, "campeones" | "companeros">;
-}) {
+export function PendingPanel({ tab }: { tab: "resumen" }) {
   return (
     <TabPanel tab={tab}>
       <div aria-busy="true" className="grid gap-3">
-        {tab === "resumen" && (
-          <>
-            <Skeleton className="h-28" />
-            <Skeleton className="h-56" />
-            <Skeleton className="h-36" />
-          </>
-        )}
-        {tab === "partidas" && (
-          <>
-            <Skeleton className="h-9" />
-            {ROWS(8).map((i) => (
-              <Skeleton key={i} className="h-14" />
-            ))}
-          </>
-        )}
+        <Skeleton className="h-28" />
+        <Skeleton className="h-56" />
+        <Skeleton className="h-36" />
       </div>
     </TabPanel>
   );

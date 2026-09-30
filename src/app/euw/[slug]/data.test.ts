@@ -4,6 +4,7 @@ import { closeDb } from "@/db";
 import { profiles, settings, syncJobs } from "@/db/schema";
 import { storeMatch } from "@/domain/ingest";
 import type { ChampionCatalog } from "@/lib/ddragon";
+import type { GameData, GameIcon } from "@/lib/game-data";
 import { getTestDb, truncateAll } from "../../../../tests/helpers/db";
 import {
   loadMatchFixtures,
@@ -17,6 +18,7 @@ import {
   type ProfilePageData,
   type ProfileView,
 } from "./data";
+import { DEFAULT_MATCH_PARAMS, type MatchParams } from "./matches-view";
 import type { TeammateParams } from "./teammates-view";
 import { PROFILE_TABS, type ProfileTab } from "./view-model";
 
@@ -576,16 +578,13 @@ describe("loadProfilePage", () => {
   });
 
   describe("carga por pestaña", () => {
-    // Clave de `ProfileView` con los datos propios de cada pestaña (`null` = no tiene). Solo existe,
-    // y solo se rellena, en la pestaña activa.
-    const OWN_KEY: Record<
-      ProfileTab,
-      "summaryTab" | "teammates" | "matches" | null
-    > = {
-      campeones: null, // el álbum es común: header, barra Arena God y raíl dependen de él
-      resumen: "summaryTab",
-      companeros: "teammates",
-      partidas: "matches",
+    // Claves de `ProfileView` con los datos propios de cada pestaña. Solo existen, y solo se
+    // rellenan, en la pestaña activa.
+    const OWN_KEYS: Record<ProfileTab, readonly (keyof ProfileView)[]> = {
+      campeones: [], // el álbum es común: header, barra Arena God y raíl dependen de él
+      resumen: ["summaryTab"],
+      companeros: ["teammates"],
+      partidas: ["matches", "matchDetail"],
     };
 
     it("la pestaña pedida se refleja en la vista", async () => {
@@ -608,7 +607,9 @@ describe("loadProfilePage", () => {
           tab: base.tab,
         };
         // Salvo la pestaña y sus claves propias, la vista es la misma en las cuatro.
-        for (const key of Object.values(OWN_KEY)) if (key) delete data[key];
+        for (const keys of Object.values(OWN_KEYS)) {
+          for (const key of keys) delete data[key];
+        }
         expect(data).toEqual(base);
       }
     });
@@ -619,9 +620,10 @@ describe("loadProfilePage", () => {
       for (const tab of PROFILE_TABS) {
         const data = await loadProfile(tab);
         for (const other of PROFILE_TABS) {
-          const key = OWN_KEY[other];
-          if (other === tab || key === null) continue;
-          expect(data, `${tab} no debe traer ${key}`).not.toHaveProperty(key);
+          if (other === tab) continue;
+          for (const key of OWN_KEYS[other]) {
+            expect(data, `${tab} no debe traer ${key}`).not.toHaveProperty(key);
+          }
         }
       }
     });
@@ -634,7 +636,10 @@ describe("loadProfilePage", () => {
         const data = await loadProfile(tab);
         expect(hasKeyDeep(data, "teammates")).toBe(false);
         // Player152 (1 partida) queda fuera del top 5 del raíl y solo saldría en la lista completa.
-        expect(JSON.stringify(data)).not.toContain("Player152");
+        // Partidas es la excepción: sus filas nombran a los dos compañeros de trío de cada partida.
+        if (tab !== "partidas") {
+          expect(JSON.stringify(data)).not.toContain("Player152");
+        }
         expect(data.railTeammates).toHaveLength(5);
       }
     });
@@ -781,6 +786,389 @@ describe("loadProfilePage", () => {
       const data = await loadProfile("companeros");
       expect(data.railTeammates).toEqual([]);
       expect(data.teammates).toEqual([]);
+    });
+  });
+
+  describe("partidas", () => {
+    const BLITZCRANK = {
+      championId: 53,
+      ddId: "Blitzcrank",
+      name: "Blitz Display",
+      portraitUrl: "https://cdn.test/Blitzcrank.png",
+    };
+    const catalog: ChampionCatalog = {
+      version: "16.19.1",
+      champions: [BLITZCRANK],
+    };
+    const icon = (id: number, name: string): GameIcon => ({
+      id,
+      name,
+      iconUrl: `https://cdn.test/${id}.png`,
+    });
+    // Rakan (EUW1_7997909147) lleva los augments 181, 177, 313 y 18 y los objetos 447123, 223158,
+    // 223084, 226665, 447109 y 3348 (amuleto).
+    const gameData: GameData = {
+      items: new Map([
+        [447123, icon(447123, "Objeto A")],
+        [3348, icon(3348, "Barredora arcana")],
+      ]),
+      augments: new Map([[181, icon(181, "Adaptación")]]),
+    };
+    const FIRST_ID = fixtures[0].id; // Rakan, 5º
+    const seed = async () => {
+      await storeAll();
+      await insertProfile();
+    };
+
+    async function loadPartidas(
+      matches: Partial<MatchParams> = {},
+      options: { catalog?: ChampionCatalog; gameData?: GameData } = {},
+    ) {
+      const data = await loadProfilePage(
+        db,
+        "BEJITO MAMBO",
+        "1991",
+        { tab: "partidas", matches: { ...DEFAULT_MATCH_PARAMS, ...matches } },
+        seasonStart,
+        options.catalog,
+        options.gameData,
+      );
+      if (data.kind !== "profile") throw new Error(`kind: ${data.kind}`);
+      return data;
+    }
+
+    it("por defecto trae las partidas de la temporada, la más reciente primero, en un bloque de 50", async () => {
+      await seed();
+      const { matches, matchDetail } = await loadPartidas();
+      expect(matches?.limit).toBe(50);
+      expect(matches?.total).toBe(10);
+      expect(matches?.rows).toHaveLength(10);
+      expect(matches?.rows[0].gameCreation).toBeGreaterThan(
+        matches?.rows[9].gameCreation ?? Infinity,
+      );
+      expect(matches?.rows.find((r) => r.matchId === FIRST_ID)).toMatchObject({
+        championName: "Rakan",
+        placement: 5,
+        gameDuration: 1504,
+        portraitUrl: null, // sin catálogo
+        newFirst: false,
+        trio: [
+          { gameName: "Player013", tagLine: "ANON" },
+          { gameName: "Player152", tagLine: "ANON" },
+        ],
+      });
+      // Sin ?partida el detalle no viaja ni existe la clave.
+      expect(matchDetail).toBeUndefined();
+      expect(await loadPartidas()).not.toHaveProperty("matchDetail");
+    });
+
+    it("el nombre y el retrato del campeón salen del catálogo", async () => {
+      await seed();
+      const { matches } = await loadPartidas({}, { catalog });
+      const blitz = matches?.rows.find((r) => r.championId === 53);
+      expect(blitz).toMatchObject({
+        championName: "Blitz Display",
+        portraitUrl: "https://cdn.test/Blitzcrank.png",
+      });
+      // Rakan no está en el catálogo de prueba: el nombre de la partida y sin retrato.
+      expect(
+        matches?.rows.find((r) => r.matchId === FIRST_ID)?.championName,
+      ).toBe("Rakan");
+    });
+
+    it("«nuevo 1º» solo en la partida que verifica al campeón, no en sus 1º posteriores", async () => {
+      await seed();
+      await storeVariant(fixtures[1], "EUW1_TEST_FIRST_A", (j) => {
+        j.info.gameCreation = 1_790_700_000_000;
+        promoteTrioToFirst(j, SELF_PUUID);
+      });
+      await storeVariant(fixtures[1], "EUW1_TEST_FIRST_B", (j) => {
+        j.info.gameCreation = 1_790_800_000_000;
+        promoteTrioToFirst(j, SELF_PUUID);
+      });
+      const { matches, album } = await loadPartidas();
+      const flagged = matches?.rows
+        .filter((r) => r.newFirst)
+        .map((r) => r.matchId);
+      // El primer 1º con Blitzcrank es el A; el B (más nuevo) ya no verifica nada.
+      expect(flagged).toEqual(["EUW1_TEST_FIRST_A"]);
+      expect(album.find((e) => e.championId === 53)?.firstWinMatchId).toBe(
+        "EUW1_TEST_FIRST_A",
+      );
+    });
+
+    describe("filtros", () => {
+      it("?puesto: solo 1º o top 3, con el total filtrado", async () => {
+        await seed();
+        await storeVariant(fixtures[1], "EUW1_TEST_FIRST", (j) => {
+          j.info.gameCreation = 1_790_700_000_000;
+          promoteTrioToFirst(j, SELF_PUUID);
+        });
+        const firsts = await loadPartidas({ puesto: "1" });
+        expect(firsts.matches?.rows.map((r) => r.matchId)).toEqual([
+          "EUW1_TEST_FIRST",
+        ]);
+        expect(firsts.matches?.total).toBe(1);
+
+        const top3 = await loadPartidas({ puesto: "top3" });
+        // Distribución con el 1º sintético: 1 en 1º, 2 en 2º y 3 en 3º.
+        expect(top3.matches?.total).toBe(6);
+        expect(top3.matches?.rows.every((r) => r.placement <= 3)).toBe(true);
+      });
+
+      it("?q: por el nombre de visualización del catálogo, sin tildes ni mayúsculas", async () => {
+        await seed();
+        const found = await loadPartidas({ q: "BLITZ dísplay" }, { catalog });
+        // Plegado: sin tildes, mayúsculas ni espacios, «BLITZ dísplay» es «Blitz Display».
+        expect(found.matches?.rows.length).toBeGreaterThan(0);
+        expect(found.matches?.rows.every((r) => r.championId === 53)).toBe(
+          true,
+        );
+        expect(found.matches?.total).toBe(found.matches?.rows.length);
+      });
+
+      it("?q: por el championName de la partida aunque el catálogo lo llame de otro modo, y sin catálogo", async () => {
+        await seed();
+        // «Blitzcrank» es el nombre de Riot; el catálogo lo muestra como «Blitz Display».
+        const byRiotName = await loadPartidas({ q: "blitzcrank" }, { catalog });
+        expect(byRiotName.matches?.rows.every((r) => r.championId === 53)).toBe(
+          true,
+        );
+        expect(byRiotName.matches?.total).toBeGreaterThan(0);
+        // Sin catálogo (Data Dragon caído): el álbum lleva los nombres de las partidas.
+        const bare = await loadPartidas({ q: "thresh" });
+        expect(bare.matches?.rows.every((r) => r.championId === 412)).toBe(
+          true,
+        );
+        expect(bare.matches?.total).toBeGreaterThan(0);
+      });
+
+      it("?q sin coincidencias: lista vacía con total 0", async () => {
+        await seed();
+        const none = await loadPartidas({ q: "zzzzz" });
+        expect(none.matches).toMatchObject({ rows: [], total: 0, limit: 50 });
+      });
+
+      it("?companero: solo las partidas de ese compañero de trío", async () => {
+        await seed();
+        const with046 = await loadPartidas({
+          companero: { gameName: "player046", tagLine: "anon" },
+        });
+        expect(with046.matches?.total).toBe(5);
+        expect(
+          with046.matches?.rows.every((r) =>
+            r.trio.some((m) => m.gameName === "Player046"),
+          ),
+        ).toBe(true);
+      });
+
+      it("los filtros se combinan", async () => {
+        await seed();
+        const both = await loadPartidas({
+          puesto: "top3",
+          companero: { gameName: "Player013", tagLine: "ANON" },
+        });
+        expect(both.matches?.rows.every((r) => r.placement <= 3)).toBe(true);
+        // Player013 juega las 10 partidas y en 5 de ellas el trío queda entre los tres primeros.
+        expect(both.matches?.total).toBe(5);
+      });
+    });
+
+    describe("bloques de 50", () => {
+      /** 10 partidas reales más `extra` variantes anteriores a ellas, de un minuto en un minuto. */
+      async function seedMany(extra: number) {
+        await seed();
+        for (let i = 0; i < extra; i += 1) {
+          await storeVariant(fixtures[1], `EUW1_TEST_MANY_${i}`, (j) => {
+            j.info.gameCreation = 1_790_000_000_000 + i * 60_000;
+          });
+        }
+      }
+
+      it("?n pide 50 por bloque y el total es el de todas las que cumplen los filtros", async () => {
+        await seedMany(45); // 55 en total
+        const one = await loadPartidas();
+        expect(one.matches).toMatchObject({ total: 55, limit: 50 });
+        expect(one.matches?.rows).toHaveLength(50);
+
+        const two = await loadPartidas({ blocks: 2 });
+        expect(two.matches).toMatchObject({ total: 55, limit: 100 });
+        expect(two.matches?.rows).toHaveLength(55);
+        // El primer bloque es el principio del segundo.
+        expect(two.matches?.rows.slice(0, 50)).toEqual(one.matches?.rows);
+      });
+    });
+
+    it("compañeros para el selector: los de 3 o más partidas juntos, sin consulta nueva ni puuid", async () => {
+      await seed();
+      const { matches } = await loadPartidas();
+      expect(matches?.companions).toEqual([
+        { gameName: "Player013", tagLine: "ANON", games: 10 },
+        { gameName: "Player046", tagLine: "ANON", games: 5 },
+      ]);
+    });
+
+    describe("detalle (?partida)", () => {
+      it("trae los 6 equipos por puesto, el propio resaltado y su fila", async () => {
+        await seed();
+        const { matchDetail } = await loadPartidas({ partida: FIRST_ID });
+        expect(matchDetail?.teams.map((t) => t.placement)).toEqual([
+          1, 2, 3, 4, 5, 6,
+        ]);
+        expect(matchDetail?.teams.every((t) => t.players.length === 3)).toBe(
+          true,
+        );
+        expect(
+          matchDetail?.teams.filter((t) => t.isOwnTeam).map((t) => t.placement),
+        ).toEqual([5]);
+        expect(matchDetail?.row).toMatchObject({
+          matchId: FIRST_ID,
+          championName: "Rakan",
+          placement: 5,
+          trio: [
+            { gameName: "Player013", tagLine: "ANON" },
+            { gameName: "Player152", tagLine: "ANON" },
+          ],
+        });
+      });
+
+      it("los augments y objetos salen con nombre e icono si hay datos, y solo esos", async () => {
+        await seed();
+        const { matchDetail } = await loadPartidas(
+          { partida: FIRST_ID },
+          { gameData },
+        );
+        const self = matchDetail?.teams
+          .flatMap((t) => t.players)
+          .find((p) => p.isSelf);
+        expect(self?.augments).toEqual([icon(181, "Adaptación")]);
+        expect(self?.items.map((i) => i.name)).toEqual([
+          "Objeto A",
+          "Barredora arcana",
+        ]);
+      });
+
+      it("sin datos de augments y objetos (fuente caída) el detalle sale igualmente, sin iconos", async () => {
+        await seed();
+        const { matchDetail } = await loadPartidas({ partida: FIRST_ID });
+        const players = matchDetail?.teams.flatMap((t) => t.players) ?? [];
+        expect(players).toHaveLength(18);
+        expect(players.every((p) => p.augments.length === 0)).toBe(true);
+        expect(players.every((p) => p.items.length === 0)).toBe(true);
+      });
+
+      it("acepta los datos estáticos como promesa, y no los espera sin ?partida", async () => {
+        await seed();
+        const pending = new Promise<GameData>(() => {}); // nunca se resuelve
+        const listOnly = await loadProfilePage(
+          db,
+          "BEJITO MAMBO",
+          "1991",
+          { tab: "partidas", matches: DEFAULT_MATCH_PARAMS },
+          seasonStart,
+          undefined,
+          pending,
+        );
+        expect(listOnly.kind).toBe("profile");
+
+        const detail = await loadProfilePage(
+          db,
+          "BEJITO MAMBO",
+          "1991",
+          {
+            tab: "partidas",
+            matches: { ...DEFAULT_MATCH_PARAMS, partida: FIRST_ID },
+          },
+          seasonStart,
+          undefined,
+          Promise.resolve(gameData),
+        );
+        expect(detail.kind === "profile" && detail.matchDetail).toBeTruthy();
+      });
+
+      it("una partida que no existe, de otro jugador o fuera de temporada no trae detalle", async () => {
+        await seed();
+        await storeVariant(fixtures[1], "EUW1_TEST_Q400", (j) => {
+          j.info.queueId = 400;
+        });
+        for (const partida of ["EUW1_NO_EXISTE", "EUW1_TEST_Q400"]) {
+          const data = await loadPartidas({ partida });
+          expect(data).not.toHaveProperty("matchDetail");
+          expect(data.matches?.total).toBe(10);
+        }
+        // Fuera de la temporada pedida: la partida existe pero no cuenta.
+        const late = await loadProfilePage(
+          db,
+          "BEJITO MAMBO",
+          "1991",
+          {
+            tab: "partidas",
+            matches: { ...DEFAULT_MATCH_PARAMS, partida: FIRST_ID },
+          },
+          new Date("2026-09-29T00:00:00Z"),
+        );
+        expect(late.kind === "profile" && late.matchDetail).toBeUndefined();
+      });
+
+      it("la partida abierta llega aunque no esté en la lista (otro filtro o más allá del bloque)", async () => {
+        await seed();
+        const data = await loadPartidas({ puesto: "1", partida: FIRST_ID });
+        expect(data.matches?.rows).toEqual([]);
+        expect(data.matchDetail?.row.matchId).toBe(FIRST_ID);
+      });
+
+      it("«nuevo 1º» también en la fila del detalle", async () => {
+        await seed();
+        await storeVariant(fixtures[1], "EUW1_TEST_FIRST", (j) => {
+          j.info.gameCreation = 1_790_700_000_000;
+          promoteTrioToFirst(j, SELF_PUUID);
+        });
+        const { matchDetail } = await loadPartidas({
+          partida: "EUW1_TEST_FIRST",
+        });
+        expect(matchDetail?.row.newFirst).toBe(true);
+      });
+    });
+
+    it("sin partidas o sin puuid: lista vacía y sin detalle", async () => {
+      await insertProfile({ puuid: null, status: "resolving" });
+      const data = await loadPartidas({ partida: FIRST_ID });
+      expect(data.matches).toMatchObject({
+        rows: [],
+        total: 0,
+        companions: [],
+      });
+      expect(data).not.toHaveProperty("matchDetail");
+    });
+
+    it("no lleva el puuid: ni la clave ni su valor, en la lista ni en el detalle", async () => {
+      await seed();
+      const data = await loadPartidas({ partida: FIRST_ID }, { gameData });
+      expect(data.matches?.rows.length).toBeGreaterThan(0);
+      expect(data.matchDetail).toBeDefined();
+      expect(hasKeyDeep(data, "puuid")).toBe(false);
+      const json = JSON.stringify(data);
+      expect(json).not.toContain(SELF_PUUID);
+      expect(json).not.toContain("anon-puuid");
+    });
+
+    it("otras pestañas no traen ni la lista ni el detalle aunque la URL los pida", async () => {
+      await seed();
+      for (const tab of PROFILE_TABS) {
+        if (tab === "partidas") continue;
+        const data = await loadProfilePage(
+          db,
+          "BEJITO MAMBO",
+          "1991",
+          {
+            tab,
+            matches: { ...DEFAULT_MATCH_PARAMS, partida: FIRST_ID },
+          },
+          seasonStart,
+        );
+        expect(data.kind === "profile" && data.matches).toBeUndefined();
+        expect(data.kind === "profile" && data.matchDetail).toBeUndefined();
+      }
     });
   });
 });

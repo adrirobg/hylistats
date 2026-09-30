@@ -162,8 +162,8 @@ export function sortTeammates(
 
 const ratio = (part: number, whole: number) => (whole > 0 ? part / whole : 0);
 
-/** Enlace al perfil del compañero en hylistats; `null` si su Riot ID no cabe en una URL de perfil. */
-function profileHref(gameName: string, tagLine: string): string | null {
+/** Enlace al perfil de un jugador en hylistats; `null` si su Riot ID no cabe en una URL de perfil. */
+export function profileHref(gameName: string, tagLine: string): string | null {
   return toRiotId(gameName, tagLine) === null
     ? null
     : `/euw/${profileSlug(gameName, tagLine)}`;

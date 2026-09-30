@@ -7,16 +7,34 @@ import {
   type RecentGame,
   recentForm,
 } from "@/domain/album";
+import { getProfileMatches } from "@/domain/matches";
 import {
   getProfileStats,
   type ProfileChallenge,
   type TeammateSummary,
 } from "@/domain/queries";
-import type { StatsSummary, VerifiedChampion } from "@/domain/stats";
+import type {
+  PlayerMatchRow,
+  StatsSummary,
+  VerifiedChampion,
+} from "@/domain/stats";
 import { getKeyStatus } from "@/lib/admin/key-service";
 import { getSeasonStart } from "@/lib/config";
 import type { ChampionCatalog } from "@/lib/ddragon";
+import { EMPTY_GAME_DATA, type GameData } from "@/lib/game-data";
 import { normalizeRiotId } from "@/worker/queue";
+import {
+  type Companion,
+  championIdsForQuery,
+  companionsForSelect,
+  DEFAULT_MATCH_PARAMS,
+  type MatchDetailView,
+  type MatchParams,
+  type MatchRowData,
+  matchDetailView,
+  matchListLimit,
+  matchRows,
+} from "./matches-view";
 import {
   DEFAULT_TEAMMATE_PARAMS,
   RAIL_TEAMMATES,
@@ -53,6 +71,20 @@ export interface ProfileViewParams {
   tab: ProfileTab;
   /** Filtros de Compañeros (`?min`, `?orden`); sin ellos, los de por defecto. */
   teammates?: TeammateParams;
+  /** Filtros, bloques y partida abierta de Partidas (`?q`, `?puesto`…); sin ellos, los de por defecto. */
+  matches?: MatchParams;
+}
+
+/** La pestaña Partidas: la lista (con filtros y bloques) y lo que necesita el selector de compañero. */
+export interface MatchesData {
+  /** Las `limit` partidas más recientes que cumplen los filtros. */
+  rows: MatchRowData[];
+  /** Partidas que cumplen los filtros, sean cuales sean las `rows` que se traen (bloques de 50). */
+  total: number;
+  /** Partidas pedidas: 50 por bloque (`?n`). Si `rows` trae menos, ya está todo. */
+  limit: number;
+  /** Compañeros con al menos 3 partidas juntos, para el selector (`?companero`). */
+  companions: Companion[];
 }
 
 /** Perfil registrado y resuelto: lo que muestra la página completa. */
@@ -100,8 +132,13 @@ export interface ProfileView {
    * aquí y no allí evita mandar los cientos de compañeros de una sola partida.
    */
   teammates?: TeammateSummary[];
-  /** Lista de partidas y detalle (`tab === "partidas"`); el tipo lo define T05. */
-  matches?: never;
+  /** Lista de partidas de la temporada con sus filtros (`tab === "partidas"`). */
+  matches?: MatchesData;
+  /**
+   * La partida abierta (`?partida`) con sus 6 equipos de 3 (`tab === "partidas"`). Solo existe si
+   * la URL pide una partida del perfil que está en la temporada: el detalle no viaja de otro modo.
+   */
+  matchDetail?: MatchDetailView;
   /** Curva de campeones ganados y destacados (`tab === "resumen"`); el tipo lo define T07. */
   summaryTab?: never;
 }
@@ -188,6 +225,8 @@ async function loadLastJobError(
  * decide qué datos propios se cargan además de los comunes. `seasonStart` sale de `SEASON_START`
  * salvo que se pase otro (tests). `catalog` es el catálogo de campeones (o su promesa: la página
  * lo pide antes para que se cargue en paralelo con la BD); sin él, el álbum sale sin retratos.
+ * `gameData` (nombres e iconos de objetos y augments; también admite una promesa) solo se espera
+ * para el detalle de una partida abierta con `?partida`; sin él, ese detalle sale sin iconos.
  */
 export async function loadProfilePage(
   db: Db,
@@ -196,6 +235,7 @@ export async function loadProfilePage(
   view: ProfileViewParams,
   seasonStart: Date = getSeasonStart(),
   catalog: ChampionCatalog | Promise<ChampionCatalog> = EMPTY_CATALOG,
+  gameData: GameData | Promise<GameData> = EMPTY_GAME_DATA,
 ): Promise<ProfilePageData> {
   const [profile] = await db
     .select({
@@ -231,6 +271,18 @@ export async function loadProfilePage(
   // La forma nombra a cada campeón como el álbum (catálogo o, sin él, la partida más reciente).
   const displayName = new Map(album.map((e) => [e.championId, e.name]));
 
+  const partidas =
+    view.tab === "partidas"
+      ? await loadMatches(
+          db,
+          profile.id,
+          seasonStart,
+          view.matches ?? DEFAULT_MATCH_PARAMS,
+          { album, playerRows: stats.playerRows, teammates: stats.teammates },
+          gameData,
+        )
+      : null;
+
   return {
     kind: "profile",
     tab: view.tab,
@@ -258,5 +310,48 @@ export async function loadProfilePage(
         (view.teammates ?? DEFAULT_TEAMMATE_PARAMS).min,
       ),
     }),
+    ...(partidas && {
+      matches: partidas.matches,
+      ...(partidas.matchDetail && { matchDetail: partidas.matchDetail }),
+    }),
+  };
+}
+
+/**
+ * Datos propios de Partidas: la lista de la temporada con los filtros de la URL (50 por bloque,
+ * `?n`) y, si hay `?partida` y es una partida del perfil, su detalle con los iconos resueltos. El
+ * filtro de campeón se resuelve aquí (nombre de visualización -> `championId`) y la consulta solo
+ * filtra por id. Sin `puuid`: `getProfileMatches` lo lee dentro y no sale de ahí.
+ */
+async function loadMatches(
+  db: Db,
+  profileId: number,
+  seasonStart: Date,
+  params: MatchParams,
+  stats: {
+    album: AlbumEntry[];
+    playerRows: PlayerMatchRow[];
+    teammates: TeammateSummary[];
+  },
+  gameData: GameData | Promise<GameData>,
+): Promise<{ matches: MatchesData; matchDetail: MatchDetailView | null }> {
+  const limit = matchListLimit(params.blocks);
+  const { list, detail } = await getProfileMatches(db, profileId, seasonStart, {
+    filters: {
+      championIds: championIdsForQuery(stats.album, stats.playerRows, params.q),
+      puesto: params.puesto ?? undefined,
+      companero: params.companero ?? undefined,
+      limit,
+    },
+    matchId: params.partida,
+  });
+  return {
+    matches: {
+      rows: matchRows(list.rows, stats.album),
+      total: list.total,
+      limit,
+      companions: companionsForSelect(stats.teammates),
+    },
+    matchDetail: detail && matchDetailView(detail, stats.album, await gameData),
   };
 }

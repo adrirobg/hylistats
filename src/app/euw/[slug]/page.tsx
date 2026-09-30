@@ -6,6 +6,7 @@ import { getDb } from "@/db";
 import { ARENA_GOD_THRESHOLD, getSeasonStart } from "@/lib/config";
 import { getChampionCatalog } from "@/lib/ddragon";
 import { formatDateTime } from "@/lib/format";
+import { getGameData } from "@/lib/game-data";
 import { parseProfileSlug, profileSlug } from "@/lib/riot-id";
 import { Album } from "./album";
 import { ArenaGodBar } from "./arena-god";
@@ -14,6 +15,8 @@ import { Cabin } from "./cabin";
 import { loadProfilePage, type ProfileView } from "./data";
 import { FormStrip } from "./form-strip";
 import { ProfileHeader } from "./header";
+import { MatchesPanel } from "./matches-panel";
+import { parseMatchParams } from "./matches-view";
 import { NotFoundCard, UnregisteredCard } from "./profile-states";
 import { Scoreboard } from "./scoreboard";
 import { SyncBand } from "./sync-band";
@@ -41,20 +44,25 @@ export default async function ProfilePage({
   const riotId = parseProfileSlug(slug);
   if (!riotId) notFound();
 
-  // `?tab` decide qué datos se cargan (solo los de la pestaña activa) y `?min` cuántos compañeros.
-  // El catálogo de campeones se pide a la vez que la BD (`getChampionCatalog` nunca lanza: sin Data
-  // Dragon el álbum sale sin retratos).
+  // `?tab` decide qué datos se cargan (solo los de la pestaña activa); `?min` y `?orden` cuántos
+  // compañeros, y `?q`, `?puesto`, `?companero`, `?n` y `?partida` qué partidas. El catálogo de
+  // campeones se pide a la vez que la BD (`getChampionCatalog` nunca lanza: sin Data Dragon el
+  // álbum sale sin retratos). Los nombres e iconos de objetos y augments solo se piden con
+  // `?partida`, cuando hay un detalle que pintar (`getGameData` tampoco lanza).
   const query = await searchParams;
+  const tab = parseProfileTab(query.tab);
+  const matches = parseMatchParams(queryParams(query));
+  const catalog = getChampionCatalog();
   const data = await loadProfilePage(
     getDb(),
     riotId.gameName,
     riotId.tagLine,
-    {
-      tab: parseProfileTab(query.tab),
-      teammates: parseTeammateParams(queryParams(query)),
-    },
+    { tab, teammates: parseTeammateParams(queryParams(query)), matches },
     getSeasonStart(),
-    getChampionCatalog(),
+    catalog,
+    tab === "partidas" && matches.partida !== null
+      ? catalog.then(({ version }) => getGameData(version))
+      : undefined,
   );
   // Las actions identifican el perfil por el Riot ID de la URL (`riotIdNorm`), no por el canónico.
   const actionSlug = profileSlug(riotId.gameName, riotId.tagLine);
@@ -131,20 +139,21 @@ function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
       strip={<Scoreboard summary={data.summary} variant="strip" />}
       tabs={<Tabs active={data.tab} />}
       main={<ActivePanel data={data} />}
-      rail={<RailBoxes data={data} />}
+      rail={<RailBoxes data={data} slug={slug} />}
     />
   );
 }
 
-/** Panel de la pestaña activa. Resumen y Partidas son esqueletos hasta T07 y T05. */
+/** Panel de la pestaña activa. Resumen es un esqueleto hasta T07. */
 function ActivePanel({ data }: { data: ProfileView }) {
   switch (data.tab) {
     case "campeones":
       return <ChampionsPanel data={data} />;
     case "companeros":
       return <TeammatesTab data={data} />;
-    case "resumen":
     case "partidas":
+      return <MatchesTab data={data} />;
+    case "resumen":
       return <PendingPanel tab={data.tab} />;
   }
 }
@@ -259,6 +268,47 @@ function TeammatesSkeleton() {
   );
 }
 
+// --- Pestaña Partidas (main) -------------------------------------------------------------
+
+function MatchesTab({ data }: { data: ProfileView }) {
+  const empty = emptyState({
+    games: data.summary.games,
+    syncing: data.sync !== null,
+    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
+  });
+  return (
+    <TabPanel tab="partidas">
+      {empty === "syncing" && <MatchesSkeleton />}
+      {(empty === "never" || empty === "empty") && (
+        <NoGames empty={empty} seasonStart={data.seasonStart} />
+      )}
+      {empty === null && data.matches && (
+        // `MatchesPanel` lee `?q`, `?puesto`, `?companero`, `?n` y `?partida` con `useSearchParams`.
+        <Suspense fallback={<MatchesSkeleton />}>
+          <MatchesPanel
+            matches={data.matches}
+            detail={data.matchDetail ?? null}
+            nowMs={Date.now()}
+          />
+        </Suspense>
+      )}
+    </TabPanel>
+  );
+}
+
+/** Filtros y filas por rellenar mientras llega el backfill (§5: esqueleto, no un vacío). */
+function MatchesSkeleton() {
+  return (
+    <div aria-busy="true" className="grid gap-3">
+      <Skeleton className="h-9" />
+      {Array.from({ length: 8 }, (_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: lista fija de marcadores sin identidad propia.
+        <Skeleton key={i} className="h-14" />
+      ))}
+    </div>
+  );
+}
+
 // --- Raíl --------------------------------------------------------------------------------
 
 /**
@@ -280,7 +330,7 @@ function Titled({ children }: { children: string }) {
  * deja al final del main, seguida de los compañeros con más partidas. Todo sale de `data` en el
  * servidor: sube en vivo con el `AutoRefresh` durante el backfill.
  */
-function RailBoxes({ data }: { data: ProfileView }) {
+function RailBoxes({ data, slug }: { data: ProfileView; slug: string }) {
   return (
     <>
       <Box
@@ -296,7 +346,7 @@ function RailBoxes({ data }: { data: ProfileView }) {
         hint="últimas 20 · más reciente a la izquierda"
         titleAs="h2"
       >
-        <FormStrip games={data.form} nowMs={Date.now()} />
+        <FormStrip games={data.form} slug={slug} nowMs={Date.now()} />
       </Box>
       <Box
         title={<Titled>Compañeros</Titled>}

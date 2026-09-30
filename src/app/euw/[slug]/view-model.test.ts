@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { albumSearch } from "./album-view";
 import type { SyncProgress } from "./data";
+import { matchSearch } from "./matches-view";
 import {
   dataAgePhrase,
   emptyState,
   initials,
+  MATCH_PARAM,
+  matchHref,
   PROFILE_TABS,
   panelId,
   parseProfileTab,
@@ -173,6 +176,52 @@ describe("tabHref", () => {
     expect(album.split("&")).toHaveLength(4); // los cuatro parámetros del álbum, ninguno por defecto
     expect(tabHref(PATH, album, "resumen")).toBe(`${PATH}?tab=resumen`);
     expect(tabHref(PATH, album, "companeros")).toBe(`${PATH}?tab=companeros`);
+  });
+});
+
+describe("matchHref", () => {
+  const PATH = "/euw/BEJITO%20MAMBO-1991";
+
+  it("abre la partida en la pestaña Partidas", () => {
+    expect(MATCH_PARAM).toBe("partida");
+    expect(matchHref(PATH, "", "EUW1_123")).toBe(
+      `${PATH}?tab=partidas&partida=EUW1_123`,
+    );
+  });
+
+  it("desde el álbum quita sus filtros y conserva ?campeon", () => {
+    expect(
+      matchHref(PATH, "vista=lista&filtro=todos&q=ahri&campeon=ahri", "EUW1_1"),
+    ).toBe(`${PATH}?campeon=ahri&tab=partidas&partida=EUW1_1`);
+  });
+
+  it("desde Partidas cambia solo la partida y conserva sus filtros", () => {
+    expect(
+      matchHref(PATH, "tab=partidas&q=ahri&puesto=1&partida=EUW1_1", "EUW1_2"),
+    ).toBe(`${PATH}?tab=partidas&q=ahri&puesto=1&partida=EUW1_2`);
+  });
+
+  it("desde otra pestaña quita los filtros de Partidas que pudieran haber quedado", () => {
+    expect(matchHref(PATH, "tab=companeros&min=5&orden=top3", "EUW1_1")).toBe(
+      `${PATH}?tab=partidas&partida=EUW1_1`,
+    );
+  });
+});
+
+describe("tabHref y los parámetros de Partidas", () => {
+  it("limpia todo lo que escribe Partidas (no se desincroniza de matches-view)", () => {
+    const partidas = matchSearch({
+      q: "ahri",
+      puesto: "1",
+      companero: { gameName: "Player013", tagLine: "ANON" },
+      blocks: 2,
+      partida: "EUW1_1",
+    });
+    expect(partidas.split("&")).toHaveLength(5); // los cinco parámetros de Partidas
+    expect(tabHref("/p", `tab=partidas&${partidas}`, "campeones")).toBe("/p");
+    expect(tabHref("/p", `tab=partidas&${partidas}`, "resumen")).toBe(
+      "/p?tab=resumen",
+    );
   });
 });
 

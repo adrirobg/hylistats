@@ -1,5 +1,6 @@
 import { Pencil } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { AlbumEntry } from "@/domain/album";
 import { formatDecimal, formatPercent, formatRelative } from "@/lib/format";
@@ -14,6 +15,8 @@ import { initials } from "./view-model";
 // (manual), diana (objetivo) y saturación del retrato (jugado / sin jugar). El estado que llega ya
 // es el efectivo (`effectiveState`); aquí solo se pinta. Solo en «mi perfil» (`actions`) el cromo
 // lleva los controles: botón de diana y menú ⋯ (T09); en un perfil ajeno queda la capa verificada.
+// El cromo verificado enlaza a la partida de su primer 1º (F7): el sello «1º» en la vista álbum y
+// «ver partida» en la lista (`matchHref`).
 
 /** Retrato: borde y filtro por estado (`.s-won`, `.s-manual`, `.s-played` y `.s-none`). */
 const PORTRAIT_STATE: Record<CardState, string> = {
@@ -131,6 +134,8 @@ export interface AlbumCardProps {
   stamp?: boolean;
   /** `null` fuera de «mi perfil» (D12): ni diana, ni menú, ni atajo `o`. */
   actions: CardActions | null;
+  /** Enlace a una partida (`matchHref`): con él, el sello del cromo verificado abre su primer 1º. */
+  matchHref?: (matchId: string) => string;
 }
 
 /** Diana de la esquina: visible en hover, foco o si ya es objetivo. Conmuta sin abrir nada. */
@@ -172,8 +177,11 @@ export function AlbumCard({
   target,
   stamp = false,
   actions,
+  matchHref,
 }: AlbumCardProps) {
   const manualAction = manualActionFor(state);
+  const sealClass =
+    "absolute -top-1.5 -right-1.5 grid size-[30px] -rotate-12 place-items-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#F6D88A,var(--place-1)_55%,var(--won-deep))] font-display text-[13px] font-extrabold text-[#231906] shadow-[0_2px_6px_rgba(0,0,0,.5)] group-[.stamp]:animate-seal-in";
   return (
     // Focusable para el teclado y los lectores aunque aún no abra nada (el panel de campeón es #3).
     // `data-champion-id` permite reponer el foco y recorrer los cromos con las flechas (`album.tsx`).
@@ -192,14 +200,26 @@ export function AlbumCard({
       {/* Ancla de las esquinas: el sello, el lápiz, la diana y el ⋯ se colocan sobre el retrato. */}
       <span className="relative block">
         <Portrait entry={entry} state={state} target={target} />
-        {state === "won" && (
-          <span
-            aria-hidden="true"
-            className="absolute -top-1.5 -right-1.5 grid size-[30px] -rotate-12 place-items-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#F6D88A,var(--place-1)_55%,var(--won-deep))] font-display text-[13px] font-extrabold text-[#231906] shadow-[0_2px_6px_rgba(0,0,0,.5)] group-[.stamp]:animate-seal-in"
-          >
-            1º
-          </span>
-        )}
+        {state === "won" &&
+          (matchHref && entry.firstWinMatchId ? (
+            <Link
+              // Sin prefetch: la pestaña Partidas es dinámica y hay un sello por campeón ganado.
+              prefetch={false}
+              scroll={false}
+              href={matchHref(entry.firstWinMatchId)}
+              aria-label={`Ver la partida del primer 1º con ${entry.name}`}
+              title="Ver la partida del primer 1º"
+              // El clic no debe llegar al cromo (el panel de campeón de #3 se abrirá desde ahí).
+              onClick={(event) => event.stopPropagation()}
+              className={sealClass}
+            >
+              1º
+            </Link>
+          ) : (
+            <span aria-hidden="true" className={sealClass}>
+              1º
+            </span>
+          ))}
         {state === "manual" && (
           <span
             aria-hidden="true"
@@ -259,8 +279,20 @@ const STATE_TEXT: Record<CardState, { label: string; className?: string }> = {
   none: { label: "Sin jugar" },
 };
 
-/** «Ganado ◎»: el estado en texto y, si es objetivo, la diana (la forma, además del color). */
-function StateLabel({ state, target }: { state: CardState; target: boolean }) {
+/**
+ * «Ganado ◎ · ver partida»: el estado en texto, la diana si es objetivo (la forma, además del
+ * color) y, en un verificado, el enlace a la partida de su primer 1º.
+ */
+function StateLabel({
+  state,
+  target,
+  matchUrl,
+}: {
+  state: CardState;
+  target: boolean;
+  /** Destino de «ver partida»; `null` si no hay (no verificado, o sin enlaces). */
+  matchUrl: string | null;
+}) {
   return (
     <>
       {STATE_TEXT[state].label}
@@ -268,6 +300,19 @@ function StateLabel({ state, target }: { state: CardState; target: boolean }) {
         <span className="ml-1.5 inline-block align-middle text-target">
           <TargetGlyph size={12} />
         </span>
+      )}
+      {state === "won" && matchUrl && (
+        <>
+          {" · "}
+          <Link
+            prefetch={false}
+            scroll={false}
+            href={matchUrl}
+            className="text-foreground underline underline-offset-2"
+          >
+            ver partida
+          </Link>
+        </>
       )}
     </>
   );
@@ -287,7 +332,16 @@ export interface AlbumRow {
 }
 
 /** Tabla densa: campeón, estado, partidas, 1º, top 3, puesto medio y último jugado. */
-export function AlbumTable({ rows, now }: { rows: AlbumRow[]; now: number }) {
+export function AlbumTable({
+  rows,
+  now,
+  matchHref,
+}: {
+  rows: AlbumRow[];
+  now: number;
+  /** Enlace a una partida (`matchHref`): con él, «Ganado» lleva «ver partida». */
+  matchHref?: (matchId: string) => string;
+}) {
   return (
     <div className="overflow-x-auto rounded-lg border border-line">
       <table className="w-full border-collapse text-sm">
@@ -320,6 +374,10 @@ export function AlbumTable({ rows, now }: { rows: AlbumRow[]; now: number }) {
         <tbody>
           {rows.map(({ entry, state, target }) => {
             const played = entry.games > 0;
+            const matchUrl =
+              matchHref && entry.firstWinMatchId
+                ? matchHref(entry.firstWinMatchId)
+                : null;
             return (
               <tr
                 key={entry.championId}
@@ -348,7 +406,11 @@ export function AlbumTable({ rows, now }: { rows: AlbumRow[]; now: number }) {
                           STATE_TEXT[state].className,
                         )}
                       >
-                        <StateLabel state={state} target={target} />
+                        <StateLabel
+                          state={state}
+                          target={target}
+                          matchUrl={matchUrl}
+                        />
                       </span>
                     </span>
                   </span>
@@ -361,7 +423,11 @@ export function AlbumTable({ rows, now }: { rows: AlbumRow[]; now: number }) {
                     STATE_TEXT[state].className,
                   )}
                 >
-                  <StateLabel state={state} target={target} />
+                  <StateLabel
+                    state={state}
+                    target={target}
+                    matchUrl={matchUrl}
+                  />
                 </td>
                 <td className={cn(TD, "num")}>{played ? entry.games : "-"}</td>
                 <td className={cn(TD, "num")}>{played ? entry.firsts : "-"}</td>

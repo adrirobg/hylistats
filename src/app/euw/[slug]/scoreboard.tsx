@@ -1,7 +1,7 @@
 import {
   distributionSegments,
-  type PlaceTone,
   scoreboardFigures,
+  TONE_BG,
 } from "@/domain/scoreboard";
 import { PLACEMENTS, type StatsSummary } from "@/domain/stats";
 import { cn } from "@/lib/utils";
@@ -14,13 +14,6 @@ import { cn } from "@/lib/utils";
 // `rail`: rejilla de cinco cifras de 30 px y la barra apilada (va en una `Box` del raíl).
 // `strip`: la misma información reducida a una franja de cifras en una fila (que se parte en dos
 // si no cabe), para cuando el raíl se oculta por debajo de 1100 px (`cabin.tsx`).
-
-/** Fondo de cada familia de puesto (§6.1); lo comparte la tira de forma. */
-export const TONE_BG: Record<PlaceTone, string> = {
-  p1: "bg-place-1",
-  p23: "bg-place-top",
-  p46: "bg-place-low",
-};
 
 interface ScoreboardProps {
   summary: StatsSummary;
