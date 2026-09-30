@@ -226,7 +226,7 @@ describe("enqueueSeasonBackfill", () => {
 });
 
 describe("ensureFreshOnView", () => {
-  it("encola un refresco no interactivo si la última sync tiene más de 2 min", async () => {
+  it("encola un refresco no interactivo si la última sync tiene más de 5 min", async () => {
     const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
     // Con el backfill en curso no se encola nada.
     expect(await ensureFreshOnView(db, profile.id)).toBe("active");
@@ -244,6 +244,32 @@ describe("ensureFreshOnView", () => {
       kind: "incremental",
       interactive: false,
     });
+  });
+
+  it("un incremental automático que acaba en error no se repite antes de 5 min", async () => {
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+    // `lastSyncedAt` viejo y un job terminado en `error` (no lo toca): solo manda el cooldown.
+    const failedAt = new Date("2026-09-29T12:00:00Z");
+    await db
+      .update(syncJobs)
+      .set({ status: "error", finishedAt: failedAt })
+      .where(eq(syncJobs.profileId, profile.id));
+    await db
+      .update(profiles)
+      .set({ lastSyncedAt: new Date(failedAt.getTime() - 60 * 60_000) })
+      .where(eq(profiles.id, profile.id));
+
+    const at = (ms: number) => new Date(failedAt.getTime() + ms);
+    expect(
+      await ensureFreshOnView(db, profile.id, { now: at(2 * 60_000) }),
+    ).toBe("cooldown");
+    expect(
+      await ensureFreshOnView(db, profile.id, { now: at(STALE_AFTER_MS - 1) }),
+    ).toBe("cooldown");
+    expect(await jobsOf(profile.id)).toHaveLength(1);
+    expect(
+      await ensureFreshOnView(db, profile.id, { now: at(STALE_AFTER_MS + 1) }),
+    ).toBe("queued");
   });
 
   it("no refresca solo un Riot ID inexistente", async () => {
