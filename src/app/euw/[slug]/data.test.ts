@@ -1441,6 +1441,17 @@ describe("loadProfilePage", () => {
             gameCreation: 1790633861469,
           },
         ],
+        // 3 partidas (< 5): neutral por pocas partidas; la media global sale de todas las del jugador.
+        heat: {
+          champion: {
+            state: "neutral",
+            games: 3,
+            avg: 8 / 3,
+            adjustedAvg: 3.3125,
+            reason: "few-games",
+          },
+          globalAvg: 3.7,
+        },
       });
     });
 
@@ -1475,6 +1486,23 @@ describe("loadProfilePage", () => {
       }
     });
 
+    it("el frío/calor del cromo y el del panel salen de las mismas filas, en todas las pestañas", async () => {
+      await storeAll();
+      await insertProfile();
+      for (const tab of PROFILE_TABS) {
+        const data = await loadChampion("thresh", tab, catalog);
+        const entry = data.album.find((e) => e.championId === 412);
+        // Thresh: 3 partidas (< 5), así que neutral, pero con su media ajustada.
+        expect(entry).toMatchObject({
+          heat: "neutral",
+          heatAdjustedAvg: 3.3125,
+        });
+        expect(data.champion?.heat?.champion.adjustedAvg).toBe(
+          entry?.heatAdjustedAvg,
+        );
+      }
+    });
+
     it("no altera lo común: con ?campeon la vista es la misma salvo la clave champion", async () => {
       await storeAll();
       await insertProfile();
@@ -1500,6 +1528,7 @@ describe("loadProfilePage", () => {
         championId: 103,
         distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
         recent: [],
+        heat: null,
       });
     });
 

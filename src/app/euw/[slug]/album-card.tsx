@@ -3,10 +3,18 @@ import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { AlbumEntry } from "@/domain/album";
+import type { HeatState } from "@/domain/heat";
 import { formatDecimal, formatPercent, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { type CardPart, manualActionFor } from "./album-interaction";
-import { type CardState, cardLabel, cardSub, cardTitle } from "./album-view";
+import {
+  type CardState,
+  cardLabel,
+  cardSub,
+  cardTitle,
+  effectiveHeat,
+  HEAT_LABEL,
+} from "./album-view";
 import { CardMenu } from "./card-menu";
 import { initials } from "./view-model";
 
@@ -116,6 +124,26 @@ export function TargetGlyph({ size = 14 }: { size?: number }) {
       <circle cx="12" cy="12" r="8" />
       <circle cx="12" cy="12" r="3.2" fill="currentColor" />
     </svg>
+  );
+}
+
+/**
+ * Marca de frío/calor (F16) en la esquina inferior izquierda del retrato: la superior izquierda es
+ * la diana, la superior derecha el sello o el lápiz y la inferior derecha el ⋯. El neutral no
+ * pinta nada. El texto accesible es el nombre visible ("Modo diablo" / "Nevera").
+ */
+function HeatMark({ heat }: { heat: HeatState }) {
+  const label = HEAT_LABEL[heat];
+  if (label === null) return null;
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className="absolute bottom-1 left-1 grid size-[22px] place-items-center rounded-full bg-[rgba(15,16,19,.72)] text-[12px] leading-none"
+    >
+      {heat === "hot" ? "🔥" : "❄️"}
+    </span>
   );
 }
 
@@ -270,6 +298,7 @@ export function AlbumCard({
             </span>
           )
         )}
+        <HeatMark heat={effectiveHeat(entry, state)} />
         {/* Un verificado no ofrece marca manual: sin nada que ofrecer, no hay menú. */}
         {actions && manualAction !== "none" && (
           <CardMenu

@@ -46,6 +46,8 @@ function album(overrides: Partial<AlbumEntry> = {}): AlbumEntry {
     lastPlayedAt: null,
     firstWinAt: null,
     firstWinMatchId: null,
+    heat: "neutral",
+    heatAdjustedAvg: null,
     ...overrides,
   };
 }

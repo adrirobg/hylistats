@@ -28,6 +28,8 @@ const entryOf = (
   lastPlayedAt: null,
   firstWinAt: null,
   firstWinMatchId: null,
+  heat: "neutral",
+  heatAdjustedAvg: null,
 });
 
 describe("manualActionFor", () => {

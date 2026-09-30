@@ -1,7 +1,7 @@
 # Task T05 — Frío/calor en el álbum y en el panel de campeón
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -30,11 +30,26 @@ Los cromos muestran ❄️ / 🔥 según `computeHeat`, el álbum tiene el orden
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Marca ❄️/🔥 en cromos con texto accesible; nada en neutrales.
-- [ ] Orden `?orden=calor` funciona y tiene test.
-- [ ] Panel de campeón muestra estado, medias y nº de partidas, o la razón de neutral.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Marca ❄️/🔥 en cromos con texto accesible; nada en neutrales.
+- [x] Orden `?orden=calor` funciona y tiene test.
+- [x] Panel de campeón muestra estado, medias y nº de partidas, o la razón de neutral.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `data.ts` calcula `computeHeat(stats.playerRows)` una sola vez. Esas filas ya se cargan en todas las pestañas, así que no hay consultas nuevas. El resultado va a `buildAlbum`, que da a `AlbumEntry` los campos `heat` y `heatAdjustedAvg`, y a `championPanelData`, que da `heat` con el `ChampionHeat` y `globalAvg`.
+- Cromo: `HeatMark` en la esquina inferior izquierda del retrato. Las otras tres esquinas ya están ocupadas por ◎, el sello o el lápiz, y ⋯. Lleva `role="img"` con `aria-label` y `title` «Modo diablo» o «Nevera», y `cardLabel` lo añade al `aria-label` del `<li>`.
+- Orden `calor` («Frío/calor», `?orden=calor`): primero 🔥, de mejor a peor ajustada. Después los neutrales, con las bandas y el nombre de `estado`. Al final ❄️, con la peor ajustada la última. Los empates se resuelven por nombre y luego por `championId`.
+- Corrección del orquestador en la revisión: un cromo con marca manual de «ganado» se trata como neutral, porque F16 solo marca campeones sin 1º. `effectiveHeat(entry, state)` lo aplica a la marca, al `aria-label` y al orden. Tiene 2 tests.
+- Panel: bloque «Frío/calor» con la línea de estado («🔥 Modo diablo · 0,48 puestos mejor que tu media»), o la razón del neutral (ya ganado, menos de `HEAT_MIN_GAMES` partidas o dentro de tu media), más partidas, media del campeón, media ajustada y tu media.
+- Navegador integrado (dev noworker):
+  - Marcas en perfiles reales:
+    - Hylimichi: ❄️ Nocturne, la última en `?orden=calor`.
+    - BEJITO MAMBO: 🔥 Blitzcrank, primero; ❄️ Ekko y Kog'Maw, últimos.
+    - Azpekaa: ❄️ ×3.
+    - TheCIutch: ❄️ ×4.
+    - zapas14: ❄️ ×3.
+    - Krill1nt: ❄️ ×2.
+    - elruffles: ninguna.
+  - Panel de Blitzcrank: 5 partidas, media del campeón 2,40, ajustada 2,88 y tu media 3,36. La cuenta cuadra: (5·2,40 + 5·3,36)/10 = 2,88.
+- `npm run lint && npm run typecheck && npm test && npm run build`: en verde (50 ficheros, 1071 tests).

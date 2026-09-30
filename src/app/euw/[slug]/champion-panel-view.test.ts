@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { AlbumEntry } from "@/domain/album";
+import type { ChampionHeat } from "@/domain/heat";
 import type { PlayerMatchRow } from "@/domain/stats";
+import { HEAT_MIN_GAMES } from "@/lib/config";
 import {
   EMPTY_STATE,
   type LocalState,
@@ -14,6 +16,7 @@ import { manualActionFor } from "./album-interaction";
 import { effectiveState } from "./album-view";
 import {
   CHAMPION_PARAM,
+  type ChampionPanelHeat,
   championFigures,
   championHref,
   championPanelData,
@@ -21,6 +24,7 @@ import {
   championStatus,
   closeChampionHref,
   findChampionBySlug,
+  heatBlock,
   panelMatchHref,
   RECENT_GAMES,
 } from "./champion-panel-view";
@@ -43,6 +47,8 @@ function entry(overrides: Partial<AlbumEntry> = {}): AlbumEntry {
     lastPlayedAt: null,
     firstWinAt: null,
     firstWinMatchId: null,
+    heat: "neutral",
+    heatAdjustedAvg: null,
     ...overrides,
   };
 }
@@ -196,7 +202,123 @@ describe("championPanelData", () => {
       championId: 103,
       distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
       recent: [],
+      heat: null,
     });
+  });
+
+  it("el frío/calor sale de las filas del jugador: la media global usa las de todos sus campeones", () => {
+    // Ahri: seis partidas en 6º, sin 1º. Otro campeón: seis 1º. Global = 3,5.
+    const rows = [
+      ...Array.from({ length: 6 }, (_, i) => row(`A${i}`, 103, 6, 1000 + i)),
+      ...Array.from({ length: 6 }, (_, i) => row(`B${i}`, 62, 1, 2000 + i)),
+    ];
+    const { heat } = championPanelData(AHRI, rows);
+    expect(heat?.globalAvg).toBe(3.5);
+    expect(heat?.champion).toMatchObject({
+      state: "cold",
+      games: 6,
+      avg: 6,
+      reason: null,
+    });
+    expect(heat?.champion.adjustedAvg).toBeCloseTo((36 + 5 * 3.5) / 11, 10);
+  });
+
+  it("usa el frío/calor que se le pasa en lugar de recalcularlo", () => {
+    const rows = [row("M1", 103, 3, 1000)];
+    const heat = {
+      globalAvg: 2,
+      byChampion: new Map([
+        [
+          103,
+          {
+            state: "hot" as const,
+            games: 9,
+            avg: 1,
+            adjustedAvg: 1.5,
+            reason: null,
+          },
+        ],
+      ]),
+    };
+    expect(championPanelData(AHRI, rows, heat).heat).toEqual({
+      champion: heat.byChampion.get(103),
+      globalAvg: 2,
+    });
+  });
+});
+
+describe("heatBlock", () => {
+  const champion = (
+    overrides: Partial<ChampionHeat> = {},
+  ): ChampionPanelHeat => ({
+    globalAvg: 3.5,
+    champion: {
+      state: "neutral",
+      games: 12,
+      avg: 3.4,
+      adjustedAvg: 3.45,
+      reason: "within",
+      ...overrides,
+    },
+  });
+
+  it("sin partidas no hay bloque", () => {
+    expect(heatBlock(null)).toBeNull();
+  });
+
+  it("Modo diablo: cuánto mejor que tu media, y las cuatro cifras con coma decimal", () => {
+    const block = heatBlock(
+      champion({
+        state: "hot",
+        games: 8,
+        avg: 2.5,
+        adjustedAvg: 2.9,
+        reason: null,
+      }),
+    );
+    expect(block).toMatchObject({
+      state: "hot",
+      label: "Modo diablo",
+      detail: "0,60 puestos mejor que tu media",
+    });
+    expect(block?.figures.map((f) => [f.key, f.label, f.value])).toEqual([
+      ["games", "partidas", "8"],
+      ["avg", "media campeón", "2,50"],
+      ["adjustedAvg", "media ajustada", "2,90"],
+      ["globalAvg", "tu media", "3,50"],
+    ]);
+  });
+
+  it("Nevera: cuánto peor que tu media", () => {
+    expect(
+      heatBlock(
+        champion({ state: "cold", avg: 5, adjustedAvg: 4.1, reason: null }),
+      ),
+    ).toMatchObject({
+      state: "cold",
+      label: "Nevera",
+      detail: "0,60 puestos peor que tu media",
+    });
+  });
+
+  it("neutral: la razón, en los tres casos", () => {
+    expect(heatBlock(champion({ reason: "won" }))).toMatchObject({
+      label: "Neutral",
+      detail: "ya ganado",
+    });
+    expect(heatBlock(champion({ reason: "few-games", games: 3 }))?.detail).toBe(
+      `menos de ${HEAT_MIN_GAMES} partidas`,
+    );
+    expect(heatBlock(champion({ reason: "within" }))?.detail).toBe(
+      "dentro de tu media",
+    );
+  });
+
+  it("«menos de 5 partidas» sale de HEAT_MIN_GAMES", () => {
+    expect(HEAT_MIN_GAMES).toBe(5);
+    expect(heatBlock(champion({ reason: "few-games" }))?.detail).toBe(
+      "menos de 5 partidas",
+    );
   });
 });
 

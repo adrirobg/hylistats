@@ -30,6 +30,7 @@ import {
   championFigures,
   championStatus,
   closeChampionHref,
+  heatBlock,
   panelMatchHref,
 } from "./champion-panel-view";
 import { DistributionBar } from "./distribution-bar";
@@ -89,6 +90,7 @@ export function ChampionPanel({
   const figures = championFigures(entry);
   const links = championLinks(entry.ddId, entry.name);
   const manualAction = manualActionFor(state);
+  const heat = heatBlock(data.heat);
 
   function close() {
     setOpen(false);
@@ -236,6 +238,36 @@ export function ChampionPanel({
               </p>
             )}
           </Box>
+
+          {heat !== null && (
+            <Box title="Frío/calor" titleAs="h3">
+              <p className="text-sm">
+                <b
+                  className={cn(
+                    "font-semibold",
+                    heat.state === "hot" && "text-place-1",
+                  )}
+                >
+                  {heat.state === "hot" && "🔥 "}
+                  {heat.state === "cold" && "❄️ "}
+                  {heat.label}
+                </b>
+                {` · ${heat.detail}`}
+              </p>
+              <dl className="mt-3 grid grid-cols-4 gap-2">
+                {heat.figures.map((figure) => (
+                  <div key={figure.key} className="flex flex-col-reverse">
+                    <dt className="mt-1 text-[11px] text-muted-foreground">
+                      {figure.label}
+                    </dt>
+                    <dd className="font-display text-[28px] leading-none font-extrabold whitespace-nowrap">
+                      {figure.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </Box>
+          )}
 
           {data.recent.length > 0 && (
             <Box title="Últimas partidas" titleAs="h3">

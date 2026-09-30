@@ -28,6 +28,7 @@ import {
   type RecentGame,
   recentForm,
 } from "@/domain/album";
+import { computeHeat } from "@/domain/heat";
 import { getProfileMatches } from "@/domain/matches";
 import {
   getProfileStats,
@@ -518,7 +519,10 @@ export async function loadProfilePage(
     now.getTime(),
   );
 
-  const album = buildAlbum(championCatalog, stats.playerRows);
+  // Frío/calor sobre las filas que ya están cargadas (comunes a todas las pestañas): lo usan el
+  // cromo (vía el álbum) y el panel de campeón, sin consultas nuevas.
+  const heat = computeHeat(stats.playerRows);
+  const album = buildAlbum(championCatalog, stats.playerRows, heat);
   // La forma nombra a cada campeón como el álbum (catálogo o, sin él, la partida más reciente).
   const displayName = new Map(album.map((e) => [e.championId, e.name]));
 
@@ -565,7 +569,7 @@ export async function loadProfilePage(
     railTeammates: railTeammates(stats.teammates, RAIL_TEAMMATES),
     // La clave solo existe con `?campeon` válido: `...null` no añade nada.
     ...(championEntry && {
-      champion: championPanelData(championEntry, stats.playerRows),
+      champion: championPanelData(championEntry, stats.playerRows, heat),
     }),
     // Ídem para las claves de cada pestaña: `...false` no añade nada.
     ...(view.tab === "companeros" && {

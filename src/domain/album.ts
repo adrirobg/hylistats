@@ -4,6 +4,7 @@
 // El `import type` se borra al compilar: este módulo no arrastra `server-only` al cliente.
 
 import type { ChampionCatalog } from "@/lib/ddragon";
+import { computeHeat, type HeatResult, type HeatState } from "./heat";
 import { PLACEMENTS, type PlayerMatchRow } from "./stats";
 
 /** `won`: algún 1º (campeón verificado); `played`: partidas pero ningún 1º; `none`: sin partidas. */
@@ -31,6 +32,13 @@ export interface AlbumEntry {
   /** Epoch en ms del **primer** 1º (el que lo verifica); `null` si no ha ganado. */
   firstWinAt: number | null;
   firstWinMatchId: string | null;
+  /**
+   * Frío/calor (F16, `computeHeat`): `hot` 🔥 "Modo diablo", `cold` ❄️ "Nevera", `neutral` sin
+   * marca (también sin partidas o con algún 1º).
+   */
+  heat: HeatState;
+  /** Media ajustada que decide el frío/calor; `null` sin partidas. Da el orden «Frío/calor». */
+  heatAdjustedAvg: number | null;
 }
 
 // Mismo criterio que `computeSummary`: solo cuentan los puestos 1..6 de Arena tríos.
@@ -69,10 +77,14 @@ interface Acc {
  * caído) solo salen los campeones jugados. Orden: por `name` (`localeCompare("es")`).
  *
  * Invariante: las entradas `won` son exactamente `verifiedChampions(rows)`.
+ *
+ * `heat` es el frío/calor ya calculado sobre las mismas `rows` (quien también lo necesite, como
+ * el panel de campeón, lo calcula una vez y lo pasa); sin él se calcula aquí.
  */
 export function buildAlbum(
   catalog: ChampionCatalog,
   rows: readonly PlayerMatchRow[],
+  heat: HeatResult = computeHeat(rows),
 ): AlbumEntry[] {
   const byChampion = new Map<number, Acc>();
   for (const row of rows) {
@@ -119,6 +131,8 @@ export function buildAlbum(
     lastPlayedAt: acc?.last.gameCreation ?? null,
     firstWinAt: acc?.firstWin?.gameCreation ?? null,
     firstWinMatchId: acc?.firstWin?.matchId ?? null,
+    heat: heat.byChampion.get(championId)?.state ?? "neutral",
+    heatAdjustedAvg: heat.byChampion.get(championId)?.adjustedAvg ?? null,
   });
 
   const album: AlbumEntry[] = [];

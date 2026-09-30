@@ -13,6 +13,7 @@ import {
   defaultFiltro,
   effectiveState,
   matchesQuery,
+  ORDEN_LABEL,
   parseAlbumParams,
   resolveFiltro,
   withQuery,
@@ -31,6 +32,8 @@ const NONE_STATS = {
   lastPlayedAt: null,
   firstWinAt: null,
   firstWinMatchId: null,
+  heat: "neutral" as const,
+  heatAdjustedAvg: null,
 };
 
 const entryOf = (
@@ -151,6 +154,7 @@ describe("parseAlbumParams", () => {
       "intentos",
       "mejor",
       "reciente",
+      "calor",
     ]) {
       expect(parseAlbumParams(new URLSearchParams({ orden })).orden).toBe(
         orden,
@@ -188,6 +192,18 @@ describe("parseAlbumParams", () => {
     const search = href.split("?")[1];
     expect(parseAlbumParams(new URLSearchParams(search)).filtro).toBe(
       "sin-ganar",
+    );
+  });
+});
+
+describe("orden Frío/calor", () => {
+  it("se llama «Frío/calor» y viaja en la URL como `calor`", () => {
+    expect(ORDEN_LABEL.calor).toBe("Frío/calor");
+    expect(albumSearch(params({ filtro: null, orden: "calor" }))).toBe(
+      "orden=calor",
+    );
+    expect(parseAlbumParams(new URLSearchParams("orden=calor")).orden).toBe(
+      "calor",
     );
   });
 });
@@ -604,6 +620,109 @@ describe("albumSections: orden", () => {
     ]);
   });
 
+  describe("calor (Frío/calor)", () => {
+    const hot = (id: number, name: string, adjusted: number) =>
+      entryOf(id, name, {
+        state: "played",
+        games: 6,
+        heat: "hot",
+        heatAdjustedAvg: adjusted,
+      });
+    const cold = (id: number, name: string, adjusted: number) =>
+      entryOf(id, name, {
+        state: "played",
+        games: 6,
+        heat: "cold",
+        heatAdjustedAvg: adjusted,
+      });
+    const HOT_MILD = hot(11, "Brand", 3.1);
+    const HOT_FIERY = hot(12, "Zilean", 2.6);
+    const COLD_MILD = cold(13, "Nami", 4.2);
+    const COLD_FREEZING = cold(14, "Anivia", 4.9);
+    const WITH_HEAT = [...ALBUM, COLD_FREEZING, HOT_MILD, COLD_MILD, HOT_FIERY];
+
+    it("🔥 primero (mejor ajustada antes), luego neutrales por banda de estado y ❄️ al final (peor ajustada la última)", () => {
+      const [section] = sections(
+        local([SETT.championId]),
+        params({ filtro: "todos", orden: "calor" }),
+        WITH_HEAT,
+      );
+      expect(section).toMatchObject({ key: "todos", title: "Todos" });
+      expect(names(section.entries)).toEqual([
+        "Zilean", // 🔥 2,6
+        "Brand", // 🔥 3,1
+        "Sett", // neutrales: objetivo
+        "Aatrox", // jugados
+        "Zed",
+        "Kai'Sa", // sin jugar
+        "Wukong",
+        "Ahri", // ganados
+        "Yasuo",
+        "Nami", // ❄️ 4,2
+        "Anivia", // ❄️ 4,9 (la peor, al final)
+      ]);
+    });
+
+    it("con un filtro concreto los neutrales van solo por nombre, como `estado`", () => {
+      const [section] = sections(
+        local([ZED.championId]),
+        params({ filtro: "sin-ganar", orden: "calor" }),
+        [ZED, AATROX, COLD_MILD, HOT_MILD],
+      );
+      expect(names(section.entries)).toEqual([
+        "Brand",
+        "Aatrox",
+        "Zed",
+        "Nami",
+      ]);
+    });
+
+    it("un campeón ganado a mano cuenta como ganado entre los neutrales", () => {
+      const [section] = sections(
+        local([], [ZED.championId]),
+        params({ filtro: "todos", orden: "calor" }),
+        [ZED, AATROX, KAISA],
+      );
+      expect(names(section.entries)).toEqual(["Aatrox", "Kai'Sa", "Zed"]);
+    });
+
+    it("un ganado a mano con heat hot va entre los neutrales, no primero", () => {
+      const MANUAL_HOT = hot(31, "Corki", 2.5);
+      const [section] = sections(
+        local([], [MANUAL_HOT.championId]),
+        params({ filtro: "todos", orden: "calor" }),
+        [MANUAL_HOT, HOT_MILD, COLD_MILD, AATROX],
+      );
+      expect(names(section.entries)).toEqual([
+        "Brand", // 🔥 real
+        "Aatrox", // neutral jugado
+        "Corki", // manual: neutral, en la banda de ganados
+        "Nami", // ❄️
+      ]);
+    });
+
+    it("con la misma media ajustada desempata por nombre y luego por championId", () => {
+      const a = hot(21, "Brand", 3);
+      const b = hot(22, "Brand", 3);
+      const c = cold(23, "Zac", 4);
+      const d = cold(24, "Alistar", 4);
+      const [section] = sections(
+        local(),
+        params({ filtro: "todos", orden: "calor" }),
+        [c, b, d, a],
+      );
+      expect(section.entries.map((e) => e.championId)).toEqual([
+        21, 22, 24, 23,
+      ]);
+    });
+
+    it("no muta la lista de entrada", () => {
+      const copy = [...WITH_HEAT];
+      sections(local(), params({ orden: "calor" }), WITH_HEAT);
+      expect(WITH_HEAT).toEqual(copy);
+    });
+  });
+
   it("no muta la lista de entrada", () => {
     const input = [ZED, AHRI, AATROX];
     const copy = [...input];
@@ -694,6 +813,30 @@ describe("cardLabel", () => {
       "Zed, jugado sin ganar, 4 partidas, mejor puesto 2º",
     );
     expect(cardLabel(SETT, "none", true)).toBe("Sett, sin jugar, objetivo");
+  });
+
+  it("añade el frío/calor con su nombre visible, antes del objetivo", () => {
+    expect(cardLabel({ ...ZED, heat: "hot" }, "played", true)).toBe(
+      "Zed, jugado sin ganar, 4 partidas, mejor puesto 2º, modo diablo, objetivo",
+    );
+    expect(cardLabel({ ...ZED, heat: "cold" }, "played", false)).toBe(
+      "Zed, jugado sin ganar, 4 partidas, mejor puesto 2º, nevera",
+    );
+  });
+
+  it("un ganado a mano no lleva frío/calor aunque el dominio lo marque", () => {
+    expect(cardLabel({ ...ZED, heat: "cold" }, "manual", false)).toBe(
+      "Zed, ganado a mano",
+    );
+    expect(cardLabel({ ...ZED, heat: "hot" }, "manual", true)).toBe(
+      "Zed, ganado a mano, objetivo",
+    );
+  });
+
+  it("el neutral no añade nada", () => {
+    expect(cardLabel({ ...ZED, heat: "neutral" }, "played", false)).toBe(
+      cardLabel(ZED, "played", false),
+    );
   });
 });
 

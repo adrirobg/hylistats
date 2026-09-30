@@ -273,6 +273,8 @@ function entry(
     lastPlayedAt: 1,
     firstWinAt: null,
     firstWinMatchId: null,
+    heat: "neutral",
+    heatAdjustedAvg: null,
     ...overrides,
   };
 }
