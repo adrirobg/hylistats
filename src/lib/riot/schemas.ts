@@ -40,6 +40,8 @@ export const ParticipantDto = z.object({
   totalDamageDealtToChampions: int,
   goldEarned: int,
   champLevel: int,
+  totalDamageTaken: int,
+  largestKillingSpree: int,
   playerAugment1: slot,
   playerAugment2: slot,
   playerAugment3: slot,

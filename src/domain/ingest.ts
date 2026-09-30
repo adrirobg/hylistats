@@ -69,6 +69,8 @@ export function matchToRows(match: MatchDto): MatchRows {
       totalDamageDealtToChampions: p.totalDamageDealtToChampions,
       goldEarned: p.goldEarned,
       champLevel: p.champLevel,
+      totalDamageTaken: p.totalDamageTaken,
+      largestKillingSpree: p.largestKillingSpree,
     })),
   };
 }

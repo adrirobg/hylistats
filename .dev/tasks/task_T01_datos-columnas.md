@@ -1,7 +1,7 @@
 # Task T01 — Columnas nuevas, ingesta y relleno desde rawGz
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -35,11 +35,16 @@ Existen `participants.total_damage_taken`, `participants.largest_killing_spree` 
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Migración con las 3 columnas nuevas, nullable.
-- [ ] Ingesta rellena `totalDamageTaken` y `largestKillingSpree` en partidas nuevas.
-- [ ] Script idempotente: en la BD local deja 0 nulos y una segunda ejecución actualiza 0 filas.
-- [ ] Tests del mapeo y del relleno en verde. `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Migración con las 3 columnas nuevas, nullable.
+- [x] Ingesta rellena `totalDamageTaken` y `largestKillingSpree` en partidas nuevas.
+- [x] Script idempotente: en la BD local deja 0 nulos y una segunda ejecución actualiza 0 filas.
+- [x] Tests del mapeo y del relleno en verde. `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- Migración `drizzle/0003_nostalgic_blonde_phantom.sql`: 3 `ADD COLUMN` nullable (`participants.total_damage_taken`, `participants.largest_killing_spree`, `profiles.profile_icon_id`). Aplicada a `hylistats` y `hylistats_test`.
+- Ingesta: `ParticipantDto` + `matchToRows` copian `totalDamageTaken` y `largestKillingSpree` (test en `src/domain/ingest.test.ts`).
+- Relleno: `backfillParticipantColumns(db)` en `src/domain/backfill-participant-columns.ts`; wrapper `scripts/backfill-participant-columns.ts` (`npm run db:backfill-columns`). 5 tests contra `hylistats_test` (relleno + 2.ª pasada a 0, lotes, no pisa valores, sin `raw_gz`, `raw_gz` corrupto).
+- BD local, 1.ª ejecución: `Partidas leídas: 1192 · Filas actualizadas: 21456 · Partidas sin raw_gz: 0`. 2.ª ejecución: `Filas actualizadas: 0`.
+- SQL: `participants` 21456 filas, 0 nulos en `total_damage_taken` y 0 en `largest_killing_spree`.
+- `npm run lint && npm run typecheck && npm test && npm run build`: verde (47 ficheros, 970 tests).

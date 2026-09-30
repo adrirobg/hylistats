@@ -13,6 +13,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
     "db:migrate:test": "tsx --env-file-if-exists=.env.local scripts/migrate.ts --test",
+    "db:backfill-columns": "tsx --env-file-if-exists=.env.local scripts/backfill-participant-columns.ts",
     "db:reset": "tsx --env-file-if-exists=.env.local scripts/db-reset.ts",
     "fixtures:record": "tsx --env-file-if-exists=.env.local scripts/record-fixtures.ts",
     "sync:season": "tsx --env-file-if-exists=.env.local scripts/sync-season.ts"

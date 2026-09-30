@@ -85,6 +85,8 @@ describe("matchToRows", () => {
       totalDamageDealtToChampions: raw?.totalDamageDealtToChampions,
       goldEarned: raw?.goldEarned,
       champLevel: raw?.champLevel,
+      totalDamageTaken: raw?.totalDamageTaken,
+      largestKillingSpree: raw?.largestKillingSpree,
     });
     expect(me?.augments).toEqual(
       [1, 2, 3, 4, 5, 6].map((n) => raw?.[`playerAugment${n}`]),

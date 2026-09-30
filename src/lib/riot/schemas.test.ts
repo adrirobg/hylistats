@@ -71,6 +71,8 @@ describe("esquemas Zod de la Riot API", () => {
       totalDamageDealtToChampions: 0,
       goldEarned: 0,
       champLevel: 1,
+      totalDamageTaken: 0,
+      largestKillingSpree: 0,
     };
     const participant = ParticipantDto.parse({ ...base, playerAugment1: 42 });
     expect(participant.playerAugment1).toBe(42);

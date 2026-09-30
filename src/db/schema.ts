@@ -70,6 +70,8 @@ export const profiles = pgTable("profiles", {
   challengeValue: doublePrecision("challenge_value"),
   challengeLevel: text("challenge_level"),
   challengeCheckedAt: timestamptz("challenge_checked_at"),
+  // Icono de perfil (Data Dragon); nullable hasta que se resuelva.
+  profileIconId: integer("profile_icon_id"),
   lastSyncedAt: timestamptz("last_synced_at"),
   createdAt: timestamptz("created_at").notNull().defaultNow(),
   updatedAt: timestamptz("updated_at")
@@ -125,6 +127,9 @@ export const participants = pgTable(
     ).notNull(),
     goldEarned: integer("gold_earned").notNull(),
     champLevel: integer("champ_level").notNull(),
+    // Nullable: las filas anteriores se rellenan desde `matches.raw_gz` (db:backfill-columns).
+    totalDamageTaken: integer("total_damage_taken"),
+    largestKillingSpree: integer("largest_killing_spree"),
   },
   (t) => [
     primaryKey({ columns: [t.matchId, t.puuid] }),
