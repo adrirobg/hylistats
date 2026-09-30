@@ -1,3 +1,141 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Columnas nuevas, ingesta y relleno desde rawGz",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/7-stats-personales",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T01_datos-columnas.md",
+      "created_at": "2026-09-30T20:30:00Z",
+      "updated_at": "2026-09-30T20:30:00Z"
+    },
+    {
+      "id": "T02",
+      "title": "Dominio de estadísticas personales: récords, rachas, días, a la primera",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/7-stats-personales",
+      "worktree": null,
+      "depends_on": [
+        "T01"
+      ],
+      "artifact_path": ".dev/tasks/task_T02_dominio-estadisticas.md",
+      "created_at": "2026-09-30T20:30:00Z",
+      "updated_at": "2026-09-30T20:30:00Z"
+    },
+    {
+      "id": "T03",
+      "title": "Dominio de frío/calor (F16)",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/7-stats-personales",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T03_dominio-frio-calor.md",
+      "created_at": "2026-09-30T20:30:00Z",
+      "updated_at": "2026-09-30T20:30:00Z"
+    },
+    {
+      "id": "T04",
+      "title": "Pestaña Estadísticas (UI)",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/7-stats-personales",
+      "worktree": null,
+      "depends_on": [
+        "T02"
+      ],
+      "artifact_path": ".dev/tasks/task_T04_pestana-estadisticas.md",
+      "created_at": "2026-09-30T20:30:00Z",
+      "updated_at": "2026-09-30T20:30:00Z"
+    },
+    {
+      "id": "T05",
+      "title": "Frío/calor en el álbum y en el panel de campeón",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/7-stats-personales",
+      "worktree": null,
+      "depends_on": [
+        "T03"
+      ],
+      "artifact_path": ".dev/tasks/task_T05_frio-calor-ui.md",
+      "created_at": "2026-09-30T20:30:00Z",
+      "updated_at": "2026-09-30T20:30:00Z"
+    },
+    {
+      "id": "T06",
+      "title": "Badge Deidad de Arena, meta Dios de Arena y renombrado",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/7-stats-personales",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T06_deidad-dios-arena.md",
+      "created_at": "2026-09-30T20:30:00Z",
+      "updated_at": "2026-09-30T20:30:00Z"
+    },
+    {
+      "id": "T07",
+      "title": "Icono de invocador (Summoner-V4) en la cabecera",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/7-stats-personales",
+      "worktree": null,
+      "depends_on": [
+        "T01"
+      ],
+      "artifact_path": ".dev/tasks/task_T07_icono-invocador.md",
+      "created_at": "2026-09-30T20:30:00Z",
+      "updated_at": "2026-09-30T20:30:00Z"
+    },
+    {
+      "id": "T08",
+      "title": "Menú ⋯ en todos los cromos con enlaces de builds",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/7-stats-personales",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T08_menu-builds.md",
+      "created_at": "2026-09-30T20:30:00Z",
+      "updated_at": "2026-09-30T20:30:00Z"
+    },
+    {
+      "id": "T09",
+      "title": "Logo: 3 propuestas SVG, elección y aplicación",
+      "status": "pending",
+      "owner": "orchestrator",
+      "branch": "feat/7-stats-personales",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T09_logo.md",
+      "created_at": "2026-09-30T20:30:00Z",
+      "updated_at": "2026-09-30T20:30:00Z"
+    },
+    {
+      "id": "T10",
+      "title": "Verificación E2E y verify-report",
+      "status": "pending",
+      "owner": "orchestrator",
+      "branch": "feat/7-stats-personales",
+      "worktree": null,
+      "depends_on": [
+        "T01",
+        "T02",
+        "T03",
+        "T04",
+        "T05",
+        "T06",
+        "T07",
+        "T08"
+      ],
+      "artifact_path": ".dev/tasks/task_T10_verificacion.md",
+      "created_at": "2026-09-30T20:30:00Z",
+      "updated_at": "2026-09-30T20:30:00Z"
+    }
+  ]
 }
