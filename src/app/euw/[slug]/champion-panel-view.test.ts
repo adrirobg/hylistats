@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import type { AlbumEntry } from "@/domain/album";
 import type { PlayerMatchRow } from "@/domain/stats";
 import {
+  EMPTY_STATE,
+  type LocalState,
+  setManual,
+  setMyProfile,
+  shownProfileData,
+  toggleTarget,
+} from "@/lib/local-store";
+import { normalizeRiotId } from "@/lib/riot-id";
+import { manualActionFor } from "./album-interaction";
+import { effectiveState } from "./album-view";
+import {
   CHAMPION_PARAM,
   championFigures,
   championHref,
@@ -281,5 +292,42 @@ describe("championStatus", () => {
       firstWinMatchId: "EUW1_1",
     });
     expect(championStatus(won, "won", NOW).detail).toBe("1º el 28 sept");
+  });
+});
+
+// El panel decide lo que enseña de la capa local con `shownProfileData` (vía `useProfileLocal`),
+// `effectiveState` y `manualActionFor`. Con esas funciones puras se comprueba el perfil ajeno (D12).
+describe("panel en un perfil ajeno (D12)", () => {
+  const owner = { gameName: "Otra Persona", tagLine: "EUW" };
+  const viewed = { gameName: "Ahri Main", tagLine: "1991" };
+  const norm = normalizeRiotId(viewed.gameName, viewed.tagLine);
+  /** El navegador guarda un objetivo y una marca manual de Ahri en el perfil visto. */
+  const stored = (mine: typeof owner): LocalState =>
+    setManual(
+      toggleTarget(setMyProfile(EMPTY_STATE, mine), norm, AHRI.championId),
+      norm,
+      AHRI.championId,
+      true,
+    );
+
+  it("en «mi perfil» el panel ve la marca y el objetivo", () => {
+    const shown = shownProfileData(stored(viewed), viewed);
+    const state = effectiveState(AHRI, new Set(shown.manual));
+    expect(shown.mine).toBe(true);
+    expect(new Set(shown.targets).has(AHRI.championId)).toBe(true);
+    expect(state).toBe("manual");
+    expect(manualActionFor(state)).toBe("unmark");
+    expect(championStatus(AHRI, state, NOW).tone).toBe("manual");
+  });
+
+  it("en uno ajeno, con esos mismos datos guardados, solo ve el estado verificado y sin objetivo", () => {
+    const shown = shownProfileData(stored(owner), viewed);
+    const state = effectiveState(AHRI, new Set(shown.manual));
+    expect(shown.mine).toBe(false);
+    expect(new Set(shown.targets).has(AHRI.championId)).toBe(false);
+    // Ahri sin jugar sigue «sin jugar»: ni «ganado a mano» ni la acción de desmarcar.
+    expect(state).toBe(AHRI.state);
+    expect(championStatus(AHRI, state, NOW).tone).not.toBe("manual");
+    expect(championStatus(AHRI, state, NOW).label).not.toMatch(/mano/i);
   });
 });

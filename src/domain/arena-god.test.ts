@@ -9,6 +9,7 @@ import {
   manualPhrase,
   messageText,
   missingPhrase,
+  officialPhrase,
   verifiedPhrase,
 } from "./arena-god";
 
@@ -190,6 +191,17 @@ describe("textos", () => {
     expect(manualPhrase(0)).toBe("0 manuales");
     expect(manualPhrase(1)).toBe("1 manual");
     expect(manualPhrase(2)).toBe("2 manuales");
+  });
+
+  it("contador oficial: la cifra o «oficial sin dato», nunca un 0 inventado (§4.3)", () => {
+    expect(officialPhrase(27)).toBe("oficial 27");
+    expect(officialPhrase(0)).toBe("oficial 0"); // 0 es un dato; solo null es «sin dato»
+    expect(officialPhrase(null)).toBe("oficial sin dato");
+    // Sin `challengeValue` el estado es unknown y su texto y su aria-label lo dicen igual.
+    const unknown = state({ verifiedIds: ids(12), official: null });
+    expect(unknown.status).toBe("unknown");
+    expect(officialPhrase(unknown.official)).toBe("oficial sin dato");
+    expect(arenaGodLabel(unknown)).toContain("contador oficial no disponible");
   });
 
   it("aria-label completo de la barra", () => {

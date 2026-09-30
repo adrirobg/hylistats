@@ -14,6 +14,7 @@ import {
   arenaGodMessage,
   arenaGodState,
   manualPhrase,
+  officialPhrase,
   verifiedPhrase,
 } from "@/domain/arena-god";
 import { type LocalState, profileData } from "@/lib/local-store";
@@ -22,12 +23,7 @@ import { useLocalReady, useLocalStore } from "@/lib/use-local-store";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
 import { REFRESH_BUTTON_ID } from "./use-refresh";
-import {
-  FILTER_PARAM,
-  FILTER_UNWON,
-  whenPhrase,
-  withSearchParam,
-} from "./view-model";
+import { markByHandHref, whenPhrase } from "./view-model";
 
 // Barra Arena God de tres capas y aviso de descuadre (brief §4.2 y §4.3, `.god` de la maqueta):
 // verificados (oro sólido), marcas manuales (azul acero rayado y discontinuo) y el contador
@@ -102,17 +98,14 @@ export function ArenaGodBar({
     else button.click();
   }
 
-  /** [Marcar a mano]: filtra el álbum por «sin ganar» (T08) y guía hasta la marca. */
+  /**
+   * [Marcar a mano]: lleva al álbum filtrado por «sin ganar» y guía hasta la marca. Vale desde
+   * cualquier pestaña: `markByHandHref` vuelve a Campeones, donde vive el filtro.
+   */
   function markByHand() {
-    router.replace(
-      withSearchParam(
-        pathname,
-        searchParams.toString(),
-        FILTER_PARAM,
-        FILTER_UNWON,
-      ),
-      { scroll: false },
-    );
+    router.replace(markByHandHref(pathname, searchParams.toString()), {
+      scroll: false,
+    });
     show("Abre el menú ⋯ de un campeón y usa «Marcar como ganado a mano»");
   }
 
@@ -151,10 +144,7 @@ export function ArenaGodBar({
             {state.total}
           </b>{" "}
           de {state.goal} · {verifiedPhrase(state.verified)} +{" "}
-          {manualPhrase(state.manual)} ·{" "}
-          {state.official === null
-            ? "oficial sin dato"
-            : `oficial ${state.official}`}
+          {manualPhrase(state.manual)} · {officialPhrase(state.official)}
         </p>
       </div>
 

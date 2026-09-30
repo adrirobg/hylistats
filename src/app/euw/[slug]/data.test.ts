@@ -1,11 +1,17 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDb } from "@/db";
-import { profiles, settings, syncJobs } from "@/db/schema";
+import { matches, matchFetch, profiles, settings, syncJobs } from "@/db/schema";
+import { arenaGodState, officialPhrase } from "@/domain/arena-god";
 import { storeMatch } from "@/domain/ingest";
-import { ARENA_GOD_THRESHOLD } from "@/lib/config";
+import {
+  ARENA_GOD_THRESHOLD,
+  ARENA_QUEUE_IDS,
+  ARENA_QUIET_DAYS,
+} from "@/lib/config";
 import type { ChampionCatalog } from "@/lib/ddragon";
 import type { GameData, GameIcon } from "@/lib/game-data";
+import { RATE_LIMIT_MARKER, RiotRateLimitError } from "@/lib/riot/errors";
 import { getTestDb, truncateAll } from "../../../../tests/helpers/db";
 import {
   loadMatchFixtures,
@@ -66,6 +72,46 @@ async function insertJob(
 ) {
   await db.insert(syncJobs).values({ profileId, kind: "backfill", ...values });
 }
+
+/** Un job que no espera ni tiene cola: lo que suma `SyncProgress` a `kind` y `phase`. */
+const NO_WAIT = { retryAt: null, reason: null, queue: null } as const;
+
+/** Otro perfil (`n`-ésimo) para que sus jobs hagan cola con los del perfil de los tests. */
+async function insertOtherProfile(n: number) {
+  return insertProfile({
+    gameName: `Otro ${n}`,
+    tagLine: "EUW",
+    riotIdNorm: `otro ${n}#euw`,
+    puuid: `anon-puuid-otro-${n}`,
+  });
+}
+
+/** Partida de Arena mínima (sin participantes): solo cuenta para «la última partida de Arena». */
+async function insertArenaMatch(
+  matchId: string,
+  gameCreation: number,
+  queueId: number = ARENA_QUEUE_IDS[0],
+) {
+  await db.insert(matches).values({
+    matchId,
+    queueId,
+    gameCreation,
+    gameStartTimestamp: gameCreation,
+    gameEndTimestamp: gameCreation + 1_500_000,
+    gameDuration: 1500,
+    gameVersion: "26.10.1",
+  });
+}
+
+const MINUTE_MS = 60_000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
+/** El `lastError` que guarda el worker tras un 429 persistente, y el de un 5xx. */
+const RATE_LIMIT_ERROR = new RiotRateLimitError(
+  { host: "europe", path: "/lol/match/v5/matches/:id", status: 429 },
+  "límite de peticiones tras 5 intentos",
+).message;
+const SERVER_ERROR =
+  "Riot europe /x -> 503: error del servidor tras 5 intentos";
 
 async function load(
   gameName = "BEJITO MAMBO",
@@ -143,7 +189,11 @@ describe("loadProfilePage", () => {
     });
     await insertJob(profile.id);
     const data = await loadProfile();
-    expect(data.sync).toEqual({ kind: "backfill", phase: "resolving" });
+    expect(data.sync).toEqual({
+      kind: "backfill",
+      phase: "resolving",
+      ...NO_WAIT,
+    });
     expect(data.lastSyncedAt).toBeNull();
     expect(data.summary.games).toBe(0);
     expect(data.summary.avgPlacement).toBeNull();
@@ -163,6 +213,7 @@ describe("loadProfilePage", () => {
       kind: "backfill",
       phase: "listing",
       listedIds: 3,
+      ...NO_WAIT,
     });
   });
 
@@ -180,6 +231,7 @@ describe("loadProfilePage", () => {
       phase: "fetching",
       fetched: 2,
       total: 3,
+      ...NO_WAIT,
     });
   });
 
@@ -266,6 +318,455 @@ describe("loadProfilePage", () => {
     expect((await loadProfile()).sync).toBeNull();
   });
 
+  describe("espera y cola del job activo (§5)", () => {
+    const minutesFromNow = (n: number) => new Date(Date.now() + n * MINUTE_MS);
+
+    describe("retryAt y reason", () => {
+      it("job en backoff por 429 persistente: retryAt es su nextRunAt y reason, rate_limit", async () => {
+        const profile = await insertProfile();
+        const nextRunAt = minutesFromNow(2);
+        await insertJob(profile.id, {
+          status: "listing",
+          nextRunAt,
+          lastError: RATE_LIMIT_ERROR,
+          attempts: 1,
+        });
+        expect((await loadProfile()).sync).toMatchObject({
+          phase: "listing",
+          retryAt: nextRunAt,
+          reason: "rate_limit",
+        });
+      });
+
+      it("job en backoff por otro fallo (5xx): reason es error", async () => {
+        const profile = await insertProfile();
+        const nextRunAt = minutesFromNow(1);
+        await insertJob(profile.id, {
+          status: "pending",
+          nextRunAt,
+          lastError: SERVER_ERROR,
+        });
+        expect((await loadProfile()).sync).toMatchObject({
+          retryAt: nextRunAt,
+          reason: "error",
+        });
+      });
+
+      it("sin lastError (o anterior a la marca) el reintento cuenta como error, no como límite", async () => {
+        const profile = await insertProfile();
+        await insertJob(profile.id, {
+          nextRunAt: minutesFromNow(1),
+          lastError:
+            "Riot europe /x -> 429: límite de peticiones tras 5 intentos",
+        });
+        expect((await loadProfile()).sync).toMatchObject({ reason: "error" });
+      });
+
+      it("un nextRunAt ya vencido no es una espera: el job solo aguarda al worker", async () => {
+        const profile = await insertProfile();
+        await insertJob(profile.id, {
+          nextRunAt: minutesFromNow(-1),
+          lastError: RATE_LIMIT_ERROR,
+        });
+        expect((await loadProfile()).sync).toMatchObject(NO_WAIT);
+      });
+
+      it("descargando con TODAS las partidas pendientes en backoff: la nextAttemptAt más cercana y su motivo", async () => {
+        const profile = await insertProfile();
+        await insertJob(profile.id, {
+          status: "fetching",
+          matchIds: ["EUW1_A", "EUW1_B", "EUW1_C", "EUW1_D"],
+          totalIds: 4,
+          fetched: 1,
+        });
+        const soonest = minutesFromNow(1);
+        await db.insert(matchFetch).values([
+          { matchId: "EUW1_A", status: "done" },
+          // La más cercana es la del límite de peticiones; la más lejana, un 5xx.
+          {
+            matchId: "EUW1_B",
+            nextAttemptAt: minutesFromNow(3),
+            lastError: SERVER_ERROR,
+          },
+          {
+            matchId: "EUW1_C",
+            nextAttemptAt: soonest,
+            lastError: RATE_LIMIT_ERROR,
+          },
+          // Una resuelta con error no espera nada aunque conserve su nextAttemptAt.
+          {
+            matchId: "EUW1_D",
+            status: "error",
+            nextAttemptAt: minutesFromNow(-5),
+          },
+        ]);
+        expect((await loadProfile()).sync).toMatchObject({
+          phase: "fetching",
+          retryAt: soonest,
+          reason: "rate_limit",
+        });
+      });
+
+      it("basta una partida lista (sin espera o vencida) para que el job no cuente como frenado", async () => {
+        const profile = await insertProfile();
+        await insertJob(profile.id, {
+          status: "fetching",
+          matchIds: ["EUW1_A", "EUW1_B", "EUW1_C"],
+          totalIds: 3,
+        });
+        await db.insert(matchFetch).values([
+          {
+            matchId: "EUW1_A",
+            nextAttemptAt: minutesFromNow(2),
+            lastError: RATE_LIMIT_ERROR,
+          },
+          { matchId: "EUW1_B" }, // pendiente y sin espera
+          {
+            matchId: "EUW1_C",
+            nextAttemptAt: minutesFromNow(-1),
+            lastError: RATE_LIMIT_ERROR,
+          },
+        ]);
+        expect((await loadProfile()).sync).toMatchObject(NO_WAIT);
+
+        // Con la lista y la vencida resueltas, solo queda la que espera: ahora sí está frenado.
+        await db
+          .update(matchFetch)
+          .set({ status: "done" })
+          .where(inArray(matchFetch.matchId, ["EUW1_B", "EUW1_C"]));
+        expect((await loadProfile()).sync).toMatchObject({
+          reason: "rate_limit",
+        });
+      });
+
+      it("las partidas en backoff de otro job (que no están en el suyo) no cuentan", async () => {
+        const profile = await insertProfile();
+        await insertJob(profile.id, {
+          status: "fetching",
+          matchIds: ["EUW1_A"],
+          totalIds: 1,
+        });
+        await db.insert(matchFetch).values([
+          { matchId: "EUW1_A" }, // suya: lista
+          {
+            matchId: "EUW1_OTRA",
+            nextAttemptAt: minutesFromNow(2),
+            lastError: RATE_LIMIT_ERROR,
+          },
+        ]);
+        expect((await loadProfile()).sync).toMatchObject(NO_WAIT);
+      });
+
+      it("el motivo se clasifica en el servidor: ni el texto de lastError ni la marca llegan a la página", async () => {
+        const profile = await insertProfile();
+        await insertJob(profile.id, {
+          nextRunAt: minutesFromNow(2),
+          lastError: `${RATE_LIMIT_ERROR} /srv/secreto/ruta`,
+        });
+        const json = JSON.stringify(await loadProfile());
+        expect(json).toContain("rate_limit"); // la categoría, sí
+        for (const leaked of [
+          RATE_LIMIT_MARKER,
+          "límite de peticiones",
+          "matches/:id",
+          "secreto",
+          "lastError",
+        ]) {
+          expect(json).not.toContain(leaked);
+        }
+      });
+    });
+
+    describe("queue.ahead (job en pending/listing)", () => {
+      it("cuenta los jobs de otros perfiles en pending/listing que se sirven antes (id menor)", async () => {
+        const first = await insertOtherProfile(1);
+        const second = await insertOtherProfile(2);
+        const mine = await insertProfile();
+        const later = await insertOtherProfile(3);
+        await insertJob(first.id, { status: "pending" });
+        await insertJob(second.id, { status: "listing", matchIds: ["EUW1_1"] });
+        await insertJob(mine.id, { status: "pending" });
+        await insertJob(later.id, { status: "pending" }); // detrás: no cuenta
+        expect((await loadProfile()).sync).toMatchObject({
+          phase: "resolving",
+          queue: { ahead: 2, sharing: 0 },
+        });
+      });
+
+      it("el primero de la cola no tiene a nadie delante: queue es null", async () => {
+        const mine = await insertProfile();
+        const later = await insertOtherProfile(1);
+        await insertJob(mine.id, { status: "pending" });
+        await insertJob(later.id, { status: "pending" });
+        expect((await loadProfile()).sync?.queue).toBeNull();
+      });
+
+      it("un job interactivo pasa por delante de uno que no lo es, aunque llegue después", async () => {
+        const mine = await insertProfile();
+        const urgent = await insertOtherProfile(1);
+        await insertJob(mine.id, { status: "pending", interactive: false });
+        await insertJob(urgent.id, { status: "pending", interactive: true });
+        expect((await loadProfile()).sync?.queue).toEqual({
+          ahead: 1,
+          sharing: 0,
+        });
+      });
+
+      it("y si el mío es interactivo, solo pasan delante los interactivos anteriores", async () => {
+        const olderBackground = await insertOtherProfile(1);
+        const olderInteractive = await insertOtherProfile(2);
+        const mine = await insertProfile();
+        await insertJob(olderBackground.id, {
+          status: "pending",
+          interactive: false,
+        });
+        await insertJob(olderInteractive.id, {
+          status: "pending",
+          interactive: true,
+        });
+        await insertJob(mine.id, { status: "pending", interactive: true });
+        expect((await loadProfile()).sync?.queue).toEqual({
+          ahead: 1,
+          sharing: 0,
+        });
+      });
+
+      it("no cuentan los jobs en backoff, los que ya descargan ni los terminados", async () => {
+        const waiting = await insertOtherProfile(1);
+        const fetching = await insertOtherProfile(2);
+        const done = await insertOtherProfile(3);
+        const mine = await insertProfile();
+        // Un pending en backoff no se sirve; un fetching va después de cualquier pending.
+        await insertJob(waiting.id, {
+          status: "pending",
+          nextRunAt: new Date(Date.now() + 5 * MINUTE_MS),
+          lastError: RATE_LIMIT_ERROR,
+        });
+        await insertJob(fetching.id, {
+          status: "fetching",
+          matchIds: ["EUW1_1"],
+          totalIds: 1,
+        });
+        await insertJob(done.id, { status: "done" });
+        await insertJob(mine.id, { status: "pending" });
+        expect((await loadProfile()).sync?.queue).toBeNull();
+      });
+
+      it("el incremental de otro perfil también cuenta (la cola es de todos los jobs)", async () => {
+        const other = await insertOtherProfile(1);
+        const mine = await insertProfile();
+        await insertJob(other.id, { kind: "incremental", status: "pending" });
+        await insertJob(mine.id, { kind: "incremental", status: "pending" });
+        expect((await loadProfile()).sync).toMatchObject({
+          kind: "incremental",
+          queue: { ahead: 1, sharing: 0 },
+        });
+      });
+    });
+
+    describe("queue.sharing (job en fetching)", () => {
+      const fetchingJob = { status: "fetching", totalIds: 2 } as const;
+
+      it("cuenta los otros jobs en fetching con los que reparte el round-robin", async () => {
+        const a = await insertOtherProfile(1);
+        const b = await insertOtherProfile(2);
+        const mine = await insertProfile();
+        await insertJob(a.id, { ...fetchingJob, matchIds: ["EUW1_1"] });
+        await insertJob(mine.id, { ...fetchingJob, matchIds: ["EUW1_2"] });
+        await insertJob(b.id, { ...fetchingJob, matchIds: ["EUW1_3"] });
+        expect((await loadProfile()).sync).toMatchObject({
+          phase: "fetching",
+          queue: { ahead: 0, sharing: 2 },
+        });
+      });
+
+      it("no reparte con jobs que aún resuelven o listan, ni con los terminados ni con los que esperan reintento", async () => {
+        const pending = await insertOtherProfile(1);
+        const done = await insertOtherProfile(2);
+        const backoff = await insertOtherProfile(3);
+        const mine = await insertProfile();
+        await insertJob(pending.id, { status: "pending" });
+        await insertJob(done.id, { status: "done" });
+        await insertJob(backoff.id, {
+          ...fetchingJob,
+          matchIds: ["EUW1_1"],
+          nextRunAt: new Date(Date.now() + 5 * MINUTE_MS),
+        });
+        await insertJob(mine.id, { ...fetchingJob, matchIds: ["EUW1_2"] });
+        expect((await loadProfile()).sync?.queue).toBeNull();
+      });
+
+      it("uno interactivo solo reparte con otros interactivos; uno que no lo es, con todos", async () => {
+        const background = await insertOtherProfile(1);
+        const interactive = await insertOtherProfile(2);
+        const mine = await insertProfile();
+        await insertJob(background.id, {
+          ...fetchingJob,
+          matchIds: ["EUW1_1"],
+          interactive: false,
+        });
+        await insertJob(interactive.id, {
+          ...fetchingJob,
+          matchIds: ["EUW1_2"],
+          interactive: true,
+        });
+        await insertJob(mine.id, {
+          ...fetchingJob,
+          matchIds: ["EUW1_3"],
+          interactive: true,
+        });
+        expect((await loadProfile()).sync?.queue).toEqual({
+          ahead: 0,
+          sharing: 1,
+        });
+
+        await db
+          .update(syncJobs)
+          .set({ interactive: false })
+          .where(eq(syncJobs.profileId, mine.id));
+        expect((await loadProfile()).sync?.queue).toEqual({
+          ahead: 0,
+          sharing: 2,
+        });
+      });
+    });
+
+    it("un job que espera su reintento no está en la cola: queue es null aunque haya otros", async () => {
+      const other = await insertOtherProfile(1);
+      const mine = await insertProfile();
+      await insertJob(other.id, { status: "pending" });
+      await insertJob(mine.id, {
+        status: "pending",
+        nextRunAt: minutesFromNow(2),
+        lastError: RATE_LIMIT_ERROR,
+      });
+      expect((await loadProfile()).sync).toMatchObject({
+        reason: "rate_limit",
+        queue: null,
+      });
+    });
+
+    it("solo recuentos: ni ids, ni nombres, ni puuid de los otros perfiles", async () => {
+      const ahead = await insertOtherProfile(1);
+      const mine = await insertOtherProfile(2);
+      await insertJob(ahead.id, {
+        status: "listing",
+        matchIds: ["EUW1_AJENA"],
+      });
+      await insertJob(mine.id, { status: "pending" });
+      const data = await load("Otro 2", "EUW");
+      if (data.kind !== "profile") throw new Error(`kind: ${data.kind}`);
+      expect(data.sync?.queue).toEqual({ ahead: 1, sharing: 0 });
+      const json = JSON.stringify(data);
+      expect(hasKeyDeep(data, "puuid")).toBe(false);
+      for (const leaked of ["Otro 1", "anon-puuid-otro-1", "EUW1_AJENA"]) {
+        expect(json).not.toContain(leaked);
+      }
+    });
+  });
+
+  describe("Arena fuera de rotación (arenaQuiet)", () => {
+    const ago = (days: number) => Date.now() - days * DAY_MS;
+    const SYNCED = new Date("2026-09-29T10:00:00Z");
+
+    it("una partida de Arena de hace más de 7 días en la BD: la etiqueta trae su instante", async () => {
+      expect(ARENA_QUIET_DAYS).toBe(7);
+      await insertProfile({ lastSyncedAt: SYNCED });
+      const at = ago(10);
+      await insertArenaMatch("EUW1_OLD", at);
+      expect((await loadProfile()).arenaQuiet).toEqual({ lastArenaGameAt: at });
+    });
+
+    it("con la última partida reciente no hay etiqueta", async () => {
+      await insertProfile({ lastSyncedAt: SYNCED });
+      await insertArenaMatch("EUW1_OLD", ago(30));
+      await insertArenaMatch("EUW1_NEW", ago(2));
+      expect((await loadProfile()).arenaQuiet).toBeNull();
+    });
+
+    it("el umbral son 7 días: unos minutos por debajo no; unos minutos por encima, sí", async () => {
+      await insertProfile({ lastSyncedAt: SYNCED });
+      await insertArenaMatch("EUW1_EDGE", ago(7) + 5 * MINUTE_MS);
+      expect((await loadProfile()).arenaQuiet).toBeNull();
+
+      await db.delete(matches);
+      const at = ago(7) - 5 * MINUTE_MS;
+      await insertArenaMatch("EUW1_EDGE", at);
+      expect((await loadProfile()).arenaQuiet).toEqual({ lastArenaGameAt: at });
+    });
+
+    it("usa la última partida de Arena de la BD entera, no de las de este perfil ni de la temporada", async () => {
+      // Este perfil no tiene ni una partida; las de la BD son de otros y anteriores a la temporada.
+      await insertProfile({ lastSyncedAt: SYNCED });
+      await insertOtherProfile(1);
+      const older = Date.UTC(2026, 0, 3);
+      const newest = Date.UTC(2026, 2, 20);
+      await insertArenaMatch("EUW1_A", older);
+      await insertArenaMatch("EUW1_B", newest);
+      const data = await loadProfile();
+      expect(data.summary.games).toBe(0);
+      expect(data.arenaQuiet).toEqual({ lastArenaGameAt: newest });
+    });
+
+    it("solo cuentan las colas de Arena (1750 y 1740): otro modo reciente no la desmiente", async () => {
+      await insertProfile({ lastSyncedAt: SYNCED });
+      const arena = ago(12);
+      await insertArenaMatch("EUW1_ARENA", arena, ARENA_QUEUE_IDS[0]);
+      await insertArenaMatch("EUW1_ARAM", ago(1), 450);
+      expect((await loadProfile()).arenaQuiet).toEqual({
+        lastArenaGameAt: arena,
+      });
+
+      // Una partida reciente de la otra cola de Arena sí la desmiente.
+      await insertArenaMatch("EUW1_ARENA2", ago(1), ARENA_QUEUE_IDS[1]);
+      expect((await loadProfile()).arenaQuiet).toBeNull();
+    });
+
+    it("sin ninguna partida de Arena en la BD no hay desde cuándo: sin etiqueta", async () => {
+      await insertProfile({ lastSyncedAt: SYNCED });
+      await insertArenaMatch("EUW1_ARAM", ago(30), 450);
+      expect((await loadProfile()).arenaQuiet).toBeNull();
+    });
+
+    it("sin sincronizar nunca no se afirma nada", async () => {
+      await insertProfile({ lastSyncedAt: null });
+      await insertArenaMatch("EUW1_OLD", ago(10));
+      expect((await loadProfile()).arenaQuiet).toBeNull();
+    });
+
+    it("si la última actualización falló, el silencio podría ser un fallo de sincronización: sin etiqueta", async () => {
+      const profile = await insertProfile({ lastSyncedAt: SYNCED });
+      await insertArenaMatch("EUW1_OLD", ago(10));
+      await insertJob(profile.id, {
+        status: "error",
+        finishedAt: new Date(),
+        lastError: "boom",
+      });
+      expect((await loadProfile()).arenaQuiet).toBeNull();
+
+      // Una actualización posterior que acaba bien la devuelve.
+      await insertJob(profile.id, {
+        kind: "incremental",
+        status: "done",
+        finishedAt: new Date(),
+      });
+      expect((await loadProfile()).arenaQuiet).toMatchObject({
+        lastArenaGameAt: expect.any(Number),
+      });
+    });
+
+    it("es un dato común: sale igual en todas las pestañas y no es un puuid ni cuelga de una", async () => {
+      await insertProfile({ lastSyncedAt: SYNCED });
+      const at = ago(9);
+      await insertArenaMatch("EUW1_OLD", at);
+      for (const tab of PROFILE_TABS) {
+        expect((await loadProfile(tab)).arenaQuiet).toEqual({
+          lastArenaGameAt: at,
+        });
+      }
+    });
+  });
+
   it("perfil con stats y challengeValue: resumen, campeones verificados y comparación", async () => {
     await storeAll();
     await storeVariant(fixtures[1], "EUW1_TEST_FIRST", (j) => {
@@ -308,6 +809,30 @@ describe("loadProfilePage", () => {
       checkedAt,
       comparison: { status: "diff", diff: -74 },
     });
+  });
+
+  it("sin contador oficial (challengeValue null) y con partidas: value null y comparación unknown en todas las pestañas (§4.3)", async () => {
+    await storeAll();
+    await insertProfile(); // nunca se leyó el challenge
+    for (const tab of PROFILE_TABS) {
+      const data = await loadProfile(tab);
+      expect(data.summary.games).toBe(10);
+      expect(data.challenge).toEqual({
+        value: null,
+        level: null,
+        checkedAt: null,
+        comparison: { status: "unknown", diff: null },
+      });
+      // La barra Arena God recibe `official: null` y cae en «sin dato oficial», no en un 0.
+      const god = arenaGodState({
+        verifiedIds: data.verifiedChampions.map((c) => c.championId),
+        manualIds: [],
+        official: data.challenge.value,
+        goal: ARENA_GOD_THRESHOLD,
+      });
+      expect(god.status).toBe("unknown");
+      expect(officialPhrase(god.official)).toBe("oficial sin dato");
+    }
   });
 
   describe("álbum", () => {

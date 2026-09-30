@@ -3,16 +3,25 @@ import { albumSearch } from "./album-view";
 import type { SyncProgress } from "./data";
 import { matchSearch } from "./matches-view";
 import {
+  arenaQuietPhrase,
   dataAgePhrase,
   emptyState,
+  incrementalStatus,
   initials,
   MATCH_PARAM,
+  markByHandHref,
   matchHref,
   PROFILE_TABS,
   panelId,
   parseProfileTab,
   queryParams,
+  queuedLabel,
+  queueStartMinutes,
+  REQUESTS_PER_JOB_START,
+  rateLimitPhrase,
+  retryMinutes,
   SECONDS_PER_MATCH,
+  sharingPhrase,
   syncBandModel,
   syncEtaMinutes,
   TAB_LABEL,
@@ -286,6 +295,69 @@ describe("syncEtaMinutes", () => {
     expect(syncEtaMinutes(1)).toBe(1);
     expect(syncEtaMinutes(-5)).toBe(1);
   });
+
+  it("con cola compartida se multiplica por sharing + 1 (round-robin entre perfiles)", () => {
+    // 292 partidas a solas = 350 s; con 1 perfil más, la mitad del ritmo = 700 s -> 12 min.
+    expect(syncEtaMinutes(292, 0)).toBe(6);
+    expect(syncEtaMinutes(292, 1)).toBe(12);
+    expect(syncEtaMinutes(292, 2)).toBe(18);
+    // Se multiplica el tiempo, no los minutos ya redondeados: 100 partidas = 120 s, x3 = 360 s.
+    expect(syncEtaMinutes(100, 2)).toBe(6);
+    expect(syncEtaMinutes(1, 3)).toBe(1);
+  });
+
+  it("un sharing negativo no acorta la estimación", () => {
+    expect(syncEtaMinutes(100, -3)).toBe(syncEtaMinutes(100));
+  });
+});
+
+describe("queueStartMinutes", () => {
+  it("cada job por delante gasta unas 10 peticiones (Account-V1 y las páginas de ids)", () => {
+    expect(REQUESTS_PER_JOB_START).toBe(10);
+    // 1 job = 12 s; 5 = 60 s; 6 = 72 s -> 2 min.
+    expect(queueStartMinutes(1)).toBe(1);
+    expect(queueStartMinutes(5)).toBe(1);
+    expect(queueStartMinutes(6)).toBe(2);
+    expect(queueStartMinutes(30)).toBe(6);
+  });
+
+  it("nunca baja de 1 minuto ni sale negativo", () => {
+    expect(queueStartMinutes(0)).toBe(1);
+    expect(queueStartMinutes(-2)).toBe(1);
+  });
+});
+
+describe("retryMinutes", () => {
+  it("minutos hasta retryAt, hacia arriba y al menos 1", () => {
+    expect(retryMinutes(new Date(NOW + 2 * MINUTE), NOW)).toBe(2);
+    expect(retryMinutes(new Date(NOW + 2 * MINUTE - 1), NOW)).toBe(2);
+    expect(retryMinutes(new Date(NOW + 2 * MINUTE + 1), NOW)).toBe(3);
+    expect(retryMinutes(new Date(NOW + 5_000), NOW)).toBe(1);
+  });
+
+  it("un retryAt ya vencido (la página se pintó tarde) sigue diciendo 1 minuto", () => {
+    expect(retryMinutes(new Date(NOW), NOW)).toBe(1);
+    expect(retryMinutes(new Date(NOW - 10 * MINUTE), NOW)).toBe(1);
+  });
+});
+
+describe("frases del estado de la cola", () => {
+  it("cola compartida: singular y plural", () => {
+    expect(sharingPhrase(1)).toBe("cola compartida con 1 perfil");
+    expect(sharingPhrase(2)).toBe("cola compartida con 2 perfiles");
+  });
+
+  it("límite de peticiones: en llano, sin códigos", () => {
+    const phrase = rateLimitPhrase(2);
+    expect(phrase).toBe(
+      "Límite de peticiones alcanzado: la sincronización se reanuda sola en ~2 min",
+    );
+    expect(phrase).not.toMatch(/429|http/i);
+  });
+
+  it("botón del incremental en cola", () => {
+    expect(queuedLabel(2)).toBe("En cola (2º)…");
+  });
 });
 
 describe("syncBandModel", () => {
@@ -293,42 +365,64 @@ describe("syncBandModel", () => {
     | { phase: "resolving" }
     | { phase: "listing"; listedIds: number }
     | { phase: "fetching"; fetched: number; total: number };
-  const backfill = (rest: Phase): SyncProgress => ({
-    kind: "backfill",
+  type Wait = Pick<SyncProgress, "retryAt" | "reason" | "queue">;
+  /** Job sin espera ni cola, salvo lo que se indique. */
+  const job = (
+    kind: SyncProgress["kind"],
+    rest: Phase,
+    wait: Partial<Wait> = {},
+  ): SyncProgress => ({
+    kind,
+    retryAt: null,
+    reason: null,
+    queue: null,
+    ...wait,
     ...rest,
   });
+  const backfill = (rest: Phase, wait?: Partial<Wait>) =>
+    job("backfill", rest, wait);
+  const retryIn2Min = {
+    retryAt: new Date(NOW + 2 * MINUTE),
+    reason: "rate_limit",
+  } as const;
 
   it("sin job y sin pausa: no hay banda", () => {
-    expect(syncBandModel(null, false)).toBeNull();
+    expect(syncBandModel(null, false, NOW)).toBeNull();
   });
 
   it("backfill: resolviendo, listando y descargando con f / t y ETA", () => {
-    expect(syncBandModel(backfill({ phase: "resolving" }), false)).toEqual({
-      kind: "resolving",
-    });
+    expect(syncBandModel(backfill({ phase: "resolving" }), false, NOW)).toEqual(
+      { kind: "resolving" },
+    );
     expect(
-      syncBandModel(backfill({ phase: "listing", listedIds: 200 }), false),
+      syncBandModel(backfill({ phase: "listing", listedIds: 200 }), false, NOW),
     ).toEqual({ kind: "listing", listedIds: 200 });
     expect(
       syncBandModel(
         backfill({ phase: "fetching", fetched: 212, total: 504 }),
         false,
+        NOW,
       ),
-    ).toEqual({ kind: "fetching", fetched: 212, total: 504, etaMinutes: 6 });
+    ).toEqual({
+      kind: "fetching",
+      fetched: 212,
+      total: 504,
+      etaMinutes: 6,
+      sharing: 0,
+    });
   });
 
   it("el incremental no tiene banda (su progreso va en el botón)", () => {
-    const incremental: SyncProgress = {
-      kind: "incremental",
+    const incremental = job("incremental", {
       phase: "fetching",
       fetched: 1,
       total: 4,
-    };
-    expect(syncBandModel(incremental, false)).toBeNull();
+    });
+    expect(syncBandModel(incremental, false, NOW)).toBeNull();
   });
 
   it("key caducada: banda de pausa, con el progreso si hay un backfill descargando", () => {
-    expect(syncBandModel(null, true)).toEqual({
+    expect(syncBandModel(null, true, NOW)).toEqual({
       kind: "paused",
       progress: null,
     });
@@ -336,23 +430,298 @@ describe("syncBandModel", () => {
       syncBandModel(
         backfill({ phase: "fetching", fetched: 307, total: 504 }),
         true,
+        NOW,
       ),
     ).toEqual({ kind: "paused", progress: { fetched: 307, total: 504 } });
-    expect(syncBandModel(backfill({ phase: "resolving" }), true)).toEqual({
+    expect(syncBandModel(backfill({ phase: "resolving" }), true, NOW)).toEqual({
       kind: "paused",
       progress: null,
     });
   });
 
   it("la pausa manda también sobre un incremental", () => {
-    const incremental: SyncProgress = {
-      kind: "incremental",
-      phase: "resolving",
-    };
-    expect(syncBandModel(incremental, true)).toEqual({
+    const incremental = job("incremental", { phase: "resolving" });
+    expect(syncBandModel(incremental, true, NOW)).toEqual({
       kind: "paused",
       progress: null,
     });
+  });
+
+  describe("límite de peticiones", () => {
+    it("banda con los minutos hasta retryAt y el progreso congelado", () => {
+      expect(
+        syncBandModel(
+          backfill(
+            { phase: "fetching", fetched: 307, total: 504 },
+            retryIn2Min,
+          ),
+          false,
+          NOW,
+        ),
+      ).toEqual({
+        kind: "rate_limit",
+        minutes: 2,
+        progress: { fetched: 307, total: 504 },
+      });
+    });
+
+    it("sin progreso que congelar (resolviendo, listando o total aún 0)", () => {
+      for (const rest of [
+        { phase: "resolving" },
+        { phase: "listing", listedIds: 100 },
+        { phase: "fetching", fetched: 0, total: 0 },
+      ] as const) {
+        expect(syncBandModel(backfill(rest, retryIn2Min), false, NOW)).toEqual({
+          kind: "rate_limit",
+          minutes: 2,
+          progress: null,
+        });
+      }
+    });
+
+    it("mínimo 1 minuto aunque falten segundos", () => {
+      const soon = { retryAt: new Date(NOW + 10_000), reason: "rate_limit" };
+      expect(
+        syncBandModel(
+          backfill({ phase: "resolving" }, soon as Partial<Wait>),
+          false,
+          NOW,
+        ),
+      ).toMatchObject({ kind: "rate_limit", minutes: 1 });
+    });
+
+    it("solo si el motivo es el límite de peticiones: otro error sigue con el progreso normal", () => {
+      const error = {
+        retryAt: new Date(NOW + 2 * MINUTE),
+        reason: "error",
+      } as const;
+      expect(
+        syncBandModel(
+          backfill({ phase: "fetching", fetched: 10, total: 100 }, error),
+          false,
+          NOW,
+        ),
+      ).toMatchObject({ kind: "fetching", fetched: 10, total: 100 });
+    });
+
+    it("la pausa por key caducada manda sobre el límite de peticiones", () => {
+      expect(
+        syncBandModel(
+          backfill(
+            { phase: "fetching", fetched: 307, total: 504 },
+            retryIn2Min,
+          ),
+          true,
+          NOW,
+        ),
+      ).toEqual({ kind: "paused", progress: { fetched: 307, total: 504 } });
+    });
+
+    it("manda sobre la cola", () => {
+      expect(
+        syncBandModel(
+          backfill(
+            { phase: "resolving" },
+            { ...retryIn2Min, queue: { ahead: 2, sharing: 0 } },
+          ),
+          false,
+          NOW,
+        ),
+      ).toMatchObject({ kind: "rate_limit" });
+    });
+
+    it("el incremental no pinta banda (lo dice el header)", () => {
+      expect(
+        syncBandModel(
+          job("incremental", { phase: "resolving" }, retryIn2Min),
+          false,
+          NOW,
+        ),
+      ).toBeNull();
+    });
+  });
+
+  describe("cola", () => {
+    it("con jobs por delante: posición ahead + 1 y cuándo empieza", () => {
+      const queue = { ahead: 1, sharing: 0 };
+      expect(
+        syncBandModel(backfill({ phase: "resolving" }, { queue }), false, NOW),
+      ).toEqual({ kind: "queued", position: 2, startMinutes: 1 });
+      expect(
+        syncBandModel(
+          backfill({ phase: "resolving" }, { queue: { ahead: 6, sharing: 0 } }),
+          false,
+          NOW,
+        ),
+      ).toEqual({ kind: "queued", position: 7, startMinutes: 2 });
+    });
+
+    it("también al listar (los listados se sirven por turno)", () => {
+      expect(
+        syncBandModel(
+          backfill(
+            { phase: "listing", listedIds: 100 },
+            { queue: { ahead: 2, sharing: 0 } },
+          ),
+          false,
+          NOW,
+        ),
+      ).toMatchObject({ kind: "queued", position: 3 });
+    });
+
+    it("sin nadie por delante no hay cola", () => {
+      expect(
+        syncBandModel(
+          backfill({ phase: "resolving" }, { queue: { ahead: 0, sharing: 0 } }),
+          false,
+          NOW,
+        ),
+      ).toEqual({ kind: "resolving" });
+    });
+
+    it("la pausa por key caducada manda sobre la cola", () => {
+      expect(
+        syncBandModel(
+          backfill({ phase: "resolving" }, { queue: { ahead: 1, sharing: 0 } }),
+          true,
+          NOW,
+        ),
+      ).toEqual({ kind: "paused", progress: null });
+    });
+
+    it("descargando con cola compartida: la ETA se multiplica por sharing + 1", () => {
+      expect(
+        syncBandModel(
+          backfill(
+            { phase: "fetching", fetched: 212, total: 504 },
+            { queue: { ahead: 0, sharing: 1 } },
+          ),
+          false,
+          NOW,
+        ),
+      ).toEqual({
+        kind: "fetching",
+        fetched: 212,
+        total: 504,
+        // 292 partidas a 1,2 s = 350 s; con otro perfil descargando, el doble: 700 s.
+        etaMinutes: 12,
+        sharing: 1,
+      });
+    });
+  });
+});
+
+describe("incrementalStatus", () => {
+  const incremental = (
+    wait: Partial<Pick<SyncProgress, "retryAt" | "reason" | "queue">> = {},
+  ): SyncProgress => ({
+    kind: "incremental",
+    retryAt: null,
+    reason: null,
+    queue: null,
+    phase: "fetching",
+    fetched: 1,
+    total: 4,
+    ...wait,
+  });
+
+  it("sin job o con un job normal no hay nada que decir", () => {
+    expect(incrementalStatus(null, false, NOW)).toBeNull();
+    expect(incrementalStatus(incremental(), false, NOW)).toBeNull();
+    // Cola compartida al descargar: solo alarga el backfill, el botón no cambia.
+    expect(
+      incrementalStatus(
+        incremental({ queue: { ahead: 0, sharing: 2 } }),
+        false,
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it("en cola: la posición para el texto del botón", () => {
+    expect(
+      incrementalStatus(
+        incremental({ queue: { ahead: 1, sharing: 0 } }),
+        false,
+        NOW,
+      ),
+    ).toEqual({ kind: "queued", position: 2 });
+  });
+
+  it("límite de peticiones: los minutos para el aviso del header", () => {
+    expect(
+      incrementalStatus(
+        incremental({
+          retryAt: new Date(NOW + 2 * MINUTE),
+          reason: "rate_limit",
+        }),
+        false,
+        NOW,
+      ),
+    ).toEqual({ kind: "rate_limit", minutes: 2 });
+    // Otro error con reintento no es límite de peticiones: no se anuncia como tal.
+    expect(
+      incrementalStatus(
+        incremental({ retryAt: new Date(NOW + 2 * MINUTE), reason: "error" }),
+        false,
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it("el límite de peticiones va antes que la cola", () => {
+    expect(
+      incrementalStatus(
+        incremental({
+          retryAt: new Date(NOW + MINUTE),
+          reason: "rate_limit",
+          queue: { ahead: 3, sharing: 0 },
+        }),
+        false,
+        NOW,
+      ),
+    ).toEqual({ kind: "rate_limit", minutes: 1 });
+  });
+
+  it("la key caducada manda: la explica la banda", () => {
+    expect(
+      incrementalStatus(
+        incremental({ queue: { ahead: 1, sharing: 0 } }),
+        true,
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it("un backfill no cuenta: tiene su banda", () => {
+    expect(
+      incrementalStatus(
+        {
+          ...incremental({ queue: { ahead: 1, sharing: 0 } }),
+          kind: "backfill",
+        },
+        false,
+        NOW,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("arenaQuietPhrase", () => {
+  it("pasado el mes lleva la fecha: «desde el 31 jul», sin afirmar nada que no se sepa", () => {
+    // NOW - 60 d = 31 jul 2026.
+    expect(arenaQuietPhrase(NOW - 60 * DAY, NOW)).toBe(
+      "Sin partidas de Arena desde el 31 jul: puede que Arena esté fuera de rotación",
+    );
+  });
+
+  it("entre 7 y 30 días sale relativa: «desde hace 8 d»", () => {
+    expect(arenaQuietPhrase(NOW - 8 * DAY, NOW)).toBe(
+      "Sin partidas de Arena desde hace 8 d: puede que Arena esté fuera de rotación",
+    );
+    expect(arenaQuietPhrase(NOW - 29 * DAY, NOW)).toBe(
+      "Sin partidas de Arena desde hace 29 d: puede que Arena esté fuera de rotación",
+    );
   });
 });
 
@@ -372,6 +741,48 @@ describe("emptyState", () => {
     );
     expect(emptyState({ games: 0, syncing: false, lastSyncedAt: 1 })).toBe(
       "empty",
+    );
+  });
+});
+
+describe("markByHandHref", () => {
+  const PATH = "/euw/Foo-EUW";
+
+  it("desde Campeones solo añade el filtro «sin ganar» y conserva la vista, la búsqueda y el orden", () => {
+    expect(markByHandHref(PATH, "")).toBe(`${PATH}?filtro=sin-ganar`);
+    expect(markByHandHref(PATH, "vista=lista&q=ahri&orden=mejor")).toBe(
+      `${PATH}?vista=lista&q=ahri&orden=mejor&filtro=sin-ganar`,
+    );
+    // Cambia el filtro que hubiera, sin duplicarlo.
+    expect(markByHandHref(PATH, "filtro=todos&vista=lista")).toBe(
+      `${PATH}?filtro=sin-ganar&vista=lista`,
+    );
+  });
+
+  it("desde Resumen vuelve a Campeones: sin ?tab y con el filtro, no un ?filtro suelto sobre el resumen", () => {
+    const href = markByHandHref(PATH, "tab=resumen");
+    expect(href).toBe(`${PATH}?filtro=sin-ganar`);
+    expect(new URLSearchParams(href.split("?")[1]).has("tab")).toBe(false);
+  });
+
+  it("desde Compañeros o Partidas quita sus parámetros (el orden y la q de otra pestaña no cuentan)", () => {
+    expect(markByHandHref(PATH, "tab=companeros&min=5&orden=top3")).toBe(
+      `${PATH}?filtro=sin-ganar`,
+    );
+    expect(
+      markByHandHref(
+        PATH,
+        "tab=partidas&q=ahri&puesto=1&companero=x&n=2&partida=EUW1_1",
+      ),
+    ).toBe(`${PATH}?filtro=sin-ganar`);
+  });
+
+  it("conserva ?campeon (el panel abierto) y cualquier otro parámetro ajeno", () => {
+    expect(markByHandHref(PATH, "tab=resumen&campeon=ahri")).toBe(
+      `${PATH}?campeon=ahri&filtro=sin-ganar`,
+    );
+    expect(markByHandHref(PATH, "?tab=partidas&utm=1&campeon=ahri&n=2")).toBe(
+      `${PATH}?utm=1&campeon=ahri&filtro=sin-ganar`,
     );
   });
 });

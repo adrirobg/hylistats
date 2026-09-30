@@ -100,7 +100,7 @@
     {
       "id": "T08",
       "title": "Estados restantes de §5: límite, cola compartida, Arena fuera de rotación, oficial y perfil ajeno",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/3-companeros-partidas",
       "worktree": null,
@@ -111,7 +111,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T08_estados-s5.md",
       "created_at": "2026-09-30T08:10:00Z",
-      "updated_at": "2026-09-30T08:10:00Z"
+      "updated_at": "2026-09-30T13:41:43Z"
     },
     {
       "id": "T09",

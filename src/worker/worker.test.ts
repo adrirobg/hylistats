@@ -19,8 +19,10 @@ import {
 } from "@/db/schema";
 import { storeMatch } from "@/domain/ingest";
 import {
+  classifyRetry,
   RiotAuthError,
   RiotNotFoundError,
+  RiotRateLimitError,
   RiotRetryableError,
 } from "@/lib/riot/errors";
 import { PRIORITY } from "@/lib/riot/limiter";
@@ -934,6 +936,56 @@ describe("errores en el detalle", () => {
       status: "done",
       fetched: 10,
     });
+  });
+
+  it("429 persistente: el backoff guarda un lastError que se clasifica como límite de peticiones; el 5xx, como error", async () => {
+    const { fake, worker } = setup();
+    const [limited, broken] = [IDS_DESC[0], IDS_DESC[1]];
+    fake.failWith = (call) => {
+      if (call.method !== "match") return undefined;
+      if (call.arg === limited) {
+        return new RiotRateLimitError(
+          { host: "europe", path: "/x", status: 429 },
+          "límite de peticiones tras 5 intentos",
+        );
+      }
+      return call.arg === broken
+        ? new RiotRetryableError({ host: "europe", path: "/x", status: 503 })
+        : undefined;
+    };
+    await registerProfile(db, "BEJITO MAMBO", "1991");
+    await drain(worker);
+
+    const rows = await db
+      .select()
+      .from(matchFetch)
+      .where(sql`${matchFetch.matchId} in (${limited}, ${broken})`);
+    const byId = new Map(rows.map((r) => [r.matchId, r]));
+    // Las dos esperan su reintento; solo el motivo las distingue (el texto no sale del servidor).
+    expect(byId.get(limited)?.nextAttemptAt).not.toBeNull();
+    expect(byId.get(broken)?.nextAttemptAt).not.toBeNull();
+    expect(classifyRetry(byId.get(limited)?.lastError ?? null)).toBe(
+      "rate_limit",
+    );
+    expect(classifyRetry(byId.get(broken)?.lastError ?? null)).toBe("error");
+  });
+
+  it("429 persistente al listar: el backoff del job también queda clasificado", async () => {
+    const { fake, worker } = setup();
+    fake.failWith = (call) =>
+      call.method === "matchIds"
+        ? new RiotRateLimitError(
+            { host: "europe", path: "/x", status: 429 },
+            "límite de peticiones tras 5 intentos",
+          )
+        : undefined;
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+
+    expect(await worker.tick()).toBe("worked"); // cuenta
+    expect(await worker.tick()).toBe("worked"); // listado: 429
+    const job = await lastJob(profile.id);
+    expect(job.nextRunAt).not.toBeNull();
+    expect(classifyRetry(job.lastError)).toBe("rate_limit");
   });
 
   it("fallo transitorio al listar -> backoff del job sin perder el cursor", async () => {

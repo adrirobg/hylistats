@@ -17,6 +17,7 @@ import {
   type StorageLike,
   setManual,
   setMyProfile,
+  shownProfileData,
   toggleFavorite,
   toggleTarget,
 } from "./local-store";
@@ -430,6 +431,66 @@ describe("reductores", () => {
     ).toBe(true);
     expect(isMyProfile(state, clutch)).toBe(false);
     expect(isMyProfile(EMPTY_STATE, hyli)).toBe(false);
+  });
+
+  describe("shownProfileData (perfil ajeno, D12)", () => {
+    /** Objetivos y marcas en el perfil de `bejito`, que puede ser «mi perfil» o no. */
+    const withData = (state: LocalState) =>
+      setManual(toggleTarget(state, bejitoNorm, 266), bejitoNorm, 12, true);
+
+    it("en «mi perfil» enseña sus objetivos y marcas", () => {
+      const state = withData(setMyProfile(EMPTY_STATE, bejito));
+      expect(shownProfileData(state, bejito)).toEqual({
+        mine: true,
+        targets: [266],
+        manual: [12],
+      });
+      // El Riot ID de la URL puede diferir en mayúsculas del canónico.
+      expect(
+        shownProfileData(state, { gameName: "bejito mambo", tagLine: "1991" }),
+      ).toMatchObject({ mine: true, targets: [266], manual: [12] });
+    });
+
+    it("en un perfil ajeno no enseña nada, aunque el navegador guarde datos de él", () => {
+      // «Mi perfil» es otro, pero quedaron objetivos y marcas de `bejito` de cuando lo fue.
+      const state = withData(setMyProfile(EMPTY_STATE, hyli));
+      expect(profileData(state, bejitoNorm).targets).toEqual([266]);
+      expect(shownProfileData(state, bejito)).toEqual({
+        mine: false,
+        targets: [],
+        manual: [],
+      });
+    });
+
+    it("sin «mi perfil» tampoco enseña nada, y sigue guardado para cuando vuelva a serlo", () => {
+      const state = clearMyProfile(withData(setMyProfile(EMPTY_STATE, bejito)));
+      expect(shownProfileData(state, bejito)).toEqual({
+        mine: false,
+        targets: [],
+        manual: [],
+      });
+      expect(
+        shownProfileData(setMyProfile(state, bejito), bejito),
+      ).toMatchObject({ mine: true, targets: [266], manual: [12] });
+    });
+
+    it("con el estado vacío (servidor e hidratación) nunca hay capa local", () => {
+      expect(shownProfileData(EMPTY_STATE, bejito)).toEqual({
+        mine: false,
+        targets: [],
+        manual: [],
+      });
+    });
+
+    it("los datos vacíos de un perfil ajeno son siempre la misma referencia (memos estables)", () => {
+      const state = withData(setMyProfile(EMPTY_STATE, hyli));
+      expect(shownProfileData(state, bejito).targets).toBe(
+        EMPTY_PROFILE_DATA.targets,
+      );
+      expect(shownProfileData(state, bejito).manual).toBe(
+        EMPTY_PROFILE_DATA.manual,
+      );
+    });
   });
 
   it("son inmutables: no modifican el estado de entrada", () => {

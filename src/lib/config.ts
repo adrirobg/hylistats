@@ -17,6 +17,14 @@ export const CHALLENGE_ARENA_GOD = 602002;
  */
 export const ARENA_GOD_THRESHOLD = 60;
 
+/**
+ * Días sin ninguna partida de Arena en la BD (de cualquier perfil) a partir de los cuales el
+ * header sugiere que Arena está fuera de rotación. Riot no expone qué modos están activos, así
+ * que se infiere de lo que ya hay guardado: no es un dato de Riot, solo una pista y se redacta
+ * como tal ("puede que...").
+ */
+export const ARENA_QUIET_DAYS = 7;
+
 /** Inicio de la temporada de Arena por defecto (patch 26.10, mayo 2026). */
 export const DEFAULT_SEASON_START = "2026-05-12T00:00:00Z";
 

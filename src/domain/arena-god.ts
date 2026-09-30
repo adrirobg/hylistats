@@ -106,6 +106,10 @@ export const verifiedPhrase = (n: number) =>
 export const manualPhrase = (n: number) =>
   `${n} ${n === 1 ? "manual" : "manuales"}`;
 
+/** «oficial 27» o, sin contador oficial (§4.3, `unknown`), «oficial sin dato»: nunca un 0 inventado. */
+export const officialPhrase = (official: number | null) =>
+  official === null ? "oficial sin dato" : `oficial ${official}`;
+
 /** «Falta 1 campeón» / «Faltan 2 campeones». */
 export const missingPhrase = (n: number) =>
   n === 1 ? "Falta 1 campeón" : `Faltan ${n} campeones`;

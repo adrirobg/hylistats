@@ -1,9 +1,15 @@
 import { cn } from "@/lib/utils";
-import type { SyncBandModel } from "./view-model";
+import {
+  rateLimitPhrase,
+  type SyncBandModel,
+  sharingPhrase,
+} from "./view-model";
 
 // Banda de progreso de la sincronización bajo el header (brief §4.10, `.sync-band` de la
-// maqueta). Solo la pinta el backfill (el incremental va dentro del botón Actualizar) y la
-// pausa por key caducada, en azul acero: no es un error del usuario (§4.3).
+// maqueta). Solo la pinta el backfill (el incremental va dentro del botón Actualizar y en el
+// header, `header.tsx`), la pausa por key caducada y el límite de peticiones, ambas en azul
+// acero: no son un error del usuario (§4.3). La cola compartida usa el tono neutro del progreso:
+// esperar turno no avisa de nada.
 
 /** Barra `.track`; sin `value` es indeterminada (pulsa). */
 function Track({
@@ -44,13 +50,13 @@ function Track({
 }
 
 export function SyncBand({ model }: { model: SyncBandModel }) {
-  const paused = model.kind === "paused";
+  const warning = model.kind === "paused" || model.kind === "rate_limit";
   return (
     <div className="px-5 pt-3 @max-[640px]:px-3.5">
       <output
         className={cn(
           "grid gap-2 rounded-md border p-3 text-sm",
-          paused ? "border-trust/35 bg-trust-bg" : "border-line bg-background",
+          warning ? "border-trust/35 bg-trust-bg" : "border-line bg-background",
         )}
       >
         <Body model={model} />
@@ -86,6 +92,7 @@ function Body({ model }: { model: SyncBandModel }) {
               {model.fetched} / {model.total}
             </span>{" "}
             partidas · ~{model.etaMinutes} min
+            {model.sharing > 0 && <> · {sharingPhrase(model.sharing)}</>}
           </b>
           <Track
             value={model.fetched}
@@ -95,6 +102,44 @@ function Body({ model }: { model: SyncBandModel }) {
           <small className="text-muted-foreground">
             Puedes cerrar la pestaña, la descarga sigue. El álbum y el marcador
             se rellenan solos.
+          </small>
+        </>
+      );
+    case "queued":
+      return (
+        <>
+          <b>
+            En cola: posición <span className="num">{model.position}</span> ·
+            empieza en ~{model.startMinutes} min
+          </b>
+          <small className="text-muted-foreground">
+            Otros perfiles se están sincronizando antes y compartimos la misma
+            clave de Riot. Puedes cerrar la pestaña, la sincronización sigue.
+          </small>
+        </>
+      );
+    case "rate_limit":
+      return (
+        <>
+          <b>{rateLimitPhrase(model.minutes)}</b>
+          {model.progress && (
+            <Track
+              value={model.progress.fetched}
+              max={model.progress.total}
+              label="Partidas descargadas"
+              paused
+            />
+          )}
+          <small className="text-muted-foreground">
+            {model.progress && (
+              <>
+                <span className="num">
+                  {model.progress.fetched} / {model.progress.total}
+                </span>{" "}
+                partidas descargadas.{" "}
+              </>
+            )}
+            Los datos ya descargados siguen visibles.
           </small>
         </>
       );

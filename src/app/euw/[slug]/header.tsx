@@ -19,10 +19,20 @@ import type { SyncProgress } from "./data";
 import { LocalMenu } from "./local-menu";
 import type { RefreshSnapshot } from "./refresh-outcome";
 import { REFRESH_BUTTON_ID, useRefresh } from "./use-refresh";
-import { dataAgePhrase, initials, whenPhrase } from "./view-model";
+import {
+  arenaQuietPhrase,
+  dataAgePhrase,
+  incrementalStatus,
+  initials,
+  queuedLabel,
+  rateLimitPhrase,
+  whenPhrase,
+} from "./view-model";
 
 // Header de perfil (brief §4.1, `.hdr` de la maqueta): identidad, ★ favorito, «mi perfil»,
-// frescura en dos líneas y botón Actualizar con su progreso. Es cliente porque lee el estado del
+// frescura en dos líneas (más la etiqueta de Arena fuera de rotación, si toca) y botón Actualizar
+// con su progreso: un incremental en cola lo dice el propio botón y el límite de peticiones un
+// aviso bajo el header (§4.10; el backfill lo cuenta la banda). Es cliente porque lee el estado del
 // navegador («mi perfil», favoritos) y porque el reloj de la frescura corre en cliente; lo del
 // servidor llega por props (se renuevan con el polling de `AutoRefresh`).
 //
@@ -44,6 +54,11 @@ export interface ProfileHeaderProps {
   lastJobErrorAt: number | null;
   /** La key de Riot está caducada: no se actualiza (lo explica la banda). */
   paused: boolean;
+  /**
+   * Última partida de Arena de la BD (ms) cuando es tan antigua que Arena puede estar fuera de
+   * rotación (`ProfileView.arenaQuiet`); `null` si no hay nada que decir.
+   */
+  arenaQuietSince: number | null;
   games: number;
   champions: RefreshSnapshot["champions"];
 }
@@ -60,6 +75,7 @@ export function ProfileHeader({
   sync,
   lastJobErrorAt,
   paused,
+  arenaQuietSince,
   games,
   champions,
 }: ProfileHeaderProps) {
@@ -103,6 +119,8 @@ export function ProfileHeader({
 
   // Con la key caducada la banda ya explica por qué no se actualiza: no se duplica el aviso.
   const showError = lastJobErrorAt !== null && sync === null && !paused;
+  // Un incremental en cola o frenado por el límite de peticiones (el backfill lo pinta la banda).
+  const status = incrementalStatus(sync, paused, now);
 
   return (
     <>
@@ -179,6 +197,13 @@ export function ProfileHeader({
                 ? "Aún sin comprobar"
                 : `Comprobado ${whenPhrase(lastSyncedAt, now)}`}
             </p>
+            {/* `<output>` es una región viva (`role="status"`). Va siempre presente y vacía si no hay
+                nada: el lector de pantalla solo anuncia el texto cuando aparece o cambia, no en
+                cada relectura de la página. */}
+            <output className="block max-w-[280px] text-faint empty:hidden @max-[640px]:max-w-none">
+              {arenaQuietSince !== null &&
+                arenaQuietPhrase(arenaQuietSince, now)}
+            </output>
           </div>
           <form action={refresh.formAction}>
             <input type="hidden" name="slug" value={slug} />
@@ -192,7 +217,11 @@ export function ProfileHeader({
             >
               <RefreshCw aria-hidden="true" size={16} />
               <span className="@max-[640px]:sr-only">
-                {refresh.busy ? "Comprobando…" : "Actualizar"}
+                {refresh.busy
+                  ? status?.kind === "queued"
+                    ? queuedLabel(status.position)
+                    : "Comprobando…"
+                  : "Actualizar"}
               </span>
               {refresh.busy && (
                 <i
@@ -216,6 +245,14 @@ export function ProfileHeader({
         </div>
       </header>
 
+      {status?.kind === "rate_limit" && (
+        <div className="px-5 pt-3 @max-[640px]:px-3.5">
+          <Notice role="status" icon="!">
+            {rateLimitPhrase(status.minutes)}.{" "}
+            {dataAgePhrase(lastSyncedAt, now)}
+          </Notice>
+        </div>
+      )}
       {showError && (
         <div className="px-5 pt-3 @max-[640px]:px-3.5">
           <Notice

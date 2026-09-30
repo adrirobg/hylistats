@@ -329,6 +329,26 @@ describe("teammateRows", () => {
     expect(new Set(out.map((r) => r.key)).size).toBe(3);
   });
 
+  it("las filas salen solo de datos del servidor: nada de la capa local, así que un perfil ajeno no puede enseñarla (D12)", () => {
+    // Objetivos y marcas son de «mi perfil» y viven en el navegador; las filas no los llevan. La ★ de
+    // favoritos (del usuario, no del perfil) se resuelve aparte con `norm`.
+    const [row] = teammateRows([ANA], DEFAULT_TEAMMATE_PARAMS, NOW);
+    expect(Object.keys(row).sort()).toEqual([
+      "firsts",
+      "gameName",
+      "games",
+      "href",
+      "key",
+      "medio",
+      "norm",
+      "pct1",
+      "small",
+      "tagLine",
+      "top3",
+      "ultima",
+    ]);
+  });
+
   it("una lista vacía da filas vacías", () => {
     expect(teammateRows([], DEFAULT_TEAMMATE_PARAMS, NOW)).toEqual([]);
   });

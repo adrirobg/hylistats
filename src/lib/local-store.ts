@@ -178,6 +178,23 @@ export function isMyProfile(state: LocalState, riotId: RiotId): boolean {
   return state.myProfile !== null && keyOf(state.myProfile) === keyOf(riotId);
 }
 
+/**
+ * Lo local que muestra la página de `riotId` (brief §5 y D12): sus objetivos y marcas manuales
+ * solo si es «mi perfil». En un perfil ajeno salen vacíos aunque el navegador guarde datos suyos
+ * (p. ej. de cuando lo era): siguen guardados, solo no se enseñan. Lo usan las vistas que pintan
+ * la capa local de un perfil (álbum y panel de campeón).
+ */
+export function shownProfileData(
+  state: LocalState,
+  riotId: RiotId,
+): { mine: boolean } & ProfileLocalData {
+  const mine = isMyProfile(state, riotId);
+  return {
+    mine,
+    ...(mine ? profileData(state, keyOf(riotId)) : EMPTY_PROFILE_DATA),
+  };
+}
+
 // --- Export / import --------------------------------------------------------------------
 
 /** Lo que se descarga en "Exportar": el estado completo, con `v`, en JSON legible. */

@@ -114,7 +114,7 @@ export default async function ProfilePage({
 // --- Cabina ------------------------------------------------------------------------------
 
 function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
-  const band = syncBandModel(data.sync, data.paused);
+  const band = syncBandModel(data.sync, data.paused, Date.now());
   return (
     <Cabin
       header={
@@ -128,6 +128,7 @@ function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
           sync={data.sync}
           lastJobErrorAt={data.lastJobError?.at.getTime() ?? null}
           paused={data.paused}
+          arenaQuietSince={data.arenaQuiet?.lastArenaGameAt ?? null}
           games={data.summary.games}
           champions={data.verifiedChampions.map((c) => ({
             championId: c.championId,
