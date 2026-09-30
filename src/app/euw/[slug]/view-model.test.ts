@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
+import { albumSearch } from "./album-view";
 import type { SyncProgress } from "./data";
 import {
   dataAgePhrase,
   emptyState,
   initials,
+  PROFILE_TABS,
+  panelId,
   parseProfileTab,
   SECONDS_PER_MATCH,
   syncBandModel,
   syncEtaMinutes,
+  TAB_LABEL,
+  tabForKey,
+  tabHref,
+  tabId,
   whenPhrase,
   withSearchParam,
 } from "./view-model";
@@ -43,13 +50,149 @@ describe("parseProfileTab", () => {
   it("por defecto y ante cualquier valor desconocido: campeones", () => {
     expect(parseProfileTab(undefined)).toBe("campeones");
     expect(parseProfileTab("")).toBe("campeones");
-    expect(parseProfileTab("resumen")).toBe("campeones");
-    expect(parseProfileTab(["companeros", "x"])).toBe("campeones");
+    expect(parseProfileTab("otra")).toBe("campeones");
+    expect(parseProfileTab("Resumen")).toBe("campeones");
+    expect(parseProfileTab(["otra", "resumen"])).toBe("campeones");
   });
 
-  it("acepta campeones, también repetido", () => {
-    expect(parseProfileTab("campeones")).toBe("campeones");
-    expect(parseProfileTab(["campeones", "resumen"])).toBe("campeones");
+  it("acepta las cuatro pestañas; si se repite, manda la primera", () => {
+    for (const tab of PROFILE_TABS) expect(parseProfileTab(tab)).toBe(tab);
+    expect(parseProfileTab(["companeros", "x"])).toBe("companeros");
+    expect(parseProfileTab(["partidas", "resumen"])).toBe("partidas");
+  });
+});
+
+describe("pestañas: etiquetas e ids", () => {
+  it("cuatro pestañas en el orden de la barra, con su etiqueta visible", () => {
+    expect(PROFILE_TABS.map((tab) => TAB_LABEL[tab])).toEqual([
+      "Campeones",
+      "Resumen",
+      "Compañeros",
+      "Partidas",
+    ]);
+  });
+
+  it("id de la pestaña y del panel que controla", () => {
+    expect(tabId("companeros")).toBe("tab-companeros");
+    expect(panelId("companeros")).toBe("panel-companeros");
+  });
+});
+
+describe("tabHref", () => {
+  const PATH = "/euw/Foo-EUW";
+
+  it("campeones no lleva ?tab; las demás sí", () => {
+    expect(tabHref(PATH, "", "campeones")).toBe(PATH);
+    expect(tabHref(PATH, "", "resumen")).toBe(`${PATH}?tab=resumen`);
+    expect(tabHref(PATH, "", "companeros")).toBe(`${PATH}?tab=companeros`);
+    expect(tabHref(PATH, "", "partidas")).toBe(`${PATH}?tab=partidas`);
+  });
+
+  it("volver a campeones quita ?tab", () => {
+    expect(tabHref(PATH, "tab=partidas", "campeones")).toBe(PATH);
+  });
+
+  it("borra los parámetros propios de la pestaña anterior", () => {
+    expect(
+      tabHref(PATH, "vista=lista&filtro=todos&q=ahri&orden=mejor", "partidas"),
+    ).toBe(`${PATH}?tab=partidas`);
+    expect(
+      tabHref(
+        PATH,
+        "tab=partidas&q=ahri&puesto=1&companero=x&n=2&partida=EUW1_1",
+        "campeones",
+      ),
+    ).toBe(PATH);
+    expect(
+      tabHref(PATH, "tab=companeros&min=5&orden=primeros", "resumen"),
+    ).toBe(`${PATH}?tab=resumen`);
+  });
+
+  it("q y orden no pasan de una pestaña a otra aunque ambas los usen", () => {
+    // `q` es del álbum y de partidas, `orden` del álbum y de compañeros: significan otra cosa.
+    expect(tabHref(PATH, "q=ahri&orden=mejor", "partidas")).toBe(
+      `${PATH}?tab=partidas`,
+    );
+    expect(tabHref(PATH, "q=ahri&orden=mejor", "companeros")).toBe(
+      `${PATH}?tab=companeros`,
+    );
+    expect(tabHref(PATH, "tab=partidas&q=ahri", "campeones")).toBe(PATH);
+  });
+
+  it("conserva ?campeon (el panel abre sobre cualquier pestaña)", () => {
+    expect(tabHref(PATH, "campeon=ahri&q=ahri", "partidas")).toBe(
+      `${PATH}?campeon=ahri&tab=partidas`,
+    );
+    expect(tabHref(PATH, "tab=partidas&campeon=ahri&n=2", "resumen")).toBe(
+      `${PATH}?tab=resumen&campeon=ahri`,
+    );
+  });
+
+  it("conserva cualquier otro parámetro", () => {
+    expect(tabHref(PATH, "utm=1&filtro=todos", "resumen")).toBe(
+      `${PATH}?utm=1&tab=resumen`,
+    );
+  });
+
+  it("la pestaña activa conserva sus propios parámetros y quita los ajenos", () => {
+    expect(tabHref(PATH, "tab=partidas&q=ahri&puesto=1", "partidas")).toBe(
+      `${PATH}?tab=partidas&q=ahri&puesto=1`,
+    );
+    // `orden` es de compañeros; `vista` es del álbum y aquí sobra.
+    expect(
+      tabHref(
+        PATH,
+        "tab=companeros&min=5&orden=top3&vista=lista",
+        "companeros",
+      ),
+    ).toBe(`${PATH}?tab=companeros&min=5&orden=top3`);
+    // Campeones activa (sin ?tab): sus filtros se quedan.
+    expect(tabHref(PATH, "filtro=todos&orden=mejor&min=5", "campeones")).toBe(
+      `${PATH}?filtro=todos&orden=mejor`,
+    );
+  });
+
+  it("acepta la query con o sin ? y normaliza un ?tab desconocido", () => {
+    expect(tabHref(PATH, "?tab=resumen", "partidas")).toBe(
+      `${PATH}?tab=partidas`,
+    );
+    expect(tabHref(PATH, "tab=otra&filtro=todos", "resumen")).toBe(
+      `${PATH}?tab=resumen`,
+    );
+    expect(tabHref(PATH, "tab=otra", "campeones")).toBe(PATH);
+  });
+
+  it("limpia todo lo que escribe el álbum (no se desincroniza de album-view)", () => {
+    const album = albumSearch({
+      vista: "lista",
+      filtro: "sin-ganar",
+      q: "ahri",
+      orden: "mejor",
+    });
+    expect(album.split("&")).toHaveLength(4); // los cuatro parámetros del álbum, ninguno por defecto
+    expect(tabHref(PATH, album, "resumen")).toBe(`${PATH}?tab=resumen`);
+    expect(tabHref(PATH, album, "companeros")).toBe(`${PATH}?tab=companeros`);
+  });
+});
+
+describe("tabForKey", () => {
+  it("las flechas mueven el foco a la vecina y dan la vuelta en los extremos", () => {
+    expect(tabForKey("campeones", "ArrowRight")).toBe("resumen");
+    expect(tabForKey("resumen", "ArrowRight")).toBe("companeros");
+    expect(tabForKey("partidas", "ArrowRight")).toBe("campeones");
+    expect(tabForKey("resumen", "ArrowLeft")).toBe("campeones");
+    expect(tabForKey("campeones", "ArrowLeft")).toBe("partidas");
+  });
+
+  it("Inicio y Fin saltan a los extremos", () => {
+    expect(tabForKey("companeros", "Home")).toBe("campeones");
+    expect(tabForKey("companeros", "End")).toBe("partidas");
+  });
+
+  it("el resto de teclas no navega (Enter y Espacio activan la pestaña, no la mueven)", () => {
+    for (const key of ["Enter", " ", "ArrowUp", "ArrowDown", "Tab", "a"]) {
+      expect(tabForKey("resumen", key)).toBeNull();
+    }
   });
 });
 

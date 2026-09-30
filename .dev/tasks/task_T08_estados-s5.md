@@ -59,7 +59,8 @@ Header y banda explican, en lenguaje llano y sin códigos, los estados de §5 qu
    - `sync-band.tsx` pinta los casos nuevos (tono de aviso, no de error) y `header.tsx` la etiqueta de Arena en la zona de frescura (segunda línea), atenuada, con `role="status"` solo si cambia.
    - Lenguaje llano, sin códigos HTTP.
 4. **Comprobaciones de lo existente**: añade o ajusta tests para que "oficial sin dato" (§4.3, `unknown`) siga saliendo sin `challengeValue`, y para que en perfil ajeno el panel (T06) y la tabla de compañeros (T04) no muestren datos locales. Si ya están probados, cita el test en tus notas.
-5. `npm run lint && npm run typecheck && npm test && npm run build` en verde. Si arrancas un servidor: `WORKER_ENABLED=false`, solo la BD de tests, y lo paras al terminar.
+5. **"Marcar a mano" desde otra pestaña** (hallazgo de T03): `markByHand` en `arena-god.tsx` hace `router.replace(withSearchParam(pathname, search, "filtro", "sin-ganar"))` en cualquier pestaña. En `?tab=resumen`, eso deja `filtro` en una URL sin álbum. Tiene que partir de la query de `tabHref(pathname, search, "campeones")` (vuelve a Campeones y conserva `campeon`) y después poner el filtro. Cúbrelo con un test de la función pura que construya la URL.
+6. `npm run lint && npm run typecheck && npm test && npm run build` en verde. Si arrancas un servidor: `WORKER_ENABLED=false`, solo la BD de tests, y lo paras al terminar.
 
 ## Criterios de aceptacion <!-- MUST -->
 

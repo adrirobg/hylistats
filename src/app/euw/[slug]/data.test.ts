@@ -12,7 +12,12 @@ import {
   SELF_PUUID,
   variantOf,
 } from "../../../../tests/helpers/matches";
-import { loadProfilePage, type ProfilePageData } from "./data";
+import {
+  loadProfilePage,
+  type ProfilePageData,
+  type ProfileView,
+} from "./data";
+import { PROFILE_TABS, type ProfileTab } from "./view-model";
 
 const db = getTestDb();
 const fixtures = loadMatchFixtures();
@@ -58,13 +63,17 @@ async function insertJob(
   await db.insert(syncJobs).values({ profileId, kind: "backfill", ...values });
 }
 
-async function load(gameName = "BEJITO MAMBO", tagLine = "1991") {
-  return loadProfilePage(db, gameName, tagLine, seasonStart);
+async function load(
+  gameName = "BEJITO MAMBO",
+  tagLine = "1991",
+  tab: ProfileTab = "campeones",
+) {
+  return loadProfilePage(db, gameName, tagLine, { tab }, seasonStart);
 }
 
 /** La variante `profile` de la carga (falla el test si es otra). */
-async function loadProfile() {
-  const data = await load();
+async function loadProfile(tab: ProfileTab = "campeones") {
+  const data = await load("BEJITO MAMBO", "1991", tab);
   if (data.kind !== "profile") throw new Error(`kind inesperado: ${data.kind}`);
   return data;
 }
@@ -322,6 +331,7 @@ describe("loadProfilePage", () => {
         db,
         "BEJITO MAMBO",
         "1991",
+        { tab: "campeones" },
         seasonStart,
         catalogOrPromise,
       );
@@ -427,6 +437,7 @@ describe("loadProfilePage", () => {
         db,
         "BEJITO MAMBO",
         "1991",
+        { tab: "campeones" },
         seasonStart,
         named,
       );
@@ -461,6 +472,7 @@ describe("loadProfilePage", () => {
       db,
       "BEJITO MAMBO",
       "1991",
+      { tab: "campeones" },
       new Date("2026-09-29T00:00:00Z"),
     );
     expect(data.kind === "profile" && data.summary.games).toBe(2);
@@ -471,10 +483,14 @@ describe("loadProfilePage", () => {
     await insertProfile();
     try {
       vi.stubEnv("SEASON_START", "2026-05-12T00:00:00Z");
-      const all = await loadProfilePage(db, "BEJITO MAMBO", "1991");
+      const all = await loadProfilePage(db, "BEJITO MAMBO", "1991", {
+        tab: "campeones",
+      });
       expect(all.kind === "profile" && all.summary.games).toBe(10);
       vi.stubEnv("SEASON_START", "2026-09-29T00:00:00Z");
-      const late = await loadProfilePage(db, "BEJITO MAMBO", "1991");
+      const late = await loadProfilePage(db, "BEJITO MAMBO", "1991", {
+        tab: "campeones",
+      });
       expect(late.kind === "profile" && late.summary.games).toBe(2);
       expect(late.kind === "profile" && late.seasonStart).toEqual(
         new Date("2026-09-29T00:00:00Z"),
@@ -548,11 +564,74 @@ describe("loadProfilePage", () => {
     }
   });
 
-  it("los compañeros no viajan a la página (van en #3)", async () => {
-    await storeAll();
-    await insertProfile();
-    const data = await loadProfile();
-    expect(hasKeyDeep(data, "teammates")).toBe(false);
-    expect(JSON.stringify(data)).not.toContain("Player013");
+  describe("carga por pestaña", () => {
+    // Clave de `ProfileView` con los datos propios de cada pestaña (`null` = no tiene). Solo existe,
+    // y solo se rellena, en la pestaña activa.
+    const OWN_KEY: Record<
+      ProfileTab,
+      "summaryTab" | "teammates" | "matches" | null
+    > = {
+      campeones: null, // el álbum es común: header, barra Arena God y raíl dependen de él
+      resumen: "summaryTab",
+      companeros: "teammates",
+      partidas: "matches",
+    };
+
+    it("la pestaña pedida se refleja en la vista", async () => {
+      await insertProfile();
+      for (const tab of PROFILE_TABS) {
+        expect((await loadProfile(tab)).tab).toBe(tab);
+      }
+    });
+
+    it("lo común (resumen, álbum, forma, verificados) se carga en todas las pestañas", async () => {
+      await storeAll();
+      await insertProfile();
+      const base = await loadProfile("campeones");
+      expect(base.summary.games).toBe(10);
+      expect(base.album.length).toBeGreaterThan(0);
+      expect(base.form).toHaveLength(10);
+      for (const tab of PROFILE_TABS) {
+        const data: ProfileView = {
+          ...(await loadProfile(tab)),
+          tab: base.tab,
+        };
+        // Salvo la pestaña y sus claves propias, la vista es la misma en las cuatro.
+        for (const key of Object.values(OWN_KEY)) if (key) delete data[key];
+        expect(data).toEqual(base);
+      }
+    });
+
+    it("no carga datos de las pestañas no activas", async () => {
+      await storeAll();
+      await insertProfile();
+      for (const tab of PROFILE_TABS) {
+        const data = await loadProfile(tab);
+        for (const other of PROFILE_TABS) {
+          const key = OWN_KEY[other];
+          if (other === tab || key === null) continue;
+          expect(data, `${tab} no debe traer ${key}`).not.toHaveProperty(key);
+        }
+      }
+    });
+
+    it("los compañeros no viajan fuera de su pestaña", async () => {
+      await storeAll();
+      await insertProfile();
+      for (const tab of PROFILE_TABS) {
+        if (tab === "companeros") continue;
+        const data = await loadProfile(tab);
+        expect(hasKeyDeep(data, "teammates")).toBe(false);
+        expect(JSON.stringify(data)).not.toContain("Player013");
+      }
+    });
+
+    it("las vistas sin perfil no dependen de la pestaña", async () => {
+      expect(await load("Faker", "KR1", "partidas")).toEqual({
+        kind: "unregistered",
+        gameName: "Faker",
+        tagLine: "KR1",
+      });
+    });
   });
 });

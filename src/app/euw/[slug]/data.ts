@@ -7,17 +7,24 @@ import {
   type RecentGame,
   recentForm,
 } from "@/domain/album";
-import { getProfileStats, type ProfileChallenge } from "@/domain/queries";
+import {
+  getProfileStats,
+  type ProfileChallenge,
+  type TeammateSummary,
+} from "@/domain/queries";
 import type { StatsSummary, VerifiedChampion } from "@/domain/stats";
 import { getKeyStatus } from "@/lib/admin/key-service";
 import { getSeasonStart } from "@/lib/config";
 import type { ChampionCatalog } from "@/lib/ddragon";
 import { normalizeRiotId } from "@/worker/queue";
+import type { ProfileTab } from "./view-model";
 
 // Carga de datos de `/euw/{nombre}-{tag}`, separada de la página para poder probarla contra la
-// BD. Devuelve una lista blanca explícita: ni el `puuid` (ni siquiera se lee del perfil) ni los
-// compañeros (van en #3) llegan a la página. El catálogo de Data Dragon se inyecta (la página pasa
-// `getChampionCatalog()`, que es server-only y usa la red): así esta carga se prueba sin red.
+// BD. Devuelve una lista blanca explícita: ni el `puuid` (ni siquiera se lee del perfil) llega a la
+// página. Lo común a todas las pestañas (header, barra, raíl, álbum y forma) se carga siempre; lo
+// propio de cada pestaña, solo si es la activa (`view.tab`). El catálogo de Data Dragon se inyecta
+// (la página pasa `getChampionCatalog()`, que es server-only y usa la red): así esta carga se
+// prueba sin red.
 
 /** Sin catálogo (por defecto): el álbum solo trae los campeones jugados, sin retratos. */
 const EMPTY_CATALOG: ChampionCatalog = { version: null, champions: [] };
@@ -30,9 +37,19 @@ export type SyncProgress = { kind: "backfill" | "incremental" } & (
   | { phase: "fetching"; fetched: number; total: number }
 );
 
+/**
+ * Qué vista del perfil se pide (`?tab` y, en cada pestaña, sus filtros). Es un objeto para que las
+ * pestañas añadan los suyos (`min`, `q`, `partida`…) sin cambiar la firma de `loadProfilePage`.
+ */
+export interface ProfileViewParams {
+  tab: ProfileTab;
+}
+
 /** Perfil registrado y resuelto: lo que muestra la página completa. */
 export interface ProfileView {
   kind: "profile";
+  /** Pestaña activa: la que pidió la vista y la única cuyos datos propios viajan (abajo). */
+  tab: ProfileTab;
   /** Forma canónica de Riot (puede diferir en mayúsculas del Riot ID de la URL). */
   gameName: string;
   tagLine: string;
@@ -59,6 +76,15 @@ export interface ProfileView {
    */
   form: RecentGame[];
   challenge: ProfileChallenge;
+
+  // Datos propios de cada pestaña: solo se rellenan (y solo existe la clave) si es la activa. Todo
+  // lo que llega aquí se serializa en cada `router.refresh()`, así que no se añade lo que no se pinta.
+  /** Compañeros de la temporada (`tab === "companeros"`). */
+  teammates?: TeammateSummary[];
+  /** Lista de partidas y detalle (`tab === "partidas"`); el tipo lo define T05. */
+  matches?: never;
+  /** Curva de campeones ganados y destacados (`tab === "resumen"`); el tipo lo define T07. */
+  summaryTab?: never;
 }
 
 export type ProfilePageData =
@@ -139,7 +165,8 @@ async function loadLastJobError(
 
 /**
  * Todo lo que pinta la página de un Riot ID. El perfil se busca por `riotIdNorm`
- * (`lower(nombre)#lower(tag)`), no por el nombre canónico. `seasonStart` sale de `SEASON_START`
+ * (`lower(nombre)#lower(tag)`), no por el nombre canónico. `view` es la vista pedida: su pestaña
+ * decide qué datos propios se cargan además de los comunes. `seasonStart` sale de `SEASON_START`
  * salvo que se pase otro (tests). `catalog` es el catálogo de campeones (o su promesa: la página
  * lo pide antes para que se cargue en paralelo con la BD); sin él, el álbum sale sin retratos.
  */
@@ -147,6 +174,7 @@ export async function loadProfilePage(
   db: Db,
   gameName: string,
   tagLine: string,
+  view: ProfileViewParams,
   seasonStart: Date = getSeasonStart(),
   catalog: ChampionCatalog | Promise<ChampionCatalog> = EMPTY_CATALOG,
 ): Promise<ProfilePageData> {
@@ -186,6 +214,7 @@ export async function loadProfilePage(
 
   return {
     kind: "profile",
+    tab: view.tab,
     gameName: profile.gameName,
     tagLine: profile.tagLine,
     seasonStart,

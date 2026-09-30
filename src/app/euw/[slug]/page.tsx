@@ -17,13 +17,10 @@ import { ProfileHeader } from "./header";
 import { NotFoundCard, UnregisteredCard } from "./profile-states";
 import { Scoreboard } from "./scoreboard";
 import { SyncBand } from "./sync-band";
+import { PendingPanel, TabPanel } from "./tab-panel";
+import { Tabs } from "./tabs";
 import { TopBar } from "./top-bar";
-import {
-  emptyState,
-  type ProfileTab,
-  parseProfileTab,
-  syncBandModel,
-} from "./view-model";
+import { emptyState, parseProfileTab, syncBandModel } from "./view-model";
 
 // Depende de la BD y cambia con el worker: nunca se prerenderiza.
 export const dynamic = "force-dynamic";
@@ -36,18 +33,18 @@ export default async function ProfilePage({
   const riotId = parseProfileSlug(slug);
   if (!riotId) notFound();
 
-  // El catálogo de campeones se pide a la vez que la BD (`getChampionCatalog` nunca lanza: sin
-  // Data Dragon el álbum sale sin retratos).
-  const [query, data] = await Promise.all([
-    searchParams,
-    loadProfilePage(
-      getDb(),
-      riotId.gameName,
-      riotId.tagLine,
-      getSeasonStart(),
-      getChampionCatalog(),
-    ),
-  ]);
+  // `?tab` decide qué datos se cargan (solo los de la pestaña activa). El catálogo de campeones se
+  // pide a la vez que la BD (`getChampionCatalog` nunca lanza: sin Data Dragon el álbum sale sin
+  // retratos).
+  const tab = parseProfileTab((await searchParams).tab);
+  const data = await loadProfilePage(
+    getDb(),
+    riotId.gameName,
+    riotId.tagLine,
+    { tab },
+    getSeasonStart(),
+    getChampionCatalog(),
+  );
   // Las actions identifican el perfil por el Riot ID de la URL (`riotIdNorm`), no por el canónico.
   const actionSlug = profileSlug(riotId.gameName, riotId.tagLine);
 
@@ -57,11 +54,7 @@ export default async function ProfilePage({
       {data.kind === "profile" ? (
         <>
           <AutoRefresh slug={actionSlug} active={data.sync !== null} />
-          <ProfileCabin
-            data={data}
-            slug={actionSlug}
-            tab={parseProfileTab(query.tab)}
-          />
+          <ProfileCabin data={data} slug={actionSlug} />
         </>
       ) : (
         <div className="mx-auto w-full max-w-[640px] px-1.5 pt-4 sm:pt-10">
@@ -90,15 +83,7 @@ export default async function ProfilePage({
 
 // --- Cabina ------------------------------------------------------------------------------
 
-function ProfileCabin({
-  data,
-  slug,
-  tab,
-}: {
-  data: ProfileView;
-  slug: string;
-  tab: ProfileTab;
-}) {
+function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
   const band = syncBandModel(data.sync, data.paused);
   return (
     <Cabin
@@ -133,33 +118,23 @@ function ProfileCabin({
         />
       }
       strip={<Scoreboard summary={data.summary} variant="strip" />}
-      tabs={<Tabs active={tab} />}
-      main={<ChampionsPanel data={data} />}
+      tabs={<Tabs active={data.tab} />}
+      main={<ActivePanel data={data} />}
       rail={<RailBoxes data={data} />}
     />
   );
 }
 
-/** Pestañas del perfil; solo existe Campeones (Resumen, Compañeros y Partidas van en #3). */
-function Tabs({ active }: { active: ProfileTab }) {
-  return (
-    <div
-      role="tablist"
-      aria-label="Secciones del perfil"
-      className="mb-4 flex gap-1 overflow-x-auto border-b border-line"
-    >
-      <button
-        type="button"
-        role="tab"
-        id="tab-campeones"
-        aria-selected={active === "campeones"}
-        aria-controls="panel-campeones"
-        className="cursor-pointer px-3 pt-3.5 pb-3 font-medium whitespace-nowrap text-muted-foreground aria-selected:text-foreground aria-selected:shadow-[inset_0_-2px_0_var(--place-1)]"
-      >
-        Campeones
-      </button>
-    </div>
-  );
+/** Panel de la pestaña activa. Resumen, Compañeros y Partidas son esqueletos hasta T07, T04 y T05. */
+function ActivePanel({ data }: { data: ProfileView }) {
+  switch (data.tab) {
+    case "campeones":
+      return <ChampionsPanel data={data} />;
+    case "resumen":
+    case "companeros":
+    case "partidas":
+      return <PendingPanel tab={data.tab} />;
+  }
 }
 
 // --- Pestaña Campeones (main) ------------------------------------------------------------
@@ -179,12 +154,7 @@ function ChampionsPanel({ data }: { data: ProfileView }) {
     lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
   });
   return (
-    <div
-      role="tabpanel"
-      id="panel-campeones"
-      aria-labelledby="tab-campeones"
-      className="grid gap-4"
-    >
+    <TabPanel tab="campeones">
       {empty === "syncing" && <AlbumSkeleton />}
       {empty === "never" && (
         <Empty>
@@ -209,7 +179,7 @@ function ChampionsPanel({ data }: { data: ProfileView }) {
           />
         </Suspense>
       )}
-    </div>
+    </TabPanel>
   );
 }
 

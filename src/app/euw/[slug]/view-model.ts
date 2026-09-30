@@ -21,16 +21,57 @@ export function initials(gameName: string): string {
 
 // --- Pestañas ----------------------------------------------------------------------------
 
-/** Pestañas del perfil; en esta iteración solo existe Campeones (el resto va en #3). */
-export const PROFILE_TABS = ["campeones"] as const;
+/** Pestañas del perfil, en el orden de la barra (`?tab`; `campeones` es la de por defecto). */
+export const PROFILE_TABS = [
+  "campeones",
+  "resumen",
+  "companeros",
+  "partidas",
+] as const;
 export type ProfileTab = (typeof PROFILE_TABS)[number];
+
+export const DEFAULT_TAB: ProfileTab = "campeones";
+
+/** Texto visible de cada pestaña. */
+export const TAB_LABEL: Record<ProfileTab, string> = {
+  campeones: "Campeones",
+  resumen: "Resumen",
+  companeros: "Compañeros",
+  partidas: "Partidas",
+};
+
+/** `id` de la pestaña y del panel que controla: `aria-controls` / `aria-labelledby` las cruzan. */
+export const tabId = (tab: ProfileTab) => `tab-${tab}`;
+export const panelId = (tab: ProfileTab) => `panel-${tab}`;
 
 /** `?tab` -> pestaña activa. Lo desconocido, repetido o ausente cae en `campeones`. */
 export function parseProfileTab(
   value: string | string[] | undefined,
 ): ProfileTab {
   const first = Array.isArray(value) ? value[0] : value;
-  return PROFILE_TABS.find((tab) => tab === first) ?? "campeones";
+  return PROFILE_TABS.find((tab) => tab === first) ?? DEFAULT_TAB;
+}
+
+/**
+ * Pestaña que recibe el foco con una tecla del teclado sobre la pestaña `from` (patrón WAI-ARIA
+ * con activación manual: las flechas solo mueven el foco, Enter o Espacio activan). Las flechas dan
+ * la vuelta en los extremos; `null` = la tecla no navega.
+ */
+export function tabForKey(from: ProfileTab, key: string): ProfileTab | null {
+  const last = PROFILE_TABS.length - 1;
+  const index = PROFILE_TABS.indexOf(from);
+  switch (key) {
+    case "ArrowRight":
+      return PROFILE_TABS[index === last ? 0 : index + 1];
+    case "ArrowLeft":
+      return PROFILE_TABS[index === 0 ? last : index - 1];
+    case "Home":
+      return PROFILE_TABS[0];
+    case "End":
+      return PROFILE_TABS[last];
+    default:
+      return null;
+  }
 }
 
 // --- Frescura ----------------------------------------------------------------------------
@@ -149,4 +190,40 @@ export function withSearchParam(
   const params = new URLSearchParams(search);
   params.set(key, value);
   return `${pathname}?${params}`;
+}
+
+const TAB_PARAM = "tab";
+
+/**
+ * Parámetros de la URL que pertenecen a cada pestaña. `q` y `orden` se repiten entre pestañas con
+ * otro significado (el `orden` del álbum no es el de los compañeros), así que nunca pasan de una a
+ * otra. `campeon` (el panel del campeón, sobre cualquier pestaña) no es de ninguna y se conserva.
+ */
+const TAB_PARAMS: Record<ProfileTab, readonly string[]> = {
+  campeones: ["vista", FILTER_PARAM, "q", "orden"],
+  resumen: [],
+  companeros: ["min", "orden"],
+  partidas: ["q", "puesto", "companero", "n", "partida"],
+};
+
+/**
+ * Enlace a una pestaña conservando la query actual (`search`, con o sin `?`). Pone `?tab` (o lo
+ * quita para `campeones`) y borra los parámetros propios de las pestañas, salvo los de `tab` si ya
+ * se estaba en ella: pulsar la pestaña activa no toca sus filtros. El resto (`campeon`…) se conserva.
+ */
+export function tabHref(
+  pathname: string,
+  search: string,
+  tab: ProfileTab,
+): string {
+  const params = new URLSearchParams(search);
+  const from = parseProfileTab(params.get(TAB_PARAM) ?? undefined);
+  const keep = new Set(from === tab ? TAB_PARAMS[tab] : []);
+  for (const owned of Object.values(TAB_PARAMS)) {
+    for (const key of owned) if (!keep.has(key)) params.delete(key);
+  }
+  if (tab === DEFAULT_TAB) params.delete(TAB_PARAM);
+  else params.set(TAB_PARAM, tab);
+  const query = params.toString();
+  return query === "" ? pathname : `${pathname}?${query}`;
 }

@@ -1,7 +1,7 @@
 # Task T03 — Pestañas del perfil, estado en la URL y carga bajo demanda
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -58,12 +58,37 @@ Esta task deja el andamiaje: barra de pestañas accesible, parser, carga condici
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Cuatro pestañas accesibles (`tablist`/`tab`/`tabpanel`, flechas) y enlazadas por `?tab`; `campeones` sin `?tab`.
-- [ ] `tabHref` probado: limpia los parámetros propios de otras pestañas y conserva `campeon`.
-- [ ] `loadProfilePage` recibe la vista; no carga datos de pestañas no activas (test).
-- [ ] (Orquestador) Abrir `/euw/…?tab=partidas` por URL directa selecciona la pestaña; cambiar de pestaña no recarga la página ni hace scroll horizontal a 375 px.
-- [ ] Los cuatro checks en verde.
+- [x] Cuatro pestañas accesibles (`tablist`/`tab`/`tabpanel`, flechas) y enlazadas por `?tab`; `campeones` sin `?tab`.
+- [x] `tabHref` probado: limpia los parámetros propios de otras pestañas y conserva `campeon`.
+- [x] `loadProfilePage` recibe la vista; no carga datos de pestañas no activas (test).
+- [x] (Orquestador) Abrir `/euw/…?tab=partidas` por URL directa selecciona la pestaña; cambiar de pestaña no recarga la página ni hace scroll horizontal a 375 px.
+- [x] Los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- `view-model.ts`:
+  - `PROFILE_TABS` tiene las 4 pestañas; nuevos `TAB_LABEL`, `DEFAULT_TAB`, `tabId`/`panelId`, `tabForKey` (flechas, Home y End) y `tabHref`.
+  - `tabHref` borra los parámetros propios de todas las pestañas salvo los de la de destino si ya se estaba en ella, así que pulsar la activa no toca sus filtros. `campeon` se conserva. No añade parámetros: quien enlaza a `?partida` los añade después.
+- `tabs.tsx` (cliente):
+  - `next/link` con `scroll={false}` y roving tabindex; Espacio activa.
+  - Centra la pestaña activa dentro de la barra, porque a 375 px las cuatro no caben.
+- `tab-panel.tsx`: `TabPanel` (ids cruzados en un solo sitio) y `PendingPanel` (esqueletos de Resumen, Compañeros y Partidas hasta T04–T07).
+- `loadProfilePage(db, gameName, tagLine, view: ProfileViewParams, seasonStart?, catalog?)`. `ProfileView` lleva siempre `tab`; `teammates?`, `matches?` y `summaryTab?` solo existen con su pestaña activa (`never` hasta que T05 y T07 los tipen).
+- **Hallazgo fuera de alcance** (pasado a T08): "Marcar a mano" de la barra Arena God (`markByHand` en `arena-god.tsx`) pone `?filtro=sin-ganar` en cualquier pestaña. Debería volver antes a Campeones.
+- Revisión del orquestador: `import { cn } from "cn"` → `@/lib/utils`, como el resto de `src/app`.
+
 ## Evidencias <!-- MUST -->
+
+- Checks (orquestador):
+  - `npm run lint`: OK, 125 ficheros;
+  - `npm run typecheck`: OK;
+  - `npm test`: 37 ficheros y 655 tests en verde (+18);
+  - `npm run build`: OK.
+- Navegador integrado (orquestador, `hylistats-testdb`, semilla `synced 30000`, 375 px):
+  - `/euw/Jugador%20Uno-EUW?tab=partidas&campeon=ahri` por URL directa:
+    - `tab-partidas` con `aria-selected=true` y `tabIndex` 0, las demás con -1;
+    - `panel-partidas` con `aria-labelledby=tab-partidas` y esqueleto `aria-busy`;
+    - `href` de Campeones = `?campeon=ahri` (sin `tab`, conserva `campeon`);
+    - `scrollWidth` 375.
+  - Clic en "Campeones": la URL pasa a `?campeon=ahri`, panel `panel-campeones` con 173 cromos, sin recargar (la marca en `window` sobrevive) y `scrollWidth` 375.
+- Commit: ver `git log` (`feat(ui): pestañas del perfil con estado en la URL y carga por pestaña`).

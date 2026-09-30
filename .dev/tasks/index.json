@@ -27,14 +27,14 @@
     {
       "id": "T03",
       "title": "Pestañas del perfil, estado en la URL y carga bajo demanda",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/3-companeros-partidas",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T03_pestanas-url.md",
       "created_at": "2026-09-30T08:10:00Z",
-      "updated_at": "2026-09-30T08:10:00Z"
+      "updated_at": "2026-09-30T08:53:46Z"
     },
     {
       "id": "T04",
