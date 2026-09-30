@@ -117,7 +117,8 @@
   --line: #2c3038;
   --text: #ece6d9;
   --text-muted: #a29d92;
-  --text-faint: #6e6a62;
+  /* #6e6a62 en la maqueta daba 3,5:1 sobre --bg; subido al mínimo AA (4,9:1 sobre --bg y 4,5:1 sobre --surface-1). */
+  --text-faint: #858179;
   --place-1: #e8b64c;
   --won-deep: #8f6a1f;
   --place-top: #4fb3a3;
