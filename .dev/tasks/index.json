@@ -141,7 +141,7 @@
     {
       "id": "T11",
       "title": "Verificación E2E con la UI y re-backfill real de la cola 1740",
-      "status": "pending",
+      "status": "done",
       "owner": "orchestrator",
       "branch": "feat/2-perfil-y-album",
       "worktree": null,
@@ -153,7 +153,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T11_verificacion-e2e.md",
       "created_at": "2026-09-29T20:30:00Z",
-      "updated_at": "2026-09-29T20:30:00Z"
+      "updated_at": "2026-09-30T03:37:39Z"
     }
   ]
 }

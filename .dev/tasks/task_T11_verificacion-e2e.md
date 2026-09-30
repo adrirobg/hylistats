@@ -1,7 +1,7 @@
 # Task T11 — Verificación E2E con la UI y re-backfill real de la cola 1740
 
 **Owner**: orchestrator
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -50,10 +50,21 @@ Verificar AC1–AC7 contra la app real, con evidencia en `.dev/verify-report.md`
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Evidencia de AC1–AC7 en `verify-report.md` (capturas, comandos, SQL, métricas); AC8 como gate manual.
-- [ ] Re-backfill de la 1740 hecho con la UI abierta, sin recargar, y con `verificados = 602002`.
-- [ ] 0 fugas de key ni de `puuid`.
+- [x] Evidencia de AC1–AC7 en `verify-report.md` (capturas, comandos, SQL, métricas); AC8 como gate manual.
+- [x] Re-backfill de la 1740 hecho con la UI abierta, sin recargar, y con `verificados = 602002`.
+- [x] 0 fugas de key ni de `puuid`.
 
 ## Notas de implementacion <!-- MAY -->
 
+- Orden real: al abrir el perfil se encoló el incremental automático (job 5), que trajo 8 partidas 1750 nuevas jugadas el 29-sep; `602002` pasó de 75 a 77. Después, el re-backfill (job 6) con la UI abierta y "Actualizar" sin partidas nuevas (job 7).
+- La verificación de contraste encontró `--text-faint` por debajo de AA (3,53:1). Se subió el token a `#858179` (4,90 / 4,53), commit aparte `fix(ui)`, con los cuatro checks repetidos.
+- AC5 se registró con un observador JS en la página (1 s) en lugar de capturas sueltas: fecha cada transición y prueba que no hubo recarga.
+
 ## Evidencias <!-- MUST -->
+
+- `.dev/verify-report.md`: veredicto **PASS**, con AC1–AC7 y accesibilidad con evidencia y AC8 como gate de merge.
+- AC7: SQL 1750 ∪ 1740 = **77** = `602002`; los 5 nuevos son Sona, Malphite, Aphelios, Gnar y Jayce. "Cuadra con el contador oficial." en la página. Incremental sin partidas nuevas: `matchIds` +2 y `match` +0.
+- AC5: marcador 517 → 577 → 589 → 597 y barra 72 → 75 → 76 → 77, sin recargar; sellos en vivo de Aphelios, Gnar, Jayce, Malphite y Sona.
+- Fugas: 0 (key de `settings` y de `.env.local`, y `puuid`) en `.next`, en el árbol, en git, en los logs y en las respuestas HTTP.
+- Coste Riot: 102 peticiones, 0 × 429.
+- Checks (tras el ajuste del token): lint OK (121 ficheros) · typecheck OK · `npm test` 36 ficheros y 623 tests en verde · build OK.
