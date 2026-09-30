@@ -29,14 +29,14 @@
     {
       "id": "T03",
       "title": "Dominio de frío/calor (F16)",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/7-stats-personales",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T03_dominio-frio-calor.md",
       "created_at": "2026-09-30T20:30:00Z",
-      "updated_at": "2026-09-30T20:30:00Z"
+      "updated_at": "2026-09-30T20:56:02Z"
     },
     {
       "id": "T04",

@@ -1,7 +1,7 @@
 # Task T03 — Dominio de frío/calor (F16)
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -25,10 +25,21 @@ Un módulo puro `src/domain/heat.ts` que clasifica cada campeón del jugador com
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Constantes en `config.ts` y `computeHeat` con la forma descrita.
-- [ ] Tests de AC3 en verde.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Constantes en `config.ts` y `computeHeat` con la forma descrita.
+- [x] Tests de AC3 en verde.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `src/lib/config.ts`: `HEAT_MIN_GAMES = 5`, `HEAT_PRIOR_GAMES = 5` y `HEAT_THRESHOLD = 0.4`, documentadas con referencia a F16 y marcadas como revisables tras el uso.
+- `src/domain/heat.ts`: `computeHeat(rows): { globalAvg, byChampion: Map<number, ChampionHeat> }`, con `ChampionHeat = { state, games, avg, adjustedAvg, reason }`.
+  - Tolerancia `1e-9` en el umbral.
+  - Si un campeón cumple a la vez `won` y `few-games`, sale `won`.
+- `src/domain/heat.test.ts`: 11 tests. Cubren AC3:
+  - 4 partidas → `few-games`;
+  - justo en ±0,4 → hot/cold, con la cuenta comentada;
+  - algún 1º → `won`;
+  - la media global incluye a los campeones ganados (sin ellos, el resultado cambiaría).
+  
+  Cubren también el caso sin partidas (`globalAvg` null), los puestos fuera de rango y 0,3 → `within`.
+- `npm run lint && npm run typecheck && npm test && npm run build`: en verde (49 ficheros, 1017 tests).

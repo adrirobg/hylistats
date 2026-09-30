@@ -31,6 +31,24 @@ export const ARENA_QUIET_DAYS = 7;
  */
 export const RECORD_DAY_MIN_GAMES = 3;
 
+/**
+ * Frío/calor por campeón (F16). Solo aplica a campeones sin ningún 1º en la temporada, con al
+ * menos `HEAT_MIN_GAMES` partidas. Valores revisables tras el uso con el grupo.
+ */
+export const HEAT_MIN_GAMES = 5;
+
+/**
+ * Peso del ajuste de F16 en partidas ("K"): la media del campeón se ajusta hacia la media global
+ * como `(n·media_campeón + K·media_global) / (n + K)`. Revisable tras el uso.
+ */
+export const HEAT_PRIOR_GAMES = 5;
+
+/**
+ * Diferencia mínima en puestos entre la media ajustada y la global para marcar 🔥 (ajustada mejor)
+ * o ❄️ (ajustada peor) en F16. Revisable tras el uso.
+ */
+export const HEAT_THRESHOLD = 0.4;
+
 /** Inicio de la temporada de Arena por defecto (patch 26.10, mayo 2026). */
 export const DEFAULT_SEASON_START = "2026-05-12T00:00:00Z";
 
