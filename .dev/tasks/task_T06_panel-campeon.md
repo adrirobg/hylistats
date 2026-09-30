@@ -26,7 +26,17 @@ En perfiles ajenos no se muestran ni el objetivo ni el marcado manual (D12).
   - §4.9 (plantillas);
   - §4.4 y §4.12 (marcado manual con confirmación);
   - §7 (`Esc` cierra el panel).
-- **Tabla de enlaces verificada por el orquestador** en el navegador integrado (la fija en esta task, sección "Estado previo" del prompt). Los tests fijan esa tabla.
+- **Tabla de enlaces verificada por el orquestador** en el navegador integrado el 2026-09-30 (Data Dragon 16.19.1, 173 campeones). Los tests fijan esta tabla. `ddId` es el `id` de Data Dragon; `kebab(ddId)` parte el camelCase con guion (`([a-z])([A-Z])` → `$1-$2`) y pasa a minúsculas.
+
+  | Web | Plantilla | Slug | Excepciones | Cómo se verificó |
+  |---|---|---|---|---|
+  | op.gg | `https://op.gg/lol/modes/arena/{slug}/build` | `lower(ddId)` | ninguna | 173/173 contra los enlaces de su tier list de Arena |
+  | LoLalytics | `https://lolalytics.com/lol/{slug}/arena/build/` | `lower(ddId)` | `MonkeyKing` → `wukong` | 173/173 contra su home de Arena |
+  | METAsrc | `https://www.metasrc.com/lol/arena/champions/{slug}/build` | `kebab(ddId)` (`TwistedFate` → `twisted-fate`, `DrMundo` → `dr-mundo`, `KSante` → `ksante`) | `JarvanIV` → `jarvan`, `KogMaw` → `kogmaw`, `MonkeyKing` → `wukong`, `RekSai` → `reksai`, `Renata` → `renata-glasc` | 173/173 contra su tier list de Arena |
+  | u.gg | `https://u.gg/lol/champions/arena/{slug}-arena-build` | `lower(ddId)` | ninguna (`monkeyking` y `wukong` valen los dos) | 10 a mano: Ahri, MonkeyKing, Nunu, Renata, Belveth, Kaisa, JarvanIV, DrMundo, KogMaw y Wukong |
+  | Blitz | `https://blitz.gg/lol/champions/{slug}/arena` | `ddId` tal cual (con mayúsculas; `ahri` redirige a `Ahri`) | ninguna | 8 a mano: Ahri, MonkeyKing, Nunu, Renata, Belveth, Kaisa, JarvanIV y KogMaw |
+
+  Un slug inválido da página genérica o "Oops!" (op.gg, LoLalytics y Blitz) o redirige a la lista (METAsrc): el título de la página basta como prueba.
 - Código:
   - Álbum: `AlbumEntry` (`src/domain/album.ts`): `championId`, `ddId`, `name`, `portraitUrl`, `state`, `games`, `firsts`, `top3`, `bestPlacement`, `avgPlacement`, `lastPlayedAt`, `firstWinAt` y `firstWinMatchId`.
   - `ProfileView.album` ya viene en la página.
@@ -44,8 +54,8 @@ En perfiles ajenos no se muestran ni el objetivo ni el marcado manual (D12).
 
 1. **Enlaces** (`src/lib/champion-links.ts` + tests):
    - `championLinks(ddId, name)` → 5 `{ site, label, href }` en el orden op.gg, LoLalytics, METAsrc, u.gg y Blitz.
-   - Usa las plantillas y la tabla de excepciones del "Estado previo".
-   - Tests con los 5 sitios para Ahri, Wukong (`MonkeyKing`), Nunu & Willump (`Nunu`), Renata Glasc (`Renata`), Bel'Veth (`Belveth`) y Kai'Sa (`Kaisa`), más un campeón sin `ddId`: devuelve `[]`, sin enlaces inventados.
+   - Usa las plantillas y excepciones de la tabla del Contexto.
+   - Tests con los 5 sitios para Ahri, Wukong (`MonkeyKing`), Nunu & Willump (`Nunu`), Renata Glasc (`Renata`), Bel'Veth (`Belveth`) y Kai'Sa (`Kaisa`), más las excepciones de METAsrc (`JarvanIV`, `KogMaw`, `RekSai`, `DrMundo`, `TwistedFate`) y un campeón sin `ddId`: devuelve `[]`, sin enlaces inventados.
 2. **Slug interno** (`view-model.ts` o `champion-panel-view.ts` + tests):
    - `championSlug(entry)` = `(ddId ?? name).toLowerCase()`;
    - `findChampionBySlug(album, slug)`: insensible a mayúsculas; `null` si no existe → no se abre el panel.

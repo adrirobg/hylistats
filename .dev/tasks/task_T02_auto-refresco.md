@@ -1,7 +1,7 @@
 # Task T02 — Auto-refresco D10: al volver a la pestaña y cada 5 min si está visible
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -43,11 +43,43 @@ Con la pestaña del perfil visible, la página pide un incremental automático c
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `STALE_AFTER_MS` = 5 min y `ensureFreshOnView` con cooldown de 5 min por defecto; el botón conserva el suyo de 60 s.
-- [ ] Comprobación al montar, al volver a la pestaña y cada 60 s con la pestaña visible; sin polling ni comprobaciones con la pestaña oculta.
-- [ ] Tests de servidor (umbral, error sin `lastSyncedAt`) y de la política de cliente en verde; los cuatro checks en verde.
-- [ ] (Orquestador) Con la app real, el worker activo y la pestaña visible ≥ 11 min: ≤ 1 incremental automático cada 5 min, `matchIds` +2 por incremental (logs del worker y `sync_jobs`).
+- [x] `STALE_AFTER_MS` = 5 min y `ensureFreshOnView` con cooldown de 5 min por defecto; el botón conserva el suyo de 60 s.
+- [x] Comprobación al montar, al volver a la pestaña y cada 60 s con la pestaña visible; sin polling ni comprobaciones con la pestaña oculta.
+- [x] Tests de servidor (umbral, error sin `lastSyncedAt`) y de la política de cliente en verde; los cuatro checks en verde.
+- [x] (Orquestador) Con la app real, el worker activo y la pestaña visible ≥ 11 min: ≤ 1 incremental automático cada 5 min, `matchIds` +2 por incremental (logs del worker y `sync_jobs`).
 
 ## Notas de implementacion <!-- MAY -->
 
+- **Servidor**: `STALE_AFTER_MS = 5 min`, y `ensureFreshOnView` usa ese mismo valor como `cooldownMs` por defecto. Un incremental automático que acaba en `error` sin tocar `lastSyncedAt` no se repite antes de 5 min. `requestRefresh`, que usa el botón, sigue con 60 s.
+- **Cliente**:
+  - La política pura está en `auto-refresh-policy.ts`: `autoRefreshOnEvent(mount|visible|checkTick|pollTick, visible)` e `autoRefreshIntervals({ visible, active })`, con 7 tests.
+  - `auto-refresh.tsx` lee la visibilidad con `useSyncExternalStore` sobre `visibilitychange`.
+  - El polling y el latido van en intervalos separados, así que un cambio de `active` no reinicia el latido de 60 s.
+  - Al montar solo se comprueba: la página acaba de renderizarse. Al volver a `visible`, se comprueba y se relee al momento.
+- **Tests**: el caso `queued` de `actions.test.ts` pasa de 5 a 6 min, porque 5 min quedaba justo en el borde. Test nuevo en `queue.test.ts`: con un job en `error` hace 2 min devuelve `cooldown` a los 2 min y a los 5 min − 1 ms, y `queued` a los 5 min + 1 ms.
+- **Cadencia real**: el latido de 60 s cae unos milisegundos antes de cumplirse los 5 min del job anterior. Por eso el incremental entra cada ~6 min, dentro del "entre 5 y 6 min" de la spec.
+
 ## Evidencias <!-- MUST -->
+
+- **Checks (orquestador)**:
+  - `npm run lint`: OK, 123 ficheros;
+  - `npm run typecheck`: OK;
+  - `npm test`: 37 ficheros y 637 tests en verde (+8);
+  - `npm run build`: OK.
+- **AC3 contra Riot** (orquestador, 2026-09-30):
+  - Entorno: `hylistats-dev` (BD dev, worker activo, key `ok` de fuente `db`); perfil `BEJITO MAMBO#1991` abierto en el navegador integrado.
+  - Observador JS en la página: parchea `fetch`, registra Server Actions (`next-action`), peticiones RSC y `visibilitychange`, y deja una marca en `window` que sobrevive a toda la prueba (sin recargas).
+  - **Visible, 08:17–08:35 UTC (19 min)**:
+    - Server Action cada 60 s exactos (08:18:10, 08:19:10… 08:35:10) y RSC cada 30 s.
+    - `sync_jobs`: incrementales no interactivos 9 (08:17:10), 10 (08:23:10), 11 (08:29:10) y 12 (08:35:10), separados 6 min.
+    - `/api/health`: `requests.matchIds` 2 → 4 → 6 → 8 (+2 por incremental, una petición por cola) y `match` 0.
+    - Log del worker por job: `cola 1750 completa (1 ids), sigue con la siguiente` → `listado completo, 0 partidas en cola` → `terminado (incremental, 0 partidas, 602002 = 77)`.
+  - **Oculta, 08:36:15–08:41:56 (5 min 41 s)**:
+    - El panel del navegador integrado no oculta las pestañas de fondo: `visibilityState` siguió en `visible` con otra pestaña delante, y el job 12 entró igual.
+    - Por eso la ocultación se simuló con la misma API que lee el componente: `visibilityState`/`hidden` redefinidos y `visibilitychange` disparado.
+    - Resultado: 0 Server Actions y 0 RSC durante los 5 min 41 s; `matchIds` quieto en 8.
+  - **Vuelta a visible (08:41:56)**:
+    - Server Action y RSC en el mismo milisegundo.
+    - Job 13 (incremental, 08:41:56.22), porque habían pasado más de 5 min desde el 12.
+    - `matchIds` 10 y polling de 3 s mientras el job estuvo activo.
+  - **Total**: 5 incrementales automáticos en 25 min, nunca dos en menos de 5 min; 10 peticiones de ids y 0 de detalle. Ningún 401/403.
