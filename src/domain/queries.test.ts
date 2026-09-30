@@ -163,6 +163,7 @@ describe("getTeammateRows", () => {
     const allRows = fixtures.flatMap((f) =>
       f.match.info.participants.map((p) => ({
         matchId: f.id,
+        gameCreation: f.match.info.gameCreation,
         puuid: p.puuid,
         riotIdGameName: p.riotIdGameName,
         riotIdTagline: p.riotIdTagline,
@@ -277,6 +278,18 @@ describe("getProfileStats", () => {
         ["Player152", 1, 0],
       ],
     );
+    // top3 (013: 5 reales + la sintética; 046: 1; 115: 2 reales + la sintética) y última partida
+    // juntos (la sintética para 013 y 115; la #7 para 046).
+    expect(
+      stats.teammates.map((t) => [t.gameName, t.top3, t.lastPlayedAt]),
+    ).toEqual([
+      ["Player013", 6, 1_790_700_000_000],
+      ["Player046", 1, 1_790_633_861_469],
+      ["Player115", 3, 1_790_700_000_000],
+      ["Player012", 1, 1_790_682_703_953],
+      ["Player022", 1, 1_790_680_293_890],
+      ["Player152", 0, 1_790_618_903_881],
+    ]);
 
     // 1 campeón verificado frente a 75 del challenge.
     expect(stats.challenge).toEqual({
@@ -298,10 +311,29 @@ describe("getProfileStats", () => {
         "firsts",
         "gameName",
         "games",
+        "lastPlayedAt",
         "tagLine",
+        "top3",
       ]);
     }
     expect(JSON.stringify(stats)).not.toContain("puuid");
+  });
+
+  it("cada partida aporta exactamente 2 compañeros y ninguno lleva puuid", async () => {
+    await storeAll();
+    const profile = await insertProfile();
+    const stats = await getProfileStats(db, profile.id, seasonStart);
+    expect(stats).not.toBeNull();
+    if (!stats) return;
+
+    // Tríos: 2 compañeros por partida, así que la suma de `games` es 2 × partidas del jugador.
+    expect(stats.summary.games).toBe(fixtures.length);
+    expect(stats.teammates.reduce((total, t) => total + t.games, 0)).toBe(
+      2 * stats.summary.games,
+    );
+    for (const teammate of stats.teammates) {
+      expect(teammate).not.toHaveProperty("puuid");
+    }
   });
 
   it("match cuando el recuento propio coincide con el challenge", async () => {

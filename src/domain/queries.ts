@@ -67,6 +67,7 @@ export async function getTeammateRows(
   return db
     .select({
       matchId: participants.matchId,
+      gameCreation: matches.gameCreation,
       puuid: participants.puuid,
       riotIdGameName: participants.riotIdGameName,
       riotIdTagline: participants.riotIdTagline,
@@ -108,7 +109,9 @@ const toTeammateSummary = (t: TeammateStats): TeammateSummary => ({
   tagLine: t.tagLine,
   games: t.games,
   firsts: t.firsts,
+  top3: t.top3,
   avgPlacement: t.avgPlacement,
+  lastPlayedAt: t.lastPlayedAt,
 });
 
 export interface ProfileChallenge {

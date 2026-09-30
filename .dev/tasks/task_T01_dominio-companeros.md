@@ -1,7 +1,7 @@
 # Task T01 — Dominio de compañeros: top 3, última partida y tests de tríos
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -40,11 +40,30 @@
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `TeammateStats`/`TeammateSummary` con `games`, `firsts`, `top3`, `avgPlacement` y `lastPlayedAt`; sin `puuid` en `TeammateSummary`.
-- [ ] Tests de tríos (2 por partida, subteam ajeno excluido, fila propia ausente) y de `top3`/`lastPlayedAt` en verde.
-- [ ] Integración: suma de `games` = 2 × partidas del jugador.
-- [ ] Los cuatro checks en verde.
+- [x] `TeammateStats`/`TeammateSummary` con `games`, `firsts`, `top3`, `avgPlacement` y `lastPlayedAt`; sin `puuid` en `TeammateSummary`.
+- [x] Tests de tríos (2 por partida, subteam ajeno excluido, fila propia ausente) y de `top3`/`lastPlayedAt` en verde.
+- [x] Integración: suma de `games` = 2 × partidas del jugador.
+- [x] Los cuatro checks en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- `TeammateRow.gameCreation` sale de `matches.gameCreation` en `getTeammateRows`. `TeammateStats` y `TeammateSummary` ganan `top3` y `lastPlayedAt`, y la lista blanca `toTeammateSummary` los añade sin `puuid`.
+- Una fila de compañero con puesto fuera de 1..6 se ignora entera, igual que en `computeSummary`.
+- Desviación menor: el nombre vigente es el de la fila con mayor `gameCreation`, no el de la última recibida. Con entrada cronológica da lo mismo que antes, pero ya no depende del orden de entrada.
+
 ## Evidencias <!-- MUST -->
+
+- Tests nuevos en `stats.test.ts`:
+  - una partida de tríos con 18 filas da 2 compañeros;
+  - un subteam ajeno no cuenta;
+  - si falta la fila propia, se ignora la partida;
+  - `top3` y `lastPlayedAt` con filas desordenadas;
+  - gana el nombre más reciente;
+  - un puesto fuera de rango no cuenta.
+- Test nuevo en `queries.test.ts` (integración contra `hylistats_test`): la suma de `games` es 2 × partidas del jugador y ningún `TeammateSummary` lleva `puuid`.
+- Checks (orquestador):
+  - `npm run lint`: OK, 121 ficheros;
+  - `npm run typecheck`: OK;
+  - `npm test`: 36 ficheros y 629 tests en verde (+6);
+  - `npm run build`: OK.
+- Commit: ver `git log` (`feat(domain): compañeros con top 3 y última partida`).
