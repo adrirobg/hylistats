@@ -1,7 +1,7 @@
 # Task T09 — Verificación E2E de iter-03 y verify-report
 
 **Owner**: orchestrator
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -39,10 +39,27 @@ Verificar AC1–AC4 contra la app real y dejar la evidencia en `.dev/verify-repo
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `verify-report.md` con evidencia de AC1–AC4 y AC5 como gate manual.
-- [ ] AC3 verificado por logs y `sync_jobs` contra Riot con la key vigente.
-- [ ] AC4: 5 campeones (3 casos límite) × 5 webs abiertos y correctos.
+- [x] `verify-report.md` con evidencia de AC1–AC4 y AC5 como gate manual.
+- [x] AC3 verificado por logs y `sync_jobs` contra Riot con la key vigente.
+- [x] AC4: 5 campeones (3 casos límite) × 5 webs abiertos y correctos.
 
 ## Notas de implementacion <!-- MAY -->
 
+- **Entorno E2E**: `npm start` sobre el build de `f828ebe` contra la BD dev, con worker y el log en el scratchpad (configuración local `hylistats-start-log` en `.claude/launch.json`, excluido de git). Los estados de §5 se vieron en T08 con `next dev -p 3001` sobre `hylistats_test`.
+- **Servidor del supervisor**: en el 3000 había un `npm run dev` suyo (desde su terminal). Con su permiso explícito se paró antes de verificar: Next 16 no admite dos `next dev` en el mismo directorio.
+- **AC3**: no hizo falta repetirlo a propósito. El E2E dejó la pestaña visible y el worker encadenó los jobs 22–25 con el código final, lo que da una segunda serie independiente de la de T02.
+- **AC4**: los 25 enlaces se leyeron del panel de la app (DOM del portal) y se abrieron en una pestaña aparte del navegador integrado, leyendo solo la URL final, `<title>` y `h1`, sin interactuar con banners.
+- **Corte del clasificador de auto mode** (~20 min, 8 respuestas sin veredicto seguidas): se paró antes de agotar los 10 intentos y se retomó en la misma sesión.
+
 ## Evidencias <!-- MUST -->
+
+- `.dev/verify-report.md` con conclusión **PASS**: AC1–AC4, responsive y §5; AC5 como gate manual.
+- **AC1**:
+  - 46 ficheros y 965 tests en verde, 156 ficheros de lint y build OK;
+  - 0 apariciones de la key (de BD y de `.env.local`), del `ADMIN_TOKEN` y del `puuid` del perfil en `.next`, el árbol, el historial git, 13 respuestas HTTP y el log;
+  - 0 de los 8629 `puuid` de participantes.
+- **AC2**: `?tab=resumen`, `?tab=companeros&min=5`, `?tab=partidas&partida=EUW1_7999505011` y `?campeon=monkeyking` sobre Campeones y Compañeros, abiertos por URL y restaurados al recargar.
+- **AC3**: jobs 22–25 separados 5 min 23 s, 5 min 31 s y 5 min 29 s, con `matchIds` 8 (= 4 × 2), 0 × 429 y la key en `ok`. Se suma a la serie de T02 (jobs 9–13).
+- **AC4**: 25/25 (Wukong, Nunu, Renata, Bel'Veth y Kai'Sa × op.gg, LoLalytics, METAsrc, u.gg y Blitz), con URL final idéntica y título o `h1` del campeón.
+- **Responsive**: 15/15 sin scroll horizontal a 375, 960 y 1440 px, en las cuatro pestañas y con el panel.
+- **Commit**: ver `git log` (`docs(verify): verify-report de iter-03`).

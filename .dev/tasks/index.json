@@ -116,7 +116,7 @@
     {
       "id": "T09",
       "title": "Verificación E2E de iter-03 y verify-report",
-      "status": "pending",
+      "status": "done",
       "owner": "orchestrator",
       "branch": "feat/3-companeros-partidas",
       "worktree": null,
@@ -132,7 +132,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T09_verificacion-e2e.md",
       "created_at": "2026-09-30T08:10:00Z",
-      "updated_at": "2026-09-30T08:10:00Z"
+      "updated_at": "2026-09-30T14:01:39Z"
     }
   ]
 }
