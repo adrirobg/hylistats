@@ -29,6 +29,7 @@ import { Tabs } from "./tabs";
 import { TeammatesPanel } from "./teammates-panel";
 import { RailTeammates } from "./teammates-rail";
 import { parseTeammateParams } from "./teammates-view";
+import { titleBadges } from "./title-badges";
 import { TopBar } from "./top-bar";
 import {
   emptyState,
@@ -132,6 +133,7 @@ function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
           paused={data.paused}
           arenaQuietSince={data.arenaQuiet?.lastArenaGameAt ?? null}
           arenaDeity={data.arenaGod.reached}
+          titleBadges={titleBadges(data.titles)}
           games={data.summary.games}
           champions={data.verifiedChampions.map((c) => ({
             championId: c.championId,

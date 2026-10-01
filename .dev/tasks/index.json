@@ -99,7 +99,7 @@
     {
       "id": "T08",
       "title": "Badges de títulos en la cabecera del perfil",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/9-capa-de-grupo",
       "worktree": null,
@@ -108,7 +108,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T08_badges-perfil.md",
       "created_at": "2026-09-30T23:16:04Z",
-      "updated_at": "2026-10-01T00:18:30Z"
+      "updated_at": "2026-10-01T00:25:32Z"
     },
     {
       "id": "T09",

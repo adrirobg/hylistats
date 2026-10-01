@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import type { SyncProgress } from "./data";
 import { LocalMenu } from "./local-menu";
 import type { RefreshSnapshot } from "./refresh-outcome";
+import type { TitleBadge } from "./title-badges";
 import { REFRESH_BUTTON_ID, useRefresh } from "./use-refresh";
 import {
   arenaQuietPhrase,
@@ -69,6 +70,8 @@ export interface ProfileHeaderProps {
   arenaQuietSince: number | null;
   /** Badge «Deidad de Arena» conseguido (`ProfileView.arenaGod.reached`, decidido en el dominio). */
   arenaDeity: boolean;
+  /** Títulos vigentes del miembro en el grupo, junto a «Deidad de Arena» (vacío si no es miembro). */
+  titleBadges: readonly TitleBadge[];
   games: number;
   champions: RefreshSnapshot["champions"];
 }
@@ -88,6 +91,7 @@ export function ProfileHeader({
   paused,
   arenaQuietSince,
   arenaDeity,
+  titleBadges,
   games,
   champions,
 }: ProfileHeaderProps) {
@@ -209,6 +213,14 @@ export function ProfileHeader({
                   emblem={<Crown size={12} />}
                 />
               )}
+              {titleBadges.map((badge) => (
+                <Badge
+                  key={badge.key}
+                  title={badge.title}
+                  description={badge.description}
+                  link={badge.link}
+                />
+              ))}
             </div>
           </div>
         </div>

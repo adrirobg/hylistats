@@ -1,7 +1,7 @@
 # Task T08 — Badges de títulos en la cabecera del perfil
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -34,12 +34,16 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Cada miembro muestra exactamente los títulos que la vista del grupo le asigna, incluidos los de dúo y trío (AC6).
-- [ ] Un no miembro no muestra badges de título (AC6).
-- [ ] El badge se abre con ratón, clic y foco, y muestra métrica, valor, partidas y enlace al apartado (AC5).
-- [ ] La cabecera no desborda a 375 px.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Cada miembro muestra exactamente los títulos que la vista del grupo le asigna, incluidos los de dúo y trío (AC6).
+- [x] Un no miembro no muestra badges de título (AC6).
+- [x] El badge se abre con ratón, clic y foco, y muestra métrica, valor, partidas y enlace al apartado (AC5).
+- [x] La cabecera no desborda a 375 px.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `data.ts`: solo la llamada `loadProfileTitles(db, profile.id, now.getTime(), seasonStart)` en el `Promise.all` existente y el campo `titles` (+7 líneas netas).
+- Vista-modelo pura `src/app/euw/[slug]/title-badges.ts` (+5 tests): nombre con periodo, "por qué", enlace `/grupo#titulos`, clave única por periodo/título/equipo; no miembro → []. `header.tsx`: un `Badge` por título junto a "Deidad de Arena" en el `flex-wrap` existente.
+- Navegador (worker, datos reales): badges de los 7 perfiles cotejados con `/grupo` día y semana, título a título y con el mismo "por qué" (TheCIutch 6, Hylimichi 7, Krill1nt solo semana por no llegar al mínimo del día, elruffles 0). Apertura por foco con `:focus-visible` y popup con enlace. 375 px: `scrollWidth` = 375.
+- Observación para el supervisor (no se cambia): la cabecera es sticky; con 7 badges a 375 px mide ~345 px y queda pegada al hacer scroll.
+- Orquestador: `npm run lint && npm run typecheck && npm test && npm run build` en verde (57 ficheros, 1240 tests).

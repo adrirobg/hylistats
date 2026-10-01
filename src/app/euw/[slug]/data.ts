@@ -29,6 +29,8 @@ import {
   recentForm,
 } from "@/domain/album";
 import { type ArenaGodGoal, arenaGodGoal } from "@/domain/arena-god";
+import type { PlayerTitle } from "@/domain/group-titles";
+import { loadProfileTitles } from "@/domain/group-view";
 import { computeHeat } from "@/domain/heat";
 import { getProfileMatches } from "@/domain/matches";
 import {
@@ -235,6 +237,8 @@ export interface ProfileView {
    * el raíl se pinta en todas las pestañas. Cifras ya formateadas y sin `puuid`.
    */
   railTeammates: RailTeammate[];
+  /** Títulos vigentes del miembro (badges de la cabecera); vacío si el perfil no es del grupo. */
+  titles: PlayerTitle[];
 
   /**
    * Panel de campeón abierto (`?campeon` válido, sobre cualquier pestaña): la distribución y las
@@ -516,13 +520,15 @@ export async function loadProfilePage(
   }
 
   const now = new Date();
-  const [stats, sync, lastJobError, key, championCatalog] = await Promise.all([
-    getProfileStats(db, profile.id, seasonStart),
-    loadSyncProgress(db, profile.id, now),
-    loadLastJobError(db, profile.id),
-    getKeyStatus(db),
-    catalog,
-  ]);
+  const [stats, sync, lastJobError, key, championCatalog, titles] =
+    await Promise.all([
+      getProfileStats(db, profile.id, seasonStart),
+      loadSyncProgress(db, profile.id, now),
+      loadLastJobError(db, profile.id),
+      getKeyStatus(db),
+      catalog,
+      loadProfileTitles(db, profile.id, now.getTime(), seasonStart),
+    ]);
   if (!stats) return unregistered; // borrado entre las dos consultas
   const arenaQuiet = await loadArenaQuiet(
     db,
@@ -589,6 +595,7 @@ export async function loadProfilePage(
       championTotal: championCatalog.champions.length,
     }),
     railTeammates: railTeammates(stats.teammates, RAIL_TEAMMATES),
+    titles,
     // La clave solo existe con `?campeon` válido: `...null` no añade nada.
     ...(championEntry && {
       champion: championPanelData(championEntry, stats.playerRows, heat),
