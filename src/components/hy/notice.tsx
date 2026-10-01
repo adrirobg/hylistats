@@ -11,18 +11,25 @@ const noticeVariants = cva(
         trust: "border-trust/35 bg-trust-bg px-3 text-foreground",
         // Todo en orden: sin caja, texto tenue.
         okay: "border-transparent px-0 text-muted-foreground",
+        // Algo ha fallado: borde y fondo tenue con `--danger`.
+        danger:
+          "border-danger/35 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 text-foreground",
       },
     },
     defaultVariants: { variant: "trust" },
   },
 );
 
-const ICON_COLOR = { trust: "text-trust", okay: "text-ok" } as const;
-const ICON_DEFAULT = { trust: "i", okay: "✓" } as const;
+const ICON_COLOR = {
+  trust: "text-trust",
+  okay: "text-ok",
+  danger: "text-danger",
+} as const;
+const ICON_DEFAULT = { trust: "i", okay: "✓", danger: "!" } as const;
 
 type NoticeProps = Omit<ComponentProps<"div">, "children"> &
   VariantProps<typeof noticeVariants> & {
-    /** Marca a la izquierda; por defecto «i» (trust) o «✓» (okay). */
+    /** Marca a la izquierda; por defecto «i» (trust), «✓» (okay) o «!» (danger). */
     icon?: ReactNode;
     /** Botones o enlaces a la derecha (`.acts` de la maqueta). */
     actions?: ReactNode;

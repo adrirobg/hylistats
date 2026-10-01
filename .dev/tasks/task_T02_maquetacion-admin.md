@@ -1,7 +1,7 @@
 # Task T02 — Maquetación de /admin
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -44,11 +44,18 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Variante `danger` en `Notice`.
-- [ ] `/admin` con sesión, login y deshabilitado maquetados según el prompt (AC3).
-- [ ] Mismos formularios, `name`s y acciones; flujos intactos (AC4).
-- [ ] 2 columnas en `md+`, 1 columna sin scroll horizontal a 375 px (AC5).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Variante `danger` en `Notice`.
+- [x] `/admin` con sesión, login y deshabilitado maquetados según el prompt (AC3).
+- [x] Mismos formularios, `name`s y acciones; flujos intactos (AC4).
+- [x] 2 columnas en `md+`, 1 columna sin scroll horizontal a 375 px (AC5).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+
+## Notas de implementacion <!-- MAY -->
+
+- Worker: `page.tsx` queda en composición (~125 líneas); secciones en `narrow-box.tsx`, `def-list.tsx`, `key-box.tsx`, `worker-box.tsx` y `group-box.tsx`. `h1` `sr-only` en login/deshabilitado (`Box` no admite `h1`) y `th` `sr-only` "Acciones".
+- Ajustes del orquestador tras ver la página: el botón de los formularios se encogía y recortaba ("Validar y guardar") → `shrink-0` y el input estira a la altura del botón (`sm:h-auto`); el icono de `Notice` caía en línea aparte → `flex-nowrap` en los avisos de admin; a 375 px el grid crecía a 434 px por el ancho mínimo de la tabla → `grid-cols-1` y `[&>*]:min-w-0`; "Quitar" quedaba tras el scroll interno de la tabla → Riot ID y fecha con salto de línea.
 
 ## Evidencias <!-- MUST -->
 
+- Navegador (dev server, sesión real): 1280 px → fila Key/Worker en 2 columnas (472 px + 472 px); 375 px → `scrollWidth` 375 = `innerWidth`, tabla 313/313 sin scroll interno.
+- `npm run lint && npm run typecheck && npm test && npm run build`: exit 0, 1268/1268 tests.
