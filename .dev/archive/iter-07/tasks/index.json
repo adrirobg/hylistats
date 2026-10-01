@@ -1,0 +1,74 @@
+{
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Repo desplegable",
+      "status": "done",
+      "owner": "orchestrator",
+      "branch": "feat/13-despliegue",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T01_repo-desplegable.md",
+      "created_at": "2026-10-02T09:00:00Z",
+      "updated_at": "2026-10-02T09:30:00Z"
+    },
+    {
+      "id": "T02",
+      "title": "BD en Supabase",
+      "status": "done",
+      "owner": "orchestrator",
+      "branch": "feat/13-despliegue",
+      "worktree": null,
+      "depends_on": [
+        "T01"
+      ],
+      "artifact_path": ".dev/tasks/task_T02_bd-supabase.md",
+      "created_at": "2026-10-02T09:00:00Z",
+      "updated_at": "2026-10-02T10:00:00Z"
+    },
+    {
+      "id": "T03",
+      "title": "Servicio en Render",
+      "status": "done",
+      "owner": "orchestrator",
+      "branch": "feat/13-despliegue",
+      "worktree": null,
+      "depends_on": [
+        "T01",
+        "T02"
+      ],
+      "artifact_path": ".dev/tasks/task_T03_servicio-render.md",
+      "created_at": "2026-10-02T09:00:00Z",
+      "updated_at": "2026-10-02T11:00:00Z"
+    },
+    {
+      "id": "T04",
+      "title": "Documentación",
+      "status": "done",
+      "owner": "orchestrator",
+      "branch": "feat/13-despliegue",
+      "worktree": null,
+      "depends_on": [
+        "T03"
+      ],
+      "artifact_path": ".dev/tasks/task_T04_documentacion.md",
+      "created_at": "2026-10-02T09:00:00Z",
+      "updated_at": "2026-10-02T11:00:00Z"
+    },
+    {
+      "id": "T05",
+      "title": "Verificación contra la URL pública",
+      "status": "done",
+      "owner": "orchestrator",
+      "branch": "feat/13-despliegue",
+      "worktree": null,
+      "depends_on": [
+        "T03",
+        "T04"
+      ],
+      "artifact_path": ".dev/tasks/task_T05_verificacion.md",
+      "created_at": "2026-10-02T09:00:00Z",
+      "updated_at": "2026-10-02T12:00:00Z"
+    }
+  ]
+}
