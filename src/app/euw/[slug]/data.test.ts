@@ -1,7 +1,14 @@
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDb } from "@/db";
-import { matches, matchFetch, profiles, settings, syncJobs } from "@/db/schema";
+import {
+  groupMembers,
+  matches,
+  matchFetch,
+  profiles,
+  settings,
+  syncJobs,
+} from "@/db/schema";
 import { arenaGodState, officialPhrase } from "@/domain/arena-god";
 import { storeMatch } from "@/domain/ingest";
 import { getRecordRows } from "@/domain/queries";
@@ -29,7 +36,7 @@ import {
 } from "./data";
 import { DEFAULT_MATCH_PARAMS, type MatchParams } from "./matches-view";
 import type { TeammateParams } from "./teammates-view";
-import { PROFILE_TABS, type ProfileTab } from "./view-model";
+import { BASE_TABS, type ProfileTab } from "./view-model";
 
 const db = getTestDb();
 const fixtures = loadMatchFixtures();
@@ -797,7 +804,7 @@ describe("loadProfilePage", () => {
       await insertProfile({ lastSyncedAt: SYNCED });
       const at = ago(9);
       await insertArenaMatch("EUW1_OLD", at);
-      for (const tab of PROFILE_TABS) {
+      for (const tab of BASE_TABS) {
         expect((await loadProfile(tab)).arenaQuiet).toEqual({
           lastArenaGameAt: at,
         });
@@ -852,7 +859,7 @@ describe("loadProfilePage", () => {
   it("sin contador oficial (challengeValue null) y con partidas: value null y comparación unknown en todas las pestañas (§4.3)", async () => {
     await storeAll();
     await insertProfile(); // nunca se leyó el challenge
-    for (const tab of PROFILE_TABS) {
+    for (const tab of BASE_TABS) {
       const data = await loadProfile(tab);
       expect(data.summary.games).toBe(10);
       expect(data.challenge).toEqual({
@@ -1205,11 +1212,12 @@ describe("loadProfilePage", () => {
       estadisticas: ["records"],
       companeros: ["teammates"],
       partidas: ["matches", "matchDetail"],
+      grupo: ["group"],
     };
 
     it("la pestaña pedida se refleja en la vista", async () => {
       await insertProfile();
-      for (const tab of PROFILE_TABS) {
+      for (const tab of BASE_TABS) {
         expect((await loadProfile(tab)).tab).toBe(tab);
       }
     });
@@ -1221,7 +1229,7 @@ describe("loadProfilePage", () => {
       expect(base.summary.games).toBe(10);
       expect(base.album.length).toBeGreaterThan(0);
       expect(base.form).toHaveLength(10);
-      for (const tab of PROFILE_TABS) {
+      for (const tab of BASE_TABS) {
         const data: ProfileView = {
           ...(await loadProfile(tab)),
           tab: base.tab,
@@ -1237,9 +1245,9 @@ describe("loadProfilePage", () => {
     it("no carga datos de las pestañas no activas", async () => {
       await storeAll();
       await insertProfile();
-      for (const tab of PROFILE_TABS) {
+      for (const tab of BASE_TABS) {
         const data = await loadProfile(tab);
-        for (const other of PROFILE_TABS) {
+        for (const other of BASE_TABS) {
           if (other === tab) continue;
           for (const key of OWN_KEYS[other]) {
             expect(data, `${tab} no debe traer ${key}`).not.toHaveProperty(key);
@@ -1251,7 +1259,7 @@ describe("loadProfilePage", () => {
     it("la lista de compañeros no viaja fuera de su pestaña; el top 5 del raíl, sí", async () => {
       await storeAll();
       await insertProfile();
-      for (const tab of PROFILE_TABS) {
+      for (const tab of BASE_TABS) {
         if (tab === "companeros") continue;
         const data = await loadProfile(tab);
         expect(hasKeyDeep(data, "teammates")).toBe(false);
@@ -1262,6 +1270,40 @@ describe("loadProfilePage", () => {
         }
         expect(data.railTeammates).toHaveLength(5);
       }
+    });
+
+    describe("pestaña Grupo (solo miembros)", () => {
+      it("un miembro la ve: isMember, la vista del grupo y la clave de su fila", async () => {
+        const profile = await insertProfile();
+        await db.insert(groupMembers).values({ profileId: profile.id });
+        const data = await loadProfile("grupo");
+        expect(data.tab).toBe("grupo");
+        expect(data.isMember).toBe(true);
+        expect(data.group?.ownerKey).toBe(String(profile.id));
+        expect(data.group?.view.members.map((m) => m.key)).toEqual([
+          String(profile.id),
+        ]);
+        // Las claves de miembro no son puuids: el puuid real no sale en la vista del grupo.
+        expect(JSON.stringify(data.group)).not.toContain(SELF_PUUID);
+      });
+
+      it("un no miembro no la ve y ?tab=grupo es una pestaña desconocida: campeones, sin vista del grupo", async () => {
+        await insertProfile();
+        const data = await loadProfile("grupo");
+        expect(data.isMember).toBe(false);
+        expect(data.tab).toBe("campeones");
+        expect(data).not.toHaveProperty("group");
+      });
+
+      it("la vista del grupo solo se carga con la pestaña Grupo activa", async () => {
+        const profile = await insertProfile();
+        await db.insert(groupMembers).values({ profileId: profile.id });
+        for (const tab of BASE_TABS) {
+          const data = await loadProfile(tab);
+          expect(data.isMember).toBe(true);
+          expect(data).not.toHaveProperty("group");
+        }
+      });
     });
 
     it("las vistas sin perfil no dependen de la pestaña", async () => {
@@ -1277,7 +1319,7 @@ describe("loadProfilePage", () => {
       await storeAll();
       await insertProfile();
       expect(await loadProfile("estadisticas")).toHaveProperty("records");
-      for (const tab of PROFILE_TABS) {
+      for (const tab of BASE_TABS) {
         if (tab === "estadisticas") continue;
         expect(await loadProfile(tab)).not.toHaveProperty("records");
       }
@@ -1378,7 +1420,7 @@ describe("loadProfilePage", () => {
     it("solo la pestaña Resumen trae la curva y los destacados", async () => {
       await seedWithWins();
       expect(await loadProfile("resumen")).toHaveProperty("summaryTab");
-      for (const tab of PROFILE_TABS) {
+      for (const tab of BASE_TABS) {
         if (tab === "resumen") continue;
         expect(await loadProfile(tab)).not.toHaveProperty("summaryTab");
       }
@@ -1488,7 +1530,7 @@ describe("loadProfilePage", () => {
     it("sin ?campeon no hay clave, en ninguna pestaña: el payload no crece", async () => {
       await storeAll();
       await insertProfile();
-      for (const tab of PROFILE_TABS) {
+      for (const tab of BASE_TABS) {
         expect(await loadChampion(undefined, tab)).not.toHaveProperty(
           "champion",
         );
@@ -1570,7 +1612,7 @@ describe("loadProfilePage", () => {
       const base = (await loadChampion("thresh", "campeones", catalog))
         .champion;
       expect(base).toBeDefined();
-      for (const tab of PROFILE_TABS) {
+      for (const tab of BASE_TABS) {
         expect((await loadChampion("thresh", tab, catalog)).champion).toEqual(
           base,
         );
@@ -1580,7 +1622,7 @@ describe("loadProfilePage", () => {
     it("el frío/calor del cromo y el del panel salen de las mismas filas, en todas las pestañas", async () => {
       await storeAll();
       await insertProfile();
-      for (const tab of PROFILE_TABS) {
+      for (const tab of BASE_TABS) {
         const data = await loadChampion("thresh", tab, catalog);
         const entry = data.album.find((e) => e.championId === 412);
         // Thresh: 3 partidas (< 5), así que neutral, pero con su media ajustada.
@@ -1776,7 +1818,7 @@ describe("loadProfilePage", () => {
           small: true,
         },
       ];
-      for (const tab of PROFILE_TABS) {
+      for (const tab of BASE_TABS) {
         const data = await loadProfile(tab, params(10));
         // El mínimo de la tabla no afecta al raíl.
         expect(data.railTeammates, tab).toEqual(expected);
@@ -2156,7 +2198,7 @@ describe("loadProfilePage", () => {
 
     it("otras pestañas no traen ni la lista ni el detalle aunque la URL los pida", async () => {
       await seed();
-      for (const tab of PROFILE_TABS) {
+      for (const tab of BASE_TABS) {
         if (tab === "partidas") continue;
         const data = await loadProfilePage(
           db,

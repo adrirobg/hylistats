@@ -2,6 +2,7 @@
 // probarlas: la UI de este repo no tiene jsdom, así que lo que no es JSX vive aquí.
 
 import { formatRelative } from "@/lib/format";
+import { PERIODO_PARAM } from "../../grupo/group-view-model";
 import type { SyncProgress } from "./data";
 
 // --- Identidad ---------------------------------------------------------------------------
@@ -21,14 +22,20 @@ export function initials(gameName: string): string {
 
 // --- Pestañas ----------------------------------------------------------------------------
 
-/** Pestañas del perfil, en el orden de la barra (`?tab`; `campeones` es la de por defecto). */
-export const PROFILE_TABS = [
+/** Pestañas que tienen todos los perfiles, en el orden de la barra (`campeones` es la de por defecto). */
+export const BASE_TABS = [
   "campeones",
   "resumen",
   "estadisticas",
   "companeros",
   "partidas",
 ] as const;
+
+/**
+ * Todas las pestañas que `?tab` reconoce, en el orden de la barra. `grupo` (iter-05) va al final y
+ * solo la ven los miembros del grupo: ver `visibleTabs` y `availableTab`.
+ */
+export const PROFILE_TABS = [...BASE_TABS, "grupo"] as const;
 export type ProfileTab = (typeof PROFILE_TABS)[number];
 
 export const DEFAULT_TAB: ProfileTab = "campeones";
@@ -40,7 +47,21 @@ export const TAB_LABEL: Record<ProfileTab, string> = {
   estadisticas: "Estadísticas",
   companeros: "Compañeros",
   partidas: "Partidas",
+  grupo: "Grupo",
 };
+
+/** Pestañas de la barra de un perfil: las de todos y, si es miembro del grupo, también Grupo. */
+export function visibleTabs(isMember: boolean): readonly ProfileTab[] {
+  return isMember ? PROFILE_TABS : BASE_TABS;
+}
+
+/**
+ * Pestaña que se muestra de verdad: `Grupo` en un perfil que no es del grupo se trata como una
+ * pestaña desconocida y cae en la de por defecto (lo mismo que `?tab=otra`).
+ */
+export function availableTab(tab: ProfileTab, isMember: boolean): ProfileTab {
+  return visibleTabs(isMember).includes(tab) ? tab : DEFAULT_TAB;
+}
 
 /** `id` de la pestaña y del panel que controla: `aria-controls` / `aria-labelledby` las cruzan. */
 export const tabId = (tab: ProfileTab) => `tab-${tab}`;
@@ -59,18 +80,22 @@ export function parseProfileTab(
  * con activación manual: las flechas solo mueven el foco, Enter o Espacio activan). Las flechas dan
  * la vuelta en los extremos; `null` = la tecla no navega.
  */
-export function tabForKey(from: ProfileTab, key: string): ProfileTab | null {
-  const last = PROFILE_TABS.length - 1;
-  const index = PROFILE_TABS.indexOf(from);
+export function tabForKey(
+  from: ProfileTab,
+  key: string,
+  tabs: readonly ProfileTab[] = BASE_TABS,
+): ProfileTab | null {
+  const last = tabs.length - 1;
+  const index = tabs.indexOf(from);
   switch (key) {
     case "ArrowRight":
-      return PROFILE_TABS[index === last ? 0 : index + 1];
+      return tabs[index === last ? 0 : index + 1];
     case "ArrowLeft":
-      return PROFILE_TABS[index === 0 ? last : index - 1];
+      return tabs[index === 0 ? last : index - 1];
     case "Home":
-      return PROFILE_TABS[0];
+      return tabs[0];
     case "End":
-      return PROFILE_TABS[last];
+      return tabs[last];
     default:
       return null;
   }
@@ -361,6 +386,7 @@ const TAB_PARAMS: Record<ProfileTab, readonly string[]> = {
   estadisticas: [],
   companeros: ["min", "orden"],
   partidas: ["q", "puesto", "companero", "n", "partida"],
+  grupo: [PERIODO_PARAM], // el selector Hoy / Semana de la vista del grupo
 };
 
 /**

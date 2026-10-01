@@ -4,6 +4,7 @@ import type { Db } from "@/db";
 import { matches, participants, profiles } from "@/db/schema";
 import { ARENA_QUEUE_IDS, getSeasonStart } from "@/lib/config";
 import { lastGameAt } from "./album";
+import type { SeasonMatchRow } from "./group-season";
 import type { RecordRow } from "./records";
 import {
   type ChallengeComparison,
@@ -88,6 +89,52 @@ export async function getRecordRows(
       ),
     )
     .orderBy(asc(matches.gameCreation), asc(participants.matchId));
+}
+
+/**
+ * Partidas de **los miembros del grupo** (`puuids`) dentro de la temporada, en UNA consulta: las
+ * mismas columnas que `getRecordRows` más `puuid` y `playerSubteamId` (lo que necesitan los
+ * títulos, los dúos y tríos y la tabla de Temporada). Mismo filtro de colas y de temporada que
+ * `getPlayerRows`. Solo trae filas de quien está en `puuids`: los demás jugadores de la partida (un
+ * no miembro) no salen. Orden determinista: `gameCreation`, `matchId`, `puuid`. Sin `puuids`, no
+ * consulta. Los `puuid` son internos (los sustituye la capa de carga antes de salir).
+ */
+export async function getGroupRows(
+  db: Db,
+  puuids: readonly string[],
+  seasonStart: Date,
+): Promise<SeasonMatchRow[]> {
+  if (puuids.length === 0) return [];
+  return db
+    .select({
+      puuid: participants.puuid,
+      matchId: participants.matchId,
+      gameCreation: matches.gameCreation,
+      gameStartTimestamp: matches.gameStartTimestamp,
+      championId: participants.championId,
+      championName: participants.championName,
+      placement: participants.placement,
+      playerSubteamId: participants.playerSubteamId,
+      kills: participants.kills,
+      deaths: participants.deaths,
+      totalDamageDealtToChampions: participants.totalDamageDealtToChampions,
+      totalDamageTaken: participants.totalDamageTaken,
+      largestKillingSpree: participants.largestKillingSpree,
+    })
+    .from(participants)
+    .innerJoin(matches, eq(matches.matchId, participants.matchId))
+    .where(
+      and(
+        inArray(participants.puuid, [...puuids]),
+        inArray(matches.queueId, [...ARENA_QUEUE_IDS]),
+        gte(matches.gameCreation, seasonStart.getTime()),
+      ),
+    )
+    .orderBy(
+      asc(matches.gameCreation),
+      asc(participants.matchId),
+      asc(participants.puuid),
+    );
 }
 
 /**

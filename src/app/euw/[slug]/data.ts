@@ -29,6 +29,14 @@ import {
   recentForm,
 } from "@/domain/album";
 import { type ArenaGodGoal, arenaGodGoal } from "@/domain/arena-god";
+import { isGroupMember } from "@/domain/group";
+import type { PlayerTitle } from "@/domain/group-titles";
+import {
+  type GroupView,
+  loadGroupView,
+  loadProfileTitles,
+  memberKey,
+} from "@/domain/group-view";
 import { computeHeat } from "@/domain/heat";
 import { getProfileMatches } from "@/domain/matches";
 import {
@@ -85,7 +93,7 @@ import {
   type TeammateParams,
   teammatesAtLeast,
 } from "./teammates-view";
-import type { ProfileTab } from "./view-model";
+import { availableTab, type ProfileTab } from "./view-model";
 
 // Carga de datos de `/euw/{nombre}-{tag}`, separada de la página para poder probarla contra la
 // BD. Devuelve una lista blanca explícita: ni el `puuid` (ni siquiera se lee del perfil) llega a la
@@ -235,6 +243,10 @@ export interface ProfileView {
    * el raíl se pinta en todas las pestañas. Cifras ya formateadas y sin `puuid`.
    */
   railTeammates: RailTeammate[];
+  /** Títulos vigentes del miembro (badges de la cabecera); vacío si el perfil no es del grupo. */
+  titles: PlayerTitle[];
+  /** El perfil es miembro del grupo: decide si la barra lleva la pestaña Grupo. */
+  isMember: boolean;
 
   /**
    * Panel de campeón abierto (`?campeon` válido, sobre cualquier pestaña): la distribución y las
@@ -265,6 +277,11 @@ export interface ProfileView {
    * Son solo identificadores y cifras: los nombres y retratos salen del álbum, que ya viaja.
    */
   records?: Records;
+  /**
+   * La vista del grupo y la clave del dueño del perfil para destacar su fila (`tab === "grupo"`,
+   * solo en miembros: en los demás `grupo` cae en la pestaña por defecto).
+   */
+  group?: { view: GroupView; ownerKey: string };
 }
 
 export type ProfilePageData =
@@ -516,13 +533,17 @@ export async function loadProfilePage(
   }
 
   const now = new Date();
-  const [stats, sync, lastJobError, key, championCatalog] = await Promise.all([
-    getProfileStats(db, profile.id, seasonStart),
-    loadSyncProgress(db, profile.id, now),
-    loadLastJobError(db, profile.id),
-    getKeyStatus(db),
-    catalog,
-  ]);
+  const [stats, sync, lastJobError, key, championCatalog, titles, isMember] =
+    await Promise.all([
+      getProfileStats(db, profile.id, seasonStart),
+      loadSyncProgress(db, profile.id, now),
+      loadLastJobError(db, profile.id),
+      getKeyStatus(db),
+      catalog,
+      loadProfileTitles(db, profile.id, now.getTime(), seasonStart),
+      isGroupMember(db, profile.id),
+    ]);
+  const tab = availableTab(view.tab, isMember);
   if (!stats) return unregistered; // borrado entre las dos consultas
   const arenaQuiet = await loadArenaQuiet(
     db,
@@ -542,12 +563,25 @@ export async function loadProfilePage(
     view.campeon === undefined ? null : findChampionBySlug(album, view.campeon);
 
   const records =
-    view.tab === "estadisticas"
+    tab === "estadisticas"
       ? await loadRecords(db, profile.id, seasonStart)
       : null;
 
+  const group =
+    tab === "grupo"
+      ? {
+          view: await loadGroupView(
+            db,
+            now.getTime(),
+            seasonStart,
+            championCatalog,
+          ),
+          ownerKey: memberKey(profile.id),
+        }
+      : null;
+
   const partidas =
-    view.tab === "partidas"
+    tab === "partidas"
       ? await loadMatches(
           db,
           profile.id,
@@ -560,7 +594,7 @@ export async function loadProfilePage(
 
   return {
     kind: "profile",
-    tab: view.tab,
+    tab,
     gameName: profile.gameName,
     tagLine: profile.tagLine,
     seasonStart,
@@ -589,18 +623,20 @@ export async function loadProfilePage(
       championTotal: championCatalog.champions.length,
     }),
     railTeammates: railTeammates(stats.teammates, RAIL_TEAMMATES),
+    titles,
+    isMember,
     // La clave solo existe con `?campeon` válido: `...null` no añade nada.
     ...(championEntry && {
       champion: championPanelData(championEntry, stats.playerRows, heat),
     }),
     // Ídem para las claves de cada pestaña: `...false` no añade nada.
-    ...(view.tab === "companeros" && {
+    ...(tab === "companeros" && {
       teammates: teammatesAtLeast(
         stats.teammates,
         (view.teammates ?? DEFAULT_TEAMMATE_PARAMS).min,
       ),
     }),
-    ...(view.tab === "resumen" && {
+    ...(tab === "resumen" && {
       summaryTab: {
         // Los verificados de dominio (sin marcas manuales) y las filas ya cargadas: sin consultas nuevas.
         curve: wonCurve(
@@ -613,6 +649,7 @@ export async function loadProfilePage(
       },
     }),
     ...(records && { records }),
+    ...(group && { group }),
     ...(partidas && {
       matches: partidas.matches,
       ...(partidas.matchDetail && { matchDetail: partidas.matchDetail }),

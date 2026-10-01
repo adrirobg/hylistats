@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { type KeyboardEvent, useEffect, useRef } from "react";
 import {
-  PROFILE_TABS,
   type ProfileTab,
   panelId,
   TAB_LABEL,
@@ -22,12 +21,19 @@ import {
 // (roving tabindex), las flechas mueven el foco entre pestañas y Enter (nativo en un enlace) o
 // Espacio la activan.
 
-export function Tabs({ active }: { active: ProfileTab }) {
+export function Tabs({
+  active,
+  tabs,
+}: {
+  active: ProfileTab;
+  /** Pestañas de este perfil (`visibleTabs`): Grupo solo si es miembro. */
+  tabs: readonly ProfileTab[];
+}) {
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const listRef = useRef<HTMLDivElement>(null);
 
-  // En un contenedor estrecho las cuatro pestañas no caben y la barra se desplaza: se centra la
+  // En un contenedor estrecho las pestañas no caben y la barra se desplaza: se centra la
   // activa para que se vea (al abrir `?tab=partidas` por URL directa, por ejemplo). Se mueve el
   // scroll de la barra, no `scrollIntoView`, que también desplazaría la página.
   useEffect(() => {
@@ -48,7 +54,7 @@ export function Tabs({ active }: { active: ProfileTab }) {
       event.currentTarget.click();
       return;
     }
-    const next = tabForKey(tab, event.key);
+    const next = tabForKey(tab, event.key, tabs);
     if (next === null) return;
     event.preventDefault();
     document.getElementById(tabId(next))?.focus();
@@ -61,7 +67,7 @@ export function Tabs({ active }: { active: ProfileTab }) {
       aria-label="Secciones del perfil"
       className="mb-4 flex gap-1 overflow-x-auto border-b border-line"
     >
-      {PROFILE_TABS.map((tab) => (
+      {tabs.map((tab) => (
         <Link
           key={tab}
           role="tab"
