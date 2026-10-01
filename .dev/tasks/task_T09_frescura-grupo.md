@@ -1,7 +1,7 @@
 # Task T09 — Frescura del grupo: auto-refresco, botón Actualizar grupo y antigüedad
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -35,12 +35,16 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Al abrir la vista se encola el incremental solo de los miembros sin job activo y fuera del límite de 5 minutos (test y comprobación en `sync_jobs`) (AC10).
-- [ ] El botón "Actualizar grupo" pide el incremental de todos los miembros, respetando el cooldown (AC10).
-- [ ] La vista indica la sincronización del miembro menos reciente (AC10).
-- [ ] Todo pasa por la cola y el limitador existentes (AC10).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Al abrir la vista se encola el incremental solo de los miembros sin job activo y fuera del límite de 5 minutos (test y comprobación en `sync_jobs`) (AC10).
+- [x] El botón "Actualizar grupo" pide el incremental de todos los miembros, respetando el cooldown (AC10).
+- [x] La vista indica la sincronización del miembro menos reciente (AC10).
+- [x] Todo pasa por la cola y el limitador existentes (AC10).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `src/domain/group-sync.ts`: `ensureGroupFresh` (`ensureFreshOnView` por miembro), `refreshGroup` (`requestRefresh` interactivo por miembro), `countActiveGroupSyncs`. Miembros leídos del servidor; sin reglas nuevas en `queue.ts`; sin llamadas a Riot.
+- `src/app/grupo/actions.ts`: `ensureGroupFreshAction`, `refreshGroupAction` (no aceptan datos del cliente). `GroupFreshness` (cliente) reutiliza `auto-refresh-policy.ts`: montaje, vuelta a la pestaña y latido de 60 s con la pestaña visible; `router.refresh()` cada 3 s con jobs activos. Botón "Actualizar grupo" y aviso "Sincronización más antigua: hace X (miembro)" con `formatRelative`. Montado en `/grupo` y en la pestaña Grupo vía `freshness`.
+- Tests (`actions.test.ts`, BD de test): al abrir solo se encolan miembros sin job activo y fuera de 5 min; ningún no miembro; segundo disparo no duplica; el botón respeta el cooldown de 60 s y no duplica. `freshness-model.test.ts` para los textos.
+- Navegador (worker): aviso "Sincronización más antigua: hace 6 h (Krill1nt#EUW)" y "Actualizando 6 de 6" en `/grupo` y en la pestaña del perfil; con jobs pendientes, el botón responde "Ya se está actualizando" sin crear jobs. La comprobación en `sync_jobs` con worker activo queda para T10 (AC10).
+- Orquestador: `npm run lint && npm run typecheck && npm test && npm run build` en verde (59 ficheros, 1264 tests).

@@ -8,6 +8,7 @@ import { getChampionCatalog } from "@/lib/ddragon";
 import { formatDateTime } from "@/lib/format";
 import { getGameData } from "@/lib/game-data";
 import { parseProfileSlug, profileSlug } from "@/lib/riot-id";
+import { GroupFreshnessSection } from "../../grupo/group-freshness-section";
 import { GroupViewPanel } from "../../grupo/group-view";
 import { type Periodo, parsePeriodo } from "../../grupo/group-view-model";
 import { Album } from "./album";
@@ -466,6 +467,7 @@ function GroupTab({ data, periodo }: { data: ProfileView; periodo: Periodo }) {
           view={data.group.view}
           periodo={periodo}
           highlightKey={data.group.ownerKey}
+          freshness={<GroupFreshnessSection view={data.group.view} />}
         />
       )}
     </TabPanel>

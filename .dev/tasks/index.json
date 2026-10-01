@@ -113,7 +113,7 @@
     {
       "id": "T09",
       "title": "Frescura del grupo: auto-refresco, botón Actualizar grupo y antigüedad",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/9-capa-de-grupo",
       "worktree": null,
@@ -122,12 +122,12 @@
       ],
       "artifact_path": ".dev/tasks/task_T09_frescura-grupo.md",
       "created_at": "2026-09-30T23:16:04Z",
-      "updated_at": "2026-10-01T00:31:13Z"
+      "updated_at": "2026-10-01T00:35:37Z"
     },
     {
       "id": "T10",
       "title": "Verificación de iter-05",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "orchestrator",
       "branch": "feat/9-capa-de-grupo",
       "worktree": null,
@@ -137,7 +137,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T10_verificacion.md",
       "created_at": "2026-09-30T23:16:04Z",
-      "updated_at": "2026-09-30T23:16:04Z"
+      "updated_at": "2026-10-01T00:35:37Z"
     }
   ]
 }

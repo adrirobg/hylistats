@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { loadGroupView } from "@/domain/group-view";
 import { getChampionCatalog } from "@/lib/ddragon";
 import { TopBar } from "../euw/[slug]/top-bar";
+import { GroupFreshnessSection } from "./group-freshness-section";
 import { GroupViewPanel } from "./group-view";
 import { parsePeriodo } from "./group-view-model";
 
@@ -30,7 +31,11 @@ export default async function GroupPage({ searchParams }: PageProps<"/grupo">) {
         <h1 className="mb-4 font-display text-[40px] leading-none font-extrabold uppercase">
           Grupo
         </h1>
-        <GroupViewPanel view={view} periodo={parsePeriodo(query.periodo)} />
+        <GroupViewPanel
+          view={view}
+          periodo={parsePeriodo(query.periodo)}
+          freshness={<GroupFreshnessSection view={view} />}
+        />
       </div>
     </main>
   );
