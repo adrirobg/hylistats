@@ -1,7 +1,7 @@
 # Task T02 — BD en Supabase
 
 **Owner**: orchestrator
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -25,10 +25,15 @@ Esquema de Drizzle aplicado en Supabase y datos del Postgres local restaurados, 
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Migraciones de Supabase = `drizzle/` (AC2).
-- [ ] Recuentos por tabla idénticos (AC2).
-- [ ] Secuencias ajustadas y RLS sin efecto en el usuario de la app (AC2).
+- [x] Migraciones de Supabase = `drizzle/` (AC2).
+- [x] Recuentos por tabla idénticos (AC2).
+- [x] Secuencias ajustadas y RLS sin efecto en el usuario de la app (AC2).
 
 ## Evidencias <!-- MUST -->
 
-- {pendiente}
+- Conexión: `SUPABASE_DATABASE_URL` en `.env.local` (puesta por el supervisor; nunca impresa), pooler session `aws-1-eu-central-1.pooler.supabase.com:5432`, PostgreSQL 17.11, usuario `postgres`. Comandos lanzados con `psql`/`pg_dump` del contenedor `hylistats-postgres-1` (Postgres 17): en el Mac no hay cliente instalado y no hizo falta el MCP.
+- Migraciones: `tsx scripts/migrate.ts --url …` → 5 filas en `drizzle.__drizzle_migrations` = 5 ficheros en `drizzle/`.
+- Tablas: las 7 de `public` con dueño `postgres`, `rowsecurity = t` (RLS automático) y `relforcerowsecurity = f` → el dueño no queda sujeto al RLS.
+- Datos: `pg_dump --data-only --schema=public --no-owner --no-privileges` y `psql -1 -v ON_ERROR_STOP=1`. El primer intento se revirtió entero por la fila `settings.id=1` que siembra una migración; el segundo antepone `TRUNCATE settings;` → `RESTORE_OK`.
+- Recuentos idénticos (local = Supabase): group_members 6, match_fetch 1222, matches 1222, participants 21996, profiles 7, settings 1, sync_jobs 634 (cola local sin pendientes: 634 `done`, 1222 `done`).
+- Secuencias idénticas: `profiles_id_seq` 7, `sync_jobs_id_seq` 641.

@@ -15,7 +15,7 @@
     {
       "id": "T02",
       "title": "BD en Supabase",
-      "status": "in_progress",
+      "status": "done",
       "owner": "orchestrator",
       "branch": "feat/13-despliegue",
       "worktree": null,
@@ -24,12 +24,12 @@
       ],
       "artifact_path": ".dev/tasks/task_T02_bd-supabase.md",
       "created_at": "2026-10-02T09:00:00Z",
-      "updated_at": "2026-10-02T09:30:00Z"
+      "updated_at": "2026-10-02T10:00:00Z"
     },
     {
       "id": "T03",
       "title": "Servicio en Render",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "orchestrator",
       "branch": "feat/13-despliegue",
       "worktree": null,
@@ -39,7 +39,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T03_servicio-render.md",
       "created_at": "2026-10-02T09:00:00Z",
-      "updated_at": "2026-10-02T09:00:00Z"
+      "updated_at": "2026-10-02T10:00:00Z"
     },
     {
       "id": "T04",
