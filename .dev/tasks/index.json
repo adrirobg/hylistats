@@ -27,7 +27,7 @@
     {
       "id": "T03",
       "title": "Dominio de equipos de temporada y tabla de temporada",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/9-capa-de-grupo",
       "worktree": null,
@@ -36,12 +36,12 @@
       ],
       "artifact_path": ".dev/tasks/task_T03_dominio-equipos-temporada.md",
       "created_at": "2026-09-30T23:16:04Z",
-      "updated_at": "2026-09-30T23:27:59Z"
+      "updated_at": "2026-10-01T00:02:20Z"
     },
     {
       "id": "T04",
       "title": "Carga de datos de la vista del grupo",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:sonnet",
       "branch": "feat/9-capa-de-grupo",
       "worktree": null,
@@ -52,7 +52,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T04_carga-grupo.md",
       "created_at": "2026-09-30T23:16:04Z",
-      "updated_at": "2026-09-30T23:16:04Z"
+      "updated_at": "2026-10-01T00:02:20Z"
     },
     {
       "id": "T05",

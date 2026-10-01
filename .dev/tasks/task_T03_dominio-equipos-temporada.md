@@ -1,7 +1,7 @@
 # Task T03 — Dominio de equipos de temporada y tabla de temporada
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -39,11 +39,14 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Tablas de Dúos y Tríos de temporada con umbral, orden y solo miembros en Tríos, con tests (AC7).
-- [ ] Tabla de Temporada con las columnas de Resumen y Récords; valores idénticos a los del perfil (test de equivalencia) (AC8).
-- [ ] Líderes por columna con empates, con tests (AC8).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Tablas de Dúos y Tríos de temporada con umbral, orden y solo miembros en Tríos, con tests (AC7).
+- [x] Tabla de Temporada con las columnas de Resumen y Récords; valores idénticos a los del perfil (test de equivalencia) (AC8).
+- [x] Líderes por columna con empates, con tests (AC8).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `src/domain/group-season.ts` (+ 27 tests): `computeSeasonTeams` (= `computeTeams` de T02 con `GROUP_TEAM_MIN_GAMES`, orden partidas desc → 1º desc → puesto medio asc → key), `computeSeasonTable`/`computeSeasonRow` sobre `computeSummary`, `computeRecords`, `verifiedChampions` y `wonChampionsCount` (extraída de `arenaGodGoal` sin cambiar su comportamiento), `SEASON_COLUMNS` (Resumen 8 + Récords 7, sentido del líder), `sortSeasonRows`, `columnLeaders`.
+- Test de equivalencia celda a celda con `computeSummary`/`computeRecords`/`verifiedChampions` del mismo jugador (AC8). Líderes con empate, columna vacía y 0 que no lidera en columnas "alto".
+- Decisiones aceptadas por el orquestador: las rachas enlazan a su última partida (`matchId`) y conservan `fromMatchId`; un 0 no lidera en columnas de "más alto" (columna sin datos).
+- Orquestador: `npm run lint && npm run typecheck && npm test && npm run build` en verde (53 ficheros, 1186 tests).

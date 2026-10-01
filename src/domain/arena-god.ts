@@ -36,6 +36,14 @@ export interface ArenaGodGoal {
 }
 
 /**
+ * Campeones ganados que cuentan para el badge: `max(verificados, oficial ?? 0)`. Es el valor que
+ * decide «Deidad de Arena» y el que comparan los demás sitios de la app (p. ej. la tabla de
+ * Temporada del grupo); las marcas manuales nunca cuentan.
+ */
+export const wonChampionsCount = (verified: number, official: number | null) =>
+  Math.max(verified, official ?? 0);
+
+/**
  * Badge y meta de la barra. Con el badge conseguido la meta pasa a ser el catálogo entero
  * («Dios de Arena»). Fallback: si el catálogo no está disponible (caído o vacío) o trae menos de
  * `ARENA_GOD_THRESHOLD` campeones (incompleto), no hay un N fiable: la meta se queda en 60 con el
@@ -47,7 +55,7 @@ export function arenaGodGoal({
   official,
   championTotal,
 }: ArenaGodGoalInput): ArenaGodGoal {
-  const reached = Math.max(verified, official ?? 0) >= ARENA_GOD_THRESHOLD;
+  const reached = wonChampionsCount(verified, official) >= ARENA_GOD_THRESHOLD;
   const godGoal = reached && championTotal >= ARENA_GOD_THRESHOLD;
   return {
     reached,
