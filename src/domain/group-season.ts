@@ -196,6 +196,11 @@ export interface SeasonCell {
   fromMatchId: string | null;
   /** Campeón de la partida del récord o, en `topChampion`, el campeón con más 1º. */
   championName: string | null;
+  /**
+   * `championId` de ese campeón (clave del catálogo): permite resolver su nombre de visualización
+   * como el perfil, en vez de mostrar el `championName` de Match-V5 (`MonkeyKing`).
+   */
+  championId: number | null;
 }
 
 export interface SeasonRow {
@@ -222,6 +227,7 @@ const cell = (
   matchId: null,
   fromMatchId: null,
   championName: null,
+  championId: null,
   ...extra,
 });
 
@@ -230,6 +236,7 @@ const recordCell = (entry: RecordEntry | null): SeasonCell =>
     ? cell(entry.value, {
         matchId: entry.matchId,
         championName: entry.championName,
+        championId: entry.championId,
       })
     : cell(null);
 
@@ -266,7 +273,10 @@ export function computeSeasonRow(
       // Sin campeones ganados no hay tasa que calcular (el perfil pinta su estado vacío).
       firstTryRate: cell(firstTry.wonChampions === 0 ? null : firstTry.rate),
       topChampion: topChampion
-        ? cell(topChampion.firsts, { championName: topChampion.championName })
+        ? cell(topChampion.firsts, {
+            championName: topChampion.championName,
+            championId: topChampion.championId,
+          })
         : cell(null),
       damage: recordCell(records.records.damage),
       damageTaken: recordCell(records.records.damageTaken),

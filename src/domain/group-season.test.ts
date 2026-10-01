@@ -269,6 +269,7 @@ describe("computeSeasonTable", () => {
       value: 30_000,
       matchId: m1,
       championName: "Champ10",
+      championId: 10,
     });
     expect(a.cells.deaths).toMatchObject({ value: 9, matchId: m2 });
     // Racha de 1º: m1..m2 (2); sin 1º: solo m3 (1). Enlazan a la última partida de la racha.
@@ -383,6 +384,7 @@ describe("equivalencia con el perfil", () => {
     expect(a.firstTryRate.value).toBe(records.firstTry.rate);
     expect(a.topChampion.value).toBe(records.topChampion?.firsts);
     expect(a.topChampion.championName).toBe(records.topChampion?.championName);
+    expect(a.topChampion.championId).toBe(records.topChampion?.championId);
 
     for (const id of [
       "damage",
@@ -395,6 +397,7 @@ describe("equivalencia con el perfil", () => {
       expect(a[id].value).toBe(entry?.value ?? null);
       expect(a[id].matchId).toBe(entry?.matchId ?? null);
       expect(a[id].championName).toBe(entry?.championName ?? null);
+      expect(a[id].championId).toBe(entry?.championId ?? null);
     }
     expect(a.winStreak.value).toBe(records.longestWinStreak?.length);
     expect(a.winStreak.matchId).toBe(records.longestWinStreak?.toMatchId);
@@ -423,6 +426,7 @@ describe("sortSeasonRows", () => {
       matchId: null,
       fromMatchId: null,
       championName: null,
+      championId: null,
     };
     const cells = Object.fromEntries(
       SEASON_COLUMNS.map((c) => [

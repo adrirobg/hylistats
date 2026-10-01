@@ -9,8 +9,14 @@ import {
   loadMatchFixtures,
   variantOf,
 } from "../../tests/helpers/matches";
+import { computeSeasonTable, type SeasonMatchRow } from "./group-season";
 import { type AwardedTitle, titlesOf } from "./group-titles";
-import { loadGroupView, loadProfileTitles, memberKey } from "./group-view";
+import {
+  loadGroupView,
+  loadProfileTitles,
+  memberKey,
+  withDisplayNames,
+} from "./group-view";
 import { storeMatch } from "./ingest";
 
 const db = getTestDb();
@@ -407,5 +413,54 @@ describe("loadProfileTitles", () => {
   it("un miembro sin resolver: lista vacía (sin partidas)", async () => {
     const { e } = await seed();
     expect(await loadProfileTitles(db, e.id, now, seasonStart)).toEqual([]);
+  });
+});
+
+describe("withDisplayNames", () => {
+  const ts = Date.UTC(2026, 8, 1);
+  const row = (placement: number): SeasonMatchRow => ({
+    puuid: "A",
+    matchId: `EUW1_${placement}`,
+    gameCreation: ts + placement,
+    gameStartTimestamp: ts + placement,
+    championId: 62,
+    championName: "MonkeyKing",
+    placement,
+    playerSubteamId: 1,
+    kills: 5,
+    deaths: 3,
+    totalDamageDealtToChampions: 10_000,
+    totalDamageTaken: 8_000,
+    largestKillingSpree: 2,
+  });
+  const table = computeSeasonTable(
+    [{ puuid: "A", official: null }],
+    [row(1), row(2)],
+  );
+  const wukong: ChampionCatalog = {
+    version: "16.1.1",
+    champions: [
+      { championId: 62, ddId: "MonkeyKing", name: "Wukong", portraitUrl: null },
+    ],
+  };
+
+  it("el campeón sale con el nombre del catálogo, como en el perfil", () => {
+    const [{ cells }] = withDisplayNames(table, wukong).rows;
+    expect(cells.topChampion.championName).toBe("Wukong");
+    expect(cells.damage.championName).toBe("Wukong");
+    expect(cells.kills.championName).toBe("Wukong");
+    // Las celdas sin campeón no cambian.
+    expect(cells.games).toEqual(table.rows[0].cells.games);
+    expect(cells.winStreak.championName).toBeNull();
+  });
+
+  it("sin catálogo (o sin ese campeón) conserva el championName de la partida", () => {
+    const empty: ChampionCatalog = { version: null, champions: [] };
+    expect(withDisplayNames(table, empty)).toEqual(table);
+    const [{ cells }] = withDisplayNames(table, {
+      ...wukong,
+      champions: [{ ...wukong.champions[0], championId: 1 }],
+    }).rows;
+    expect(cells.damage.championName).toBe("MonkeyKing");
   });
 });

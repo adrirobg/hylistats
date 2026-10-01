@@ -25,6 +25,7 @@ import { type GroupMember, isGroupMember, listGroupMembers } from "./group";
 import {
   computeSeasonTable,
   computeSeasonTeams,
+  type SeasonCell,
   type SeasonMatchRow,
   type SeasonTable,
   type SeasonTeams,
@@ -39,6 +40,37 @@ import { getGroupRows } from "./queries";
 
 /** Clave estable y no sensible de un miembro en la salida: `String(profileId)`. */
 export const memberKey = (profileId: number): string => String(profileId);
+
+/**
+ * Sustituye el `championName` de Match-V5 de cada celda por el nombre de visualización del
+ * catálogo (por `championId`), con la misma regla que el perfil (`displayName` en `data.ts`:
+ * catálogo y, sin él o sin ese campeón, el `championName` de la partida). Así «MonkeyKing» sale
+ * como «Wukong» en /grupo igual que en el perfil del miembro.
+ */
+export function withDisplayNames(
+  table: SeasonTable,
+  catalog: ChampionCatalog,
+): SeasonTable {
+  const displayName = new Map(
+    catalog.champions.map((c) => [c.championId, c.name]),
+  );
+  const resolve = (cell: SeasonCell): SeasonCell =>
+    cell.championId === null
+      ? cell
+      : {
+          ...cell,
+          championName: displayName.get(cell.championId) ?? cell.championName,
+        };
+  return {
+    ...table,
+    rows: table.rows.map((row) => ({
+      ...row,
+      cells: Object.fromEntries(
+        Object.entries(row.cells).map(([id, cell]) => [id, resolve(cell)]),
+      ) as typeof row.cells,
+    })),
+  };
+}
 
 const EMPTY_CATALOG: ChampionCatalog = { version: null, champions: [] };
 
@@ -201,9 +233,12 @@ export async function loadGroupView(
     members: viewMembers,
     ...groupPeriods(rows, now),
     seasonTeams: computeSeasonTeams(rows),
-    seasonTable: computeSeasonTable(
-      viewMembers.map((m) => ({ puuid: m.key, official: m.official })),
-      rows,
+    seasonTable: withDisplayNames(
+      computeSeasonTable(
+        viewMembers.map((m) => ({ puuid: m.key, official: m.official })),
+        rows,
+      ),
+      championCatalog,
     ),
     championTotal: championCatalog.champions.length,
     oldestSync: oldestSyncOf(members),
