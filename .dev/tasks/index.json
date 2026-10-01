@@ -57,7 +57,7 @@
     {
       "id": "T05",
       "title": "Vista del grupo: página /grupo, Hoy / Semana y apartado Títulos",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/9-capa-de-grupo",
       "worktree": null,
@@ -66,12 +66,12 @@
       ],
       "artifact_path": ".dev/tasks/task_T05_vista-grupo.md",
       "created_at": "2026-09-30T23:16:04Z",
-      "updated_at": "2026-10-01T00:07:48Z"
+      "updated_at": "2026-10-01T00:18:30Z"
     },
     {
       "id": "T06",
       "title": "Bloques Equipos y Temporada en la vista del grupo",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:sonnet",
       "branch": "feat/9-capa-de-grupo",
       "worktree": null,
@@ -80,7 +80,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T06_equipos-temporada-ui.md",
       "created_at": "2026-09-30T23:16:04Z",
-      "updated_at": "2026-09-30T23:16:04Z"
+      "updated_at": "2026-10-01T00:18:30Z"
     },
     {
       "id": "T07",
@@ -99,7 +99,7 @@
     {
       "id": "T08",
       "title": "Badges de títulos en la cabecera del perfil",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:sonnet",
       "branch": "feat/9-capa-de-grupo",
       "worktree": null,
@@ -108,7 +108,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T08_badges-perfil.md",
       "created_at": "2026-09-30T23:16:04Z",
-      "updated_at": "2026-09-30T23:16:04Z"
+      "updated_at": "2026-10-01T00:18:30Z"
     },
     {
       "id": "T09",

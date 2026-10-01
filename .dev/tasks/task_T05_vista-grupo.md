@@ -1,7 +1,7 @@
 # Task T05 — Vista del grupo: página /grupo, Hoy / Semana y apartado Títulos
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -38,14 +38,18 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `/grupo` existe y se llega desde el enlace "Grupo" de la cabecera (AC9).
-- [ ] Hoy / Semana con ranking, "sin mínimo" y empates compartidos (AC3); fecha visible cuando el periodo no es el actual (AC2).
-- [ ] Cada título se abre con ratón, clic y foco (comprobado en el navegador), muestra métrica, valor y partidas y enlaza al apartado (AC5).
-- [ ] El valor de la explicación de cada título coincide con el de su fila en el ranking o en la tabla de su bloque (AC5).
-- [ ] Apartado Títulos con los 7 títulos, métricas, periodos, mínimos y reglas (AC5).
-- [ ] `Badge` abierto por foco (deuda de iter-04).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] `/grupo` existe y se llega desde el enlace "Grupo" de la cabecera (AC9).
+- [x] Hoy / Semana con ranking, "sin mínimo" y empates compartidos (AC3); fecha visible cuando el periodo no es el actual (AC2).
+- [x] Cada título se abre con ratón, clic y foco (comprobado en el navegador), muestra métrica, valor y partidas y enlaza al apartado (AC5).
+- [x] El valor de la explicación de cada título coincide con el de su fila en el ranking o en la tabla de su bloque (AC5).
+- [x] Apartado Títulos con los 7 títulos, métricas, periodos, mínimos y reglas (AC5).
+- [x] `Badge` abierto por foco (deuda de iter-04).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `src/app/grupo/`: `page.tsx` (`/grupo`, `force-dynamic`, noindex del layout), `GroupViewPanel` (props `view`, `periodo`, `highlightKey?`, `titlesHref?`, `freshness?`), `period-block.tsx`, `period-selector.tsx` (`?periodo=dia|semana`, conserva `tab`), `titles-section.tsx` (`#titulos`, mínimos desde `config.ts`), vista-modelo pura con 18 tests. Enlace "Grupo" en `TopBar`.
+- `Badge`: `open` controlado; abre por foco de teclado (`:focus-visible`), `initialFocus={false}`, cierre al salir el foco, Tab/Shift+Tab encauzados desde el popup; prop `link` al pie.
+- Decisiones aceptadas (AC5: el valor del título coincide con una tabla de su bloque): columna "Daño medio" en el ranking y tabla "Dúos y tríos del periodo" (equipos con el mínimo).
+- Navegador (orquestador, datos reales, 2026-10-01 ~01:10 Madrid): `/grupo` → "Día: 30 sept" (día de juego actual antes de las 06:00), ranking de 4 con mínimo y Krill1nt "sin mínimo" (2 partidas); semana "28 sept – 4 oct" con los 7 títulos. Tab sobre "El trol del día" → `aria-expanded=true`, popup "Peor puesto medio del día: 4,00 en 4 partidas" + "Cómo funcionan los títulos" (coincide con la fila 4,00 del ranking). A 375 px `scrollWidth` = 375.
+- Orquestador: `npm run lint && npm run typecheck && npm test && npm run build` en verde (55 ficheros, 1215 tests).
