@@ -1,7 +1,7 @@
 # Task T03 — Verificación en navegador
 
 **Owner**: orchestrator
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -23,7 +23,8 @@ Evidencia de AC1–AC6 sobre la app real en local.
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] AC1–AC6 con evidencia en `verify-report.md`.
+- [x] AC1–AC6 con evidencia en `verify-report.md`.
 
 ## Evidencias <!-- MUST -->
 
+- `.dev/verify-report.md` (PASS).
