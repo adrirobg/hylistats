@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { GroupView } from "@/domain/group-view";
+import { GROUP_TEAM_MIN_GAMES } from "@/lib/config";
 import {
   memberMap,
   PERIODO_KIND,
@@ -8,6 +9,8 @@ import {
 } from "./group-view-model";
 import { PeriodBlock } from "./period-block";
 import { PeriodSelector } from "./period-selector";
+import { SeasonTableView } from "./season-table";
+import { TeamsBlock } from "./teams-block";
 import { TitlesSection } from "./titles-section";
 
 // Vista del grupo (iter-05): un solo componente que muestra `/grupo` (`page.tsx`) y, con T07, la
@@ -18,7 +21,8 @@ import { TitlesSection } from "./titles-section";
 // Estructura, de arriba abajo; los huecos de las tasks siguientes están marcados:
 //   1. `freshness`        hueco de T09: botón «Actualizar grupo» y aviso de antigüedad.
 //   2. Hoy / Semana        (T05) ranking, «sin mínimo», títulos del periodo y equipos del periodo.
-//   3. Equipos, Temporada  hueco de T06, sobre `view.seasonTeams` y `view.seasonTable`.
+//   3. Equipos, Temporada  (T06) tablas de Dúos y Tríos de la temporada y tabla de Temporada
+//                          (Resumen y Récords, ordenable); la tabla es el otro componente de cliente.
 //   4. Títulos             (T05) apartado fijo, ancla `#titulos`.
 
 export interface GroupViewProps {
@@ -37,6 +41,18 @@ export interface GroupViewProps {
   titlesHref?: string;
   /** Hueco de T09, encima del bloque Hoy / Semana. */
   freshness?: ReactNode;
+}
+
+/** Título de bloque (Hoy / Semana, Equipos, Temporada). */
+function SectionHeading({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <h2
+      id={id}
+      className="font-display text-[14px] font-bold tracking-[0.14em] text-muted-foreground uppercase"
+    >
+      {children}
+    </h2>
+  );
 }
 
 export function GroupViewPanel({
@@ -67,12 +83,7 @@ export function GroupViewPanel({
         className="grid min-w-0 gap-3 rounded-[8px] border border-line bg-surface-1 p-3.5"
       >
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <h2
-            id="periodo-heading"
-            className="font-display text-[14px] font-bold tracking-[0.14em] text-muted-foreground uppercase"
-          >
-            Hoy / Semana
-          </h2>
+          <SectionHeading id="periodo-heading">Hoy / Semana</SectionHeading>
           <PeriodSelector active={periodo} />
         </div>
         <PeriodBlock
@@ -83,7 +94,45 @@ export function GroupViewPanel({
         />
       </section>
 
-      {/* T06: bloques Equipos (`view.seasonTeams`) y Temporada (`view.seasonTable`). */}
+      <section
+        aria-labelledby="equipos-heading"
+        className="grid min-w-0 gap-3 rounded-[8px] border border-line bg-surface-1 p-3.5"
+      >
+        <SectionHeading id="equipos-heading">Equipos</SectionHeading>
+        <p className="text-sm text-muted-foreground">
+          Toda la temporada, con {GROUP_TEAM_MIN_GAMES} o más partidas juntos.
+          Un dúo cuenta aunque el tercero del equipo no sea del grupo; los tríos
+          son solo de miembros.
+        </p>
+        <TeamsBlock
+          teams={view.seasonTeams}
+          members={members}
+          highlightKey={highlightKey}
+        />
+      </section>
+
+      <section
+        aria-labelledby="temporada-heading"
+        className="grid min-w-0 gap-3 rounded-[8px] border border-line bg-surface-1 p-3.5"
+      >
+        <SectionHeading id="temporada-heading">Temporada</SectionHeading>
+        <p className="text-sm text-muted-foreground">
+          Temporada actual, mismos valores que el perfil de cada miembro.
+          Campeones ganados cuenta la lista verificada o el contador oficial si
+          es mayor. Pulsa una cabecera para ordenar; en dorado, el líder de la
+          columna.
+        </p>
+        <SeasonTableView
+          table={view.seasonTable}
+          members={view.members.map(({ key, gameName, tagLine, slug }) => ({
+            key,
+            gameName,
+            tagLine,
+            slug,
+          }))}
+          highlightKey={highlightKey}
+        />
+      </section>
 
       <TitlesSection />
     </div>
