@@ -8,6 +8,8 @@ import { getChampionCatalog } from "@/lib/ddragon";
 import { formatDateTime } from "@/lib/format";
 import { getGameData } from "@/lib/game-data";
 import { parseProfileSlug, profileSlug } from "@/lib/riot-id";
+import { GroupViewPanel } from "../../grupo/group-view";
+import { type Periodo, parsePeriodo } from "../../grupo/group-view-model";
 import { Album } from "./album";
 import { ArenaGodBar } from "./arena-god";
 import { AutoRefresh } from "./auto-refresh";
@@ -36,6 +38,7 @@ import {
   parseProfileTab,
   queryParams,
   syncBandModel,
+  visibleTabs,
 } from "./view-model";
 
 // Depende de la BD y cambia con el worker: nunca se prerenderiza.
@@ -85,7 +88,11 @@ export default async function ProfilePage({
       {data.kind === "profile" ? (
         <>
           <AutoRefresh slug={actionSlug} active={data.sync !== null} />
-          <ProfileCabin data={data} slug={actionSlug} />
+          <ProfileCabin
+            data={data}
+            slug={actionSlug}
+            periodo={parsePeriodo(query.periodo)}
+          />
           <ChampionSheet data={data} />
         </>
       ) : (
@@ -115,7 +122,15 @@ export default async function ProfilePage({
 
 // --- Cabina ------------------------------------------------------------------------------
 
-function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
+function ProfileCabin({
+  data,
+  slug,
+  periodo,
+}: {
+  data: ProfileView;
+  slug: string;
+  periodo: Periodo;
+}) {
   const band = syncBandModel(data.sync, data.paused, Date.now());
   return (
     <Cabin
@@ -155,15 +170,23 @@ function ProfileCabin({ data, slug }: { data: ProfileView; slug: string }) {
         />
       }
       strip={<Scoreboard summary={data.summary} variant="strip" />}
-      tabs={<Tabs active={data.tab} />}
-      main={<ActivePanel data={data} slug={slug} />}
+      tabs={<Tabs active={data.tab} tabs={visibleTabs(data.isMember)} />}
+      main={<ActivePanel data={data} slug={slug} periodo={periodo} />}
       rail={<RailBoxes data={data} slug={slug} />}
     />
   );
 }
 
 /** Panel de la pestaña activa. */
-function ActivePanel({ data, slug }: { data: ProfileView; slug: string }) {
+function ActivePanel({
+  data,
+  slug,
+  periodo,
+}: {
+  data: ProfileView;
+  slug: string;
+  periodo: Periodo;
+}) {
   switch (data.tab) {
     case "campeones":
       return <ChampionsPanel data={data} />;
@@ -175,6 +198,8 @@ function ActivePanel({ data, slug }: { data: ProfileView; slug: string }) {
       return <SummaryTab data={data} slug={slug} />;
     case "estadisticas":
       return <StatsTab data={data} slug={slug} />;
+    case "grupo":
+      return <GroupTab data={data} periodo={periodo} />;
   }
 }
 
@@ -427,6 +452,23 @@ function StatsSkeleton() {
       <Skeleton className="h-32" />
       <Skeleton className="h-32" />
     </div>
+  );
+}
+
+// --- Pestaña Grupo (main) ----------------------------------------------------------------
+
+/** La vista de `/grupo` con la fila del dueño del perfil destacada (`data.group` solo existe en miembros). */
+function GroupTab({ data, periodo }: { data: ProfileView; periodo: Periodo }) {
+  return (
+    <TabPanel tab="grupo">
+      {data.group && (
+        <GroupViewPanel
+          view={data.group.view}
+          periodo={periodo}
+          highlightKey={data.group.ownerKey}
+        />
+      )}
+    </TabPanel>
   );
 }
 

@@ -85,7 +85,7 @@
     {
       "id": "T07",
       "title": "Pestaña Grupo en los perfiles de los miembros",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/9-capa-de-grupo",
       "worktree": null,
@@ -94,7 +94,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T07_pestana-grupo.md",
       "created_at": "2026-09-30T23:16:04Z",
-      "updated_at": "2026-09-30T23:16:04Z"
+      "updated_at": "2026-10-01T00:31:13Z"
     },
     {
       "id": "T08",
@@ -113,7 +113,7 @@
     {
       "id": "T09",
       "title": "Frescura del grupo: auto-refresco, botón Actualizar grupo y antigüedad",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:sonnet",
       "branch": "feat/9-capa-de-grupo",
       "worktree": null,
@@ -122,7 +122,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T09_frescura-grupo.md",
       "created_at": "2026-09-30T23:16:04Z",
-      "updated_at": "2026-09-30T23:16:04Z"
+      "updated_at": "2026-10-01T00:31:13Z"
     },
     {
       "id": "T10",

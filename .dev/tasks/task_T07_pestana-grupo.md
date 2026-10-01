@@ -1,7 +1,7 @@
 # Task T07 — Pestaña Grupo en los perfiles de los miembros
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -35,10 +35,14 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Pestaña Grupo en los perfiles de miembros y no en los de no miembros (AC9).
-- [ ] Mismos valores que `/grupo`, con la fila del dueño destacada (AC9).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Pestaña Grupo en los perfiles de miembros y no en los de no miembros (AC9).
+- [x] Mismos valores que `/grupo`, con la fila del dueño destacada (AC9).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `view-model.ts`: `PROFILE_TABS` incluye `grupo`, `BASE_TABS` (5), `visibleTabs(isMember)`, `availableTab(tab, isMember)` (no miembro con `?tab=grupo` → pestaña por defecto, como una desconocida), `TAB_PARAMS.grupo = [periodo]`. `tabs.tsx` recibe la lista visible.
+- `data.ts` (pegamento, patrón de `records`): `isGroupMember` en el `Promise.all`, `loadGroupView` solo con `tab === "grupo"`, `group: { view, ownerKey: memberKey(profile.id) }`. `page.tsx`: `GroupTab` reutiliza `GroupViewPanel` con `highlightKey`.
+- Tests: `view-model.test.ts` (pestañas de miembro y no miembro, hrefs con `periodo`, teclado) y `data.test.ts` (miembro recibe `group` sin puuid; no miembro con `tab=grupo` → `campeones`; `group` solo en su pestaña).
+- Navegador (worker): 6 miembros con 6 pestañas (Grupo al final), elruffles 5 y `?tab=grupo` → `panel-campeones`; en Hylimichi el texto de Hoy/Semana, Equipos y Temporada coincide con `/grupo`; selector Semana conserva `tab=grupo`. Orquestador: TheCIutch `?tab=grupo&periodo=semana` → `panel-grupo`, fila propia con `aria-current` en ranking y Temporada.
+- Orquestador: `npm run lint && npm run typecheck && npm test && npm run build` en verde (57 ficheros, 1250 tests).

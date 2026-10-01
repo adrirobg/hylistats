@@ -4,6 +4,8 @@ import type { SyncProgress } from "./data";
 import { matchSearch } from "./matches-view";
 import {
   arenaQuietPhrase,
+  availableTab,
+  BASE_TABS,
   dataAgePhrase,
   emptyState,
   incrementalStatus,
@@ -28,6 +30,7 @@ import {
   tabForKey,
   tabHref,
   tabId,
+  visibleTabs,
   whenPhrase,
   withoutSearchParam,
   withSearchParam,
@@ -78,14 +81,38 @@ describe("parseProfileTab", () => {
 });
 
 describe("pestañas: etiquetas e ids", () => {
-  it("cinco pestañas en el orden de la barra, con su etiqueta visible", () => {
-    expect(PROFILE_TABS.map((tab) => TAB_LABEL[tab])).toEqual([
+  it("cinco pestañas para todos y Grupo al final, con su etiqueta visible", () => {
+    expect(BASE_TABS.map((tab) => TAB_LABEL[tab])).toEqual([
       "Campeones",
       "Resumen",
       "Estadísticas",
       "Compañeros",
       "Partidas",
     ]);
+    expect(PROFILE_TABS.map((tab) => TAB_LABEL[tab])).toEqual([
+      "Campeones",
+      "Resumen",
+      "Estadísticas",
+      "Compañeros",
+      "Partidas",
+      "Grupo",
+    ]);
+  });
+
+  it("un miembro ve la pestaña Grupo; un no miembro, no", () => {
+    expect(visibleTabs(true)).toEqual(PROFILE_TABS);
+    expect(visibleTabs(true).at(-1)).toBe("grupo");
+    expect(visibleTabs(false)).toEqual(BASE_TABS);
+    expect(visibleTabs(false)).not.toContain("grupo");
+  });
+
+  it("?tab=grupo en un no miembro es una pestaña desconocida (campeones); en un miembro, Grupo", () => {
+    expect(availableTab("grupo", true)).toBe("grupo");
+    expect(availableTab("grupo", false)).toBe("campeones");
+    for (const tab of BASE_TABS) {
+      expect(availableTab(tab, false)).toBe(tab);
+      expect(availableTab(tab, true)).toBe(tab);
+    }
   });
 
   it("id de la pestaña y del panel que controla", () => {
@@ -221,6 +248,24 @@ describe("matchHref", () => {
   });
 });
 
+describe("tabHref y la pestaña Grupo", () => {
+  const PATH = "/euw/Foo-EUW";
+
+  it("lleva ?tab=grupo y conserva ?periodo si ya se está en ella", () => {
+    expect(tabHref(PATH, "", "grupo")).toBe(`${PATH}?tab=grupo`);
+    expect(tabHref(PATH, "tab=grupo&periodo=semana", "grupo")).toBe(
+      `${PATH}?tab=grupo&periodo=semana`,
+    );
+  });
+
+  it("al salir de Grupo se quita ?periodo, y al entrar desde otra no se arrastra", () => {
+    expect(tabHref(PATH, "tab=grupo&periodo=semana", "resumen")).toBe(
+      `${PATH}?tab=resumen`,
+    );
+    expect(tabHref(PATH, "periodo=semana", "grupo")).toBe(`${PATH}?tab=grupo`);
+  });
+});
+
 describe("tabHref y los parámetros de Partidas", () => {
   it("limpia todo lo que escribe Partidas (no se desincroniza de matches-view)", () => {
     const partidas = matchSearch({
@@ -247,6 +292,14 @@ describe("tabForKey", () => {
     expect(tabForKey("partidas", "ArrowRight")).toBe("campeones");
     expect(tabForKey("resumen", "ArrowLeft")).toBe("campeones");
     expect(tabForKey("campeones", "ArrowLeft")).toBe("partidas");
+  });
+
+  it("con la lista de un miembro, Grupo es la última: las flechas la incluyen", () => {
+    const tabs = visibleTabs(true);
+    expect(tabForKey("partidas", "ArrowRight", tabs)).toBe("grupo");
+    expect(tabForKey("grupo", "ArrowRight", tabs)).toBe("campeones");
+    expect(tabForKey("campeones", "ArrowLeft", tabs)).toBe("grupo");
+    expect(tabForKey("resumen", "End", tabs)).toBe("grupo");
   });
 
   it("Inicio y Fin saltan a los extremos", () => {
