@@ -43,6 +43,17 @@ Este proyecto es banco de pruebas de dev-system (instalado vía `/dev-setup`). A
 - En cada learn, las entradas abiertas se cosechan al `think.md` de dev-system (hilo "Dogfood hylistats") y se marcan como cosechadas en el log.
 - El dog-fooding no cambia el scope de hylistats: si una fricción bloquea, se escala al supervisor.
 
+## Stack e infraestructura
+
+- **App**: Next.js 16 (App Router) + React 19 + TypeScript, Tailwind 4 + shadcn/ui (Base UI) + Recharts 3, TanStack Query, Zod 4. Lint y formato con Biome; tests con Vitest. Node 24 (`.node-version`, lo leen Render y CI).
+- **Datos**: Postgres 17 con Drizzle ORM (`src/db/`, migraciones en `drizzle/`, `npm run db:migrate`). Local: `docker compose` (puerto 5433, BD `hylistats` y `hylistats_test`).
+- **Worker**: en el mismo proceso que Next, arrancado desde `src/instrumentation.ts` (`src/worker/`). Cola en BD, limitador de Riot en memoria y `pg_try_advisory_lock` para que solo haya uno activo. Debe haber **una sola instancia** de la app.
+- **Riot API**: cliente propio en `src/lib/riot/` (skill `riot-api`). Development key rotada a diario desde `/admin`; se guarda en la BD, nunca en el repo.
+- **Producción** (F22): Render Free (servicio `hylistats`, Frankfurt, <https://hylistats.onrender.com>) + Supabase Free (Postgres, `eu-central-1`). Se conecta por el pooler Supavisor en **modo session**; el modo transaction rompe el advisory lock. Las migraciones se aplican al arrancar (`npm run start:prod`). Runbook: [`docs/deploy.md`](docs/deploy.md).
+- **MCPs**: Render (conector de la cuenta) y Supabase (`.mcp.json`, limitado al proyecto).
+- **Secretos** (`DATABASE_URL`, `ADMIN_TOKEN`, keys de Riot): solo en `.env.local` o en el panel del host. Nunca en el repo, en logs ni en el chat, ni con prefijo `NEXT_PUBLIC_`.
+- **Exposición** (F9): web sin publicitar, con `noindex` en tres capas; se comparte por enlace en el grupo.
+
 ## Next.js 16
 
 <!-- BEGIN:nextjs-agent-rules -->
