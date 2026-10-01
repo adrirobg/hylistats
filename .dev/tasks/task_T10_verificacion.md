@@ -1,7 +1,7 @@
 # Task T10 — Verificación de iter-05
 
 **Owner**: orchestrator
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -34,11 +34,13 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] AC1–AC10 con evidencia (comandos, salidas, capturas).
-- [ ] AC11: cruce independiente, todas las comparaciones cuadran o se explican y corrigen.
-- [ ] AC12 listado como gate manual del supervisor.
-- [ ] `.dev/verify-report.md` escrito.
+- [x] AC1–AC10 con evidencia (comandos, salidas, capturas).
+- [x] AC11: cruce independiente, todas las comparaciones cuadran o se explican y corrigen.
+- [x] AC12 listado como gate manual del supervisor.
+- [x] `.dev/verify-report.md` escrito.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `.dev/verify-report.md`: **PASS (gate manual pendiente)**. AC1–AC10 con evidencia de navegador, `sync_jobs` y checks locales (59 ficheros, 1264 tests); AC11 con cruce SQL independiente sin diferencias (anexo A); AC12 como gate de merge (F18).
+- Alta de los 6 miembros de F19 desde `/admin` (AC1), con error claro para un Riot ID no registrado.
+- Corrección durante Execute/Verify: `f59ba71` (nombre de visualización del campeón en Temporada, AC8).
