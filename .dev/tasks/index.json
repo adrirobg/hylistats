@@ -1,3 +1,45 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Token mínimo de admin",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/11-maquetacion-admin",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T01_token-minimo-admin.md",
+      "created_at": "2026-10-01T20:00:00Z",
+      "updated_at": "2026-10-01T20:00:00Z"
+    },
+    {
+      "id": "T02",
+      "title": "Maquetación de /admin",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/11-maquetacion-admin",
+      "worktree": null,
+      "depends_on": [
+        "T01"
+      ],
+      "artifact_path": ".dev/tasks/task_T02_maquetacion-admin.md",
+      "created_at": "2026-10-01T20:00:00Z",
+      "updated_at": "2026-10-01T20:00:00Z"
+    },
+    {
+      "id": "T03",
+      "title": "Verificación en navegador",
+      "status": "pending",
+      "owner": "orchestrator",
+      "branch": "feat/11-maquetacion-admin",
+      "worktree": null,
+      "depends_on": [
+        "T01",
+        "T02"
+      ],
+      "artifact_path": ".dev/tasks/task_T03_verificacion.md",
+      "created_at": "2026-10-01T20:00:00Z",
+      "updated_at": "2026-10-01T20:00:00Z"
+    }
+  ]
 }
