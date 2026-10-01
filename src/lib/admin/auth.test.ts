@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  ADMIN_TOKEN_MIN_LENGTH,
   adminSessionValue,
   checkAdminToken,
   isAdminBearer,
@@ -8,7 +9,7 @@ import {
   isAdminSession,
 } from "./auth";
 
-const TOKEN = "test-admin-token-123";
+const TOKEN = "test-admin-token-1234567890-abcdef";
 
 beforeEach(() => {
   vi.stubEnv("ADMIN_TOKEN", TOKEN);
@@ -27,13 +28,51 @@ describe("isAdminConfigured", () => {
   });
 });
 
+describe("longitud mínima de ADMIN_TOKEN", () => {
+  const short = "a".repeat(ADMIN_TOKEN_MIN_LENGTH - 1);
+  const exact = "a".repeat(ADMIN_TOKEN_MIN_LENGTH);
+
+  it("el mínimo es 32 caracteres", () => {
+    expect(ADMIN_TOKEN_MIN_LENGTH).toBe(32);
+  });
+
+  it("con 31 caracteres cuenta como no configurado y rechaza todo aunque coincida", () => {
+    vi.stubEnv("ADMIN_TOKEN", short);
+    expect(isAdminConfigured()).toBe(false);
+    expect(checkAdminToken(short)).toBe(false);
+    expect(
+      isAdminSession(
+        createHmac("sha256", short).update("hylistats-admin").digest("hex"),
+      ),
+    ).toBe(false);
+    expect(isAdminBearer(`Bearer ${short}`)).toBe(false);
+    expect(() => adminSessionValue()).toThrow();
+  });
+
+  it("con 32 caracteres funciona", () => {
+    vi.stubEnv("ADMIN_TOKEN", exact);
+    expect(isAdminConfigured()).toBe(true);
+    expect(checkAdminToken(exact)).toBe(true);
+    expect(isAdminSession(adminSessionValue())).toBe(true);
+    expect(isAdminBearer(`Bearer ${exact}`)).toBe(true);
+  });
+
+  it("los espacios en los extremos no cuentan para la longitud", () => {
+    vi.stubEnv("ADMIN_TOKEN", `  ${short}  `);
+    expect(isAdminConfigured()).toBe(false);
+    vi.stubEnv("ADMIN_TOKEN", `  ${exact}  `);
+    expect(isAdminConfigured()).toBe(true);
+    expect(checkAdminToken(exact)).toBe(true);
+  });
+});
+
 describe("checkAdminToken", () => {
   it("acepta el token correcto", () => {
     expect(checkAdminToken(TOKEN)).toBe(true);
   });
 
   it("rechaza tokens incorrectos, de otra longitud, vacíos o ausentes", () => {
-    expect(checkAdminToken("test-admin-token-124")).toBe(false);
+    expect(checkAdminToken("test-admin-token-1234567890-abcdeg")).toBe(false);
     expect(checkAdminToken(TOKEN.slice(0, -1))).toBe(false);
     expect(checkAdminToken(`${TOKEN}extra`)).toBe(false);
     expect(checkAdminToken("")).toBe(false);
@@ -58,7 +97,7 @@ describe("sesión de admin", () => {
     expect(value).not.toContain(TOKEN);
     expect(adminSessionValue()).toBe(value);
 
-    vi.stubEnv("ADMIN_TOKEN", "otro-token");
+    vi.stubEnv("ADMIN_TOKEN", "otro-admin-token-1234567890-abcdef");
     expect(adminSessionValue()).not.toBe(value);
   });
 
@@ -81,7 +120,7 @@ describe("sesión de admin", () => {
 
   it("una sesión emitida con otro token deja de valer al cambiar ADMIN_TOKEN", () => {
     const value = adminSessionValue();
-    vi.stubEnv("ADMIN_TOKEN", "otro-token");
+    vi.stubEnv("ADMIN_TOKEN", "otro-admin-token-1234567890-abcdef");
     expect(isAdminSession(value)).toBe(false);
   });
 

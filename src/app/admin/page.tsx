@@ -1,21 +1,24 @@
 import { cookies } from "next/headers";
+import { Box } from "@/components/hy/box";
+import { Btn } from "@/components/hy/btn";
+import { Notice } from "@/components/hy/notice";
+import { Input } from "@/components/ui/input";
 import { getDb } from "@/db";
 import { listGroupMembers, NOT_REGISTERED_MESSAGE } from "@/domain/group";
 import {
   ADMIN_COOKIE,
+  ADMIN_TOKEN_MIN_LENGTH,
   isAdminConfigured,
   isAdminSession,
 } from "@/lib/admin/auth";
 import { getKeyStatus } from "@/lib/admin/key-service";
-import { formatDateTime } from "@/lib/format";
 import { getWorkerStatus } from "@/worker/main";
-import {
-  addGroupMemberAction,
-  loginAction,
-  logoutAction,
-  removeGroupMemberAction,
-  saveKeyAction,
-} from "./actions";
+import { TopBar } from "../euw/[slug]/top-bar";
+import { loginAction, logoutAction } from "./actions";
+import { GroupBox } from "./group-box";
+import { KeyBox } from "./key-box";
+import { NarrowPage } from "./narrow-box";
+import { WorkerBox } from "./worker-box";
 
 // Depende de la cookie y de la BD: nunca se prerenderiza.
 export const dynamic = "force-dynamic";
@@ -43,9 +46,15 @@ const GROUP_MESSAGES: Record<string, string> = {
 export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   if (!isAdminConfigured()) {
     return (
-      <main className="p-6">
-        <p>Admin deshabilitado: define ADMIN_TOKEN</p>
-      </main>
+      <NarrowPage>
+        <Box title="Admin" titleAs="h2">
+          <p className="text-sm">
+            Admin deshabilitado: define ADMIN_TOKEN con al menos{" "}
+            {ADMIN_TOKEN_MIN_LENGTH} caracteres (por ejemplo,{" "}
+            <code>openssl rand -base64 32</code>).
+          </p>
+        </Box>
+      </NarrowPage>
     );
   }
 
@@ -54,17 +63,33 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
 
   if (!isAdminSession(session)) {
     return (
-      <main className="p-6">
-        <h1>Admin</h1>
-        {error === "token" && <p role="alert">Token incorrecto.</p>}
-        <form action={loginAction}>
-          <label>
-            Token de admin{" "}
-            <input type="password" name="token" autoComplete="off" required />
-          </label>{" "}
-          <button type="submit">Entrar</button>
-        </form>
-      </main>
+      <NarrowPage>
+        <Box title="Admin" titleAs="h2">
+          {error === "token" && (
+            <Notice role="alert" variant="danger" className="mb-3 flex-nowrap">
+              Token incorrecto.
+            </Notice>
+          )}
+          <form action={loginAction} className="flex flex-col gap-2">
+            <label
+              htmlFor="admin-token"
+              className="text-sm text-muted-foreground"
+            >
+              Token de admin
+            </label>
+            <Input
+              id="admin-token"
+              type="password"
+              name="token"
+              autoComplete="off"
+              required
+            />
+            <Btn type="submit" className="mt-1 w-full justify-center">
+              Entrar
+            </Btn>
+          </form>
+        </Box>
+      </NarrowPage>
     );
   }
 
@@ -75,79 +100,27 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   const groupMessage = typeof group === "string" ? GROUP_MESSAGES[group] : null;
 
   return (
-    <main className="p-6">
-      <h1>Admin</h1>
-
-      <h2>Key de Riot</h2>
-      <ul>
-        <li>Estado: {key.status}</li>
-        <li>Desde: {formatDateTime(key.since)}</li>
-        {key.reason && <li>Motivo: {key.reason}</li>}
-        <li>Fuente: {key.source}</li>
-        <li>Guardada: {formatDateTime(key.updatedAt)}</li>
-        {key.expiresHint && (
-          <li>
-            Caduca aprox.: {formatDateTime(key.expiresHint)} (última key + 24 h)
-          </li>
-        )}
-      </ul>
-
-      <h2>Worker</h2>
-      <ul>
-        <li>Estado: {worker.state}</li>
-        <li>Última actividad: {formatDateTime(worker.lastActivityAt)}</li>
-        <li>Job actual: {worker.currentJobId ?? "-"}</li>
-        {worker.lastError && <li>Último error: {worker.lastError}</li>}
-      </ul>
-
-      <h2>Nueva key</h2>
-      {message && <output>{message}</output>}
-      <form action={saveKeyAction}>
-        <label>
-          Key de Riot{" "}
-          <input type="password" name="key" autoComplete="off" required />
-        </label>{" "}
-        <button type="submit">Validar y guardar</button>
-      </form>
-
-      <h2>Grupo</h2>
-      {groupMessage && <output>{groupMessage}</output>}
-      {members.length === 0 ? (
-        <p>Sin miembros.</p>
-      ) : (
-        <ul>
-          {members.map((m) => (
-            <li key={m.profileId}>
-              {m.gameName}#{m.tagLine} (última sync:{" "}
-              {formatDateTime(m.lastSyncedAt)}){" "}
-              <form
-                action={removeGroupMemberAction}
-                style={{ display: "inline" }}
-              >
-                <input type="hidden" name="profileId" value={m.profileId} />
-                <button type="submit">Quitar</button>
-              </form>
-            </li>
-          ))}
-        </ul>
-      )}
-      <form action={addGroupMemberAction}>
-        <label>
-          Riot ID del perfil registrado{" "}
-          <input
-            type="text"
-            name="riotId"
-            placeholder="Nombre#TAG"
-            autoComplete="off"
-            required
-          />
-        </label>{" "}
-        <button type="submit">Añadir al grupo</button>
-      </form>
-
-      <form action={logoutAction}>
-        <button type="submit">Cerrar sesión</button>
-      </form>
+    <main className="flex flex-1 flex-col">
+      <TopBar />
+      <div className="mx-auto w-full max-w-[960px] min-w-0 px-0 pt-2 sm:pt-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h1 className="font-display text-[40px] leading-none font-extrabold uppercase">
+            Admin
+          </h1>
+          <form action={logoutAction}>
+            <Btn type="submit" size="small">
+              Cerrar sesión
+            </Btn>
+          </form>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 [&>*]:min-w-0">
+          <KeyBox status={key} result={result} message={message} />
+          <WorkerBox worker={worker} />
+          <div className="md:col-span-2">
+            <GroupBox members={members} group={group} message={groupMessage} />
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

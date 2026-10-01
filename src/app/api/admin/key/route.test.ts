@@ -20,7 +20,7 @@ vi.mock("@/lib/riot/client", () => ({
 }));
 
 const db = getTestDb();
-const TOKEN = "test-admin-token-123";
+const TOKEN = "test-admin-token-1234567890-abcdef";
 const KEY = "RGAPI-test-secret-000";
 
 beforeEach(async () => {
