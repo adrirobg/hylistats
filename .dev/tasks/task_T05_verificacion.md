@@ -1,7 +1,7 @@
 # Task T05 — Verificación contra la URL pública
 
 **Owner**: orchestrator
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -22,8 +22,8 @@
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Evidencias de AC1–AC8 en `verify-report.md`, veredicto explícito.
+- [x] Evidencias de AC1–AC8 en `verify-report.md`, veredicto explícito.
 
 ## Evidencias <!-- MUST -->
 
-- {pendiente}
+- `.dev/verify-report.md`: **PASS** con AC1–AC6 y AC8 cumplidos, AC7 diferido al uso real (la prueba de sueño se invalidó porque el grupo empezó a usar la web; aprobado por el supervisor) y AC9 abierto (F18).

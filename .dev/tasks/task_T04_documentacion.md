@@ -1,7 +1,7 @@
 # Task T04 — Documentación
 
 **Owner**: orchestrator
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -22,9 +22,11 @@ Que una sesión limpia sepa qué stack e infraestructura tiene el proyecto y pue
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Sección de `AGENTS.md` fiel a lo desplegado (AC8).
-- [ ] `docs/deploy.md` cubre los puntos del paso 2 (AC8).
+- [x] Sección de `AGENTS.md` fiel a lo desplegado (AC8).
+- [x] `docs/deploy.md` cubre los puntos del paso 2 (AC8).
 
 ## Evidencias <!-- MUST -->
 
-- {pendiente}
+- `AGENTS.md`: sección "Stack e infraestructura" (app, datos, worker, Riot, producción F22, MCPs, secretos, exposición) antes del bloque de Next.js 16; enlaza a `docs/deploy.md`. `CLAUDE.md` sin cambios.
+- `docs/deploy.md`: piezas con IDs y URLs, despliegue (build, arranque con migraciones, health check, solape de 60 s y advisory lock), variables de entorno, rotación de la dev key (navegador y `curl` a `/api/admin/key`), backup y restauración con el `pg_dump`/`psql` del contenedor (incluye el `TRUNCATE settings`), tabla de límites Free con qué hacer, herramientas (MCPs y paneles).
+- Datos medidos en T03 (memoria, CPU 0,15, tiempos de página) incorporados. Commit df60262.

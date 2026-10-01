@@ -1,7 +1,7 @@
 # Task T03 — Servicio en Render
 
 **Owner**: orchestrator
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -24,10 +24,15 @@ Servicio `hylistats` en Render (Frankfurt, Free) desplegando la app con los secr
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Servicio creado con la configuración indicada (AC3).
-- [ ] Deploy correcto con migraciones al arrancar (AC3).
-- [ ] `/api/health` OK (AC5).
+- [x] Servicio creado con la configuración indicada (AC3).
+- [x] Deploy correcto con migraciones al arrancar (AC3).
+- [x] `/api/health` OK (AC5).
 
 ## Evidencias <!-- MUST -->
 
-- {pendiente}
+- Workspace: único, "My Workspace" (`tea-davctigu01pc73e9e6n0`).
+- Servicio `hylistats` (`srv-dave04qd0e5s73fkle3g`) creado con el MCP: repo `adrirobg/hylistats`, rama `feat/13-despliegue` (pasar a `main` tras el merge: el MCP no edita la rama), runtime node, build `npm ci && npm run build`, arranque `npm run start:prod`, Frankfurt, plan free, autodeploy; variables no secretas `SEASON_START`, `WORKER_ENABLED`. URL: https://hylistats.onrender.com. Render compila con plan de build `starter` (sin problemas de memoria; build ~55 s).
+- Primer deploy (sin secretos): build OK, arranque falla con `nonZeroExit: 1` (falta `DATABASE_URL`), como se esperaba.
+- El supervisor añadió `DATABASE_URL` (pooler session) y `ADMIN_TOKEN` en el panel y el health check `/api/health` (el MCP no lo permite). Deploys `dep-dave2svavr4c73bl49c0` y `dep-dave36unfi0s73fsggu0`: `succeeded`.
+- `/api/health`: `ok: true`, `db: ok`, worker `idle` con el lock, key `ok` (la dev key restaurada desde local, `source: db`).
+- Métricas: memoria ~170 MB de 512 MB; límite de CPU 0,15.
