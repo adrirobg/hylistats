@@ -35,7 +35,11 @@ export function GroupBox({
   message: string | null | undefined;
 }) {
   return (
-    <Box title="Grupo" titleAs="h2" hint={`${members.length} miembros`}>
+    <Box
+      title="Grupo"
+      titleAs="h2"
+      hint={`${members.length} ${members.length === 1 ? "miembro" : "miembros"}`}
+    >
       {message && (
         <Notice
           role="status"
