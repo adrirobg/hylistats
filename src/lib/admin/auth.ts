@@ -4,18 +4,26 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 // Acceso de operador a `/admin` y `/api/admin/*` (stack.md §7.1): no es un login de usuarios,
 // es un secreto único (`ADMIN_TOKEN`). Sin librería de auth: comparaciones en tiempo constante
 // y una cookie de sesión derivada del token por HMAC (cambiar el token invalida las sesiones).
+// Un `ADMIN_TOKEN` de menos de `ADMIN_TOKEN_MIN_LENGTH` caracteres cuenta como no configurado.
 
 /** Nombre de la cookie de sesión de `/admin`. */
 export const ADMIN_COOKIE = "hylistats_admin";
 /** Duración de la sesión de `/admin`. */
 export const ADMIN_SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 
+/** Longitud mínima (tras `trim`) de `ADMIN_TOKEN`; con menos, el admin queda deshabilitado. */
+export const ADMIN_TOKEN_MIN_LENGTH = 32;
+
 /** Mensaje que firma la cookie: fija, solo sirve para que la cookie no sea el token. */
 const SESSION_MESSAGE = "hylistats-admin";
 
-/** `ADMIN_TOKEN` del entorno (sin espacios en los extremos); `null` si falta o está vacío. */
+/**
+ * `ADMIN_TOKEN` del entorno (sin espacios en los extremos); `null` si falta, está vacío
+ * o tiene menos de `ADMIN_TOKEN_MIN_LENGTH` caracteres.
+ */
 function getAdminToken(): string | null {
-  return process.env.ADMIN_TOKEN?.trim() || null;
+  const token = process.env.ADMIN_TOKEN?.trim();
+  return token && token.length >= ADMIN_TOKEN_MIN_LENGTH ? token : null;
 }
 
 /** SHA-256 de ambas cadenas + `timingSafeEqual`: tiempo constante aunque cambie la longitud. */
@@ -25,7 +33,7 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(hashA, hashB);
 }
 
-/** ¿Hay `ADMIN_TOKEN`? Sin él, `/admin` y `/api/admin/*` quedan deshabilitados. */
+/** ¿Hay `ADMIN_TOKEN` válido (≥ `ADMIN_TOKEN_MIN_LENGTH` caracteres)? Sin él, `/admin` y `/api/admin/*` quedan deshabilitados. */
 export function isAdminConfigured(): boolean {
   return getAdminToken() !== null;
 }

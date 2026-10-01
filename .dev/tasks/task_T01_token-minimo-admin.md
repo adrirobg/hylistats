@@ -1,7 +1,7 @@
 # Task T01 — Token mínimo de admin
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -35,10 +35,12 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Token <32 (tras `trim`) deshabilita login, cookie y `Bearer`; con tests (AC1).
-- [ ] Mensaje de deshabilitado con el mínimo y cómo generarlo (AC1).
-- [ ] `.env.example` documentado (AC2).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Token <32 (tras `trim`) deshabilita login, cookie y `Bearer`; con tests (AC1).
+- [x] Mensaje de deshabilitado con el mínimo y cómo generarlo (AC1).
+- [x] `.env.example` documentado (AC2).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
+- `getAdminToken` devuelve `null` con token <32 tras `trim`; `ADMIN_TOKEN_MIN_LENGTH` exportada. Tests nuevos en `auth.test.ts` (31 → deshabilitado y rechazos; 32 → funciona; espacios en extremos no cuentan); tokens de test subidos a ≥32 en los tres ficheros.
+- `npm run lint && npm run typecheck && npm test && npm run build`: exit 0, 1268/1268 tests.

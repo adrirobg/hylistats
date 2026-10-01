@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { listGroupMembers, NOT_REGISTERED_MESSAGE } from "@/domain/group";
 import {
   ADMIN_COOKIE,
+  ADMIN_TOKEN_MIN_LENGTH,
   isAdminConfigured,
   isAdminSession,
 } from "@/lib/admin/auth";
@@ -44,7 +45,11 @@ export default async function AdminPage({ searchParams }: PageProps<"/admin">) {
   if (!isAdminConfigured()) {
     return (
       <main className="p-6">
-        <p>Admin deshabilitado: define ADMIN_TOKEN</p>
+        <p>
+          Admin deshabilitado: define ADMIN_TOKEN con al menos{" "}
+          {ADMIN_TOKEN_MIN_LENGTH} caracteres (por ejemplo,{" "}
+          <code>openssl rand -base64 32</code>).
+        </p>
       </main>
     );
   }
