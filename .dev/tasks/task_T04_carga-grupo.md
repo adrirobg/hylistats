@@ -1,7 +1,7 @@
 # Task T04 — Carga de datos de la vista del grupo
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -35,12 +35,15 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Consulta de filas del grupo solo de miembros, con el filtro de temporada y colas de siempre (AC1).
-- [ ] `loadGroupView` y `loadProfileTitles` en un módulo propio; `data.ts` no crece (Riesgos).
-- [ ] Test: un no miembro no aparece en ninguna cifra (AC1).
-- [ ] Test: los títulos de `loadProfileTitles` son exactamente los de `loadGroupView` para ese perfil (AC6, AC9).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Consulta de filas del grupo solo de miembros, con el filtro de temporada y colas de siempre (AC1).
+- [x] `loadGroupView` y `loadProfileTitles` en un módulo propio; `data.ts` no crece (Riesgos).
+- [x] Test: un no miembro no aparece en ninguna cifra (AC1).
+- [x] Test: los títulos de `loadProfileTitles` son exactamente los de `loadGroupView` para ese perfil (AC6, AC9).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-Pendiente.
+- `getGroupRows` en `src/domain/queries.ts`: una consulta, `participants.puuid IN (miembros)`, mismas colas (`ARENA_QUEUE_IDS`) y filtro de temporada que `getPlayerRows`/`getRecordRows`.
+- `src/domain/group-view.ts`: `loadGroupView(db, now, seasonStart?, catalog?)` y `loadProfileTitles(db, profileId, now, seasonStart?)`, ambas sobre la misma `groupPeriods` + `loadMemberRows`. El `puuid` se sustituye por `memberKey(profileId)` antes de calcular: no sale del módulo. `data.ts` sin tocar.
+- `src/domain/group-view.test.ts` (11 tests, BD de test): no miembro (elruffles) en las mismas partidas no aparece en ninguna cifra (AC1); `loadProfileTitles` = `titlesOf(day)+titlesOf(week)` de `loadGroupView` para cada miembro, con dúo/trío en cada miembro (AC6/AC9); no miembro → []; sin puuids en el JSON.
+- Orquestador: `npm run lint && npm run typecheck && npm test && npm run build` en verde (54 ficheros, 1197 tests).
