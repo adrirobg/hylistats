@@ -5,7 +5,7 @@ Cómo trabajar en hylistats desde [claude.ai/code](https://claude.ai/code) (sesi
 ## Qué es una sesión cloud
 
 - Claude trabaja en un **contenedor efímero**: clona el repo al empezar y el contenedor se descarta tras un rato de inactividad. Lo que no esté commiteado y pusheado se pierde.
-- Cada sesión trabaja en su **propia rama** (`claude/...`). Los cambios llegan a `main` por PR, como siempre.
+- La plataforma asigna a cada sesión una rama `claude/...` y no deja configurar el prefijo. Por convención (`AGENTS.md`) se trabaja en `cloud/tipo/N-slug`; para asegurarlo, indícalo también en el primer mensaje de la sesión. Los cambios llegan a `main` por PR, como siempre.
 - No hay `.env.local` ni secretos: los tests no los necesitan.
 
 ## Preparación automática del contenedor

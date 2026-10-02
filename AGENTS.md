@@ -21,6 +21,8 @@ Types: feat, fix, research, maint, docs, test, ci
 
 Branches: `tipo/ISSUE_NUMBER-slug-descriptivo`
 
+En sesiones cloud (claude.ai/code): no usar la rama `claude/...` que asigna la plataforma; trabajar en `cloud/tipo/ISSUE_NUMBER-slug-descriptivo`.
+
 Cerrar issues: `Closes #N` en merge PR
 
 ## Skills
