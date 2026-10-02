@@ -20,16 +20,18 @@ export const POLL_IDLE_MS = 30_000;
 export const STATUS_POLL_MS = 10_000;
 
 /**
- * Contrato de la petición de estado de T02 (modo `despues`). PUNTO DE ENCHUFE: cuando T02 fije la
- * ruta y el campo, se rellenan estas dos constantes. Mientras tanto se pueden pasar por CLI con
- * `--status-path` y `--version-field`. `{slug}` en la ruta se sustituye por el slug del cliente.
+ * Contrato de la petición de estado de T02 (modo `despues`): `GET /api/estado?perfil=<slug>` y
+ * `&grupo=1` en la pestaña Grupo. En la ruta, `{slug}` se sustituye por el slug del cliente (como
+ * valor de query) y `{grupo}` por `&grupo=1` solo en la pestaña Grupo. La página se rehace si
+ * cambia cualquiera de los campos de `versionField` (lista separada por comas), como el poller real.
+ * Ambos se pueden sustituir por CLI con `--status-path` y `--version-field`.
  */
 export const STATUS_CONTRACT: {
   path: string | null;
   versionField: string | null;
 } = {
-  path: null,
-  versionField: null,
+  path: "/api/estado?perfil={slug}{grupo}",
+  versionField: "kind,version,groupVersion",
 };
 
 export const PENDING_CONTRACT_MESSAGE =
@@ -170,8 +172,16 @@ export function pageUrl(baseUrl: string, slug: string, tab: Tab): string {
   return `${baseUrl}/euw/${slug}?tab=${tab}`;
 }
 
-export function statusUrl(baseUrl: string, path: string, slug: string): string {
-  return `${baseUrl}${path.replaceAll("{slug}", slug)}`;
+export function statusUrl(
+  baseUrl: string,
+  path: string,
+  slug: string,
+  tab: Tab,
+): string {
+  const filled = path
+    .replaceAll("{slug}", encodeURIComponent(slug))
+    .replaceAll("{grupo}", tab === "grupo" ? "&grupo=1" : "");
+  return `${baseUrl}${filled}`;
 }
 
 /** Siguiente pestaña del ciclo (si la actual no está en la lista, empieza por la primera). */
@@ -190,8 +200,18 @@ export function refreshPollers(mode: Mode, tab: Tab): number[] {
   return tab === "grupo" ? [POLL_IDLE_MS, POLL_IDLE_MS] : [POLL_IDLE_MS];
 }
 
-/** Lee un campo (ruta con puntos: `grupo.version`) de la respuesta de estado como texto estable. */
-export function readVersion(body: unknown, field: string): string | null {
+/**
+ * Lee los campos de versión (lista separada por comas; cada uno, ruta con puntos) de la respuesta
+ * de estado como un texto estable. Sin ninguno presente, `null`.
+ */
+export function readVersion(body: unknown, fields: string): string | null {
+  const values = fields
+    .split(",")
+    .map((field) => readField(body, field.trim()));
+  return values.every((v) => v === null) ? null : JSON.stringify(values);
+}
+
+function readField(body: unknown, field: string): string | null {
   let cur: unknown = body;
   for (const key of field.split(".")) {
     if (cur === null || typeof cur !== "object") return null;

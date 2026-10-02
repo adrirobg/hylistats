@@ -234,7 +234,12 @@ function startClient(client: Client): void {
       const text = await measure(
         "estado",
         client,
-        statusUrl(options.baseUrl, options.statusPath as string, client.slug),
+        statusUrl(
+          options.baseUrl,
+          options.statusPath as string,
+          client.slug,
+          client.tab,
+        ),
       );
       if (text === null) return;
       let current: string | null = null;

@@ -9,6 +9,7 @@ import {
   refreshPollers,
   type Sample,
   shouldRepaint,
+  statusUrl,
   summarize,
   toSlug,
   UsageError,
@@ -87,11 +88,34 @@ describe("planificación", () => {
 
 describe("modo despues", () => {
   it("readVersion lee campos anidados", () => {
-    expect(readVersion({ a: { b: 7 } }, "a.b")).toBe("7");
+    expect(readVersion({ a: { b: 7 } }, "a.b")).toBe('["7"]');
     expect(readVersion({ a: { b: 7 } }, "a.c")).toBeNull();
     expect(readVersion({ a: "x" }, "a.b")).toBeNull();
-    expect(readVersion({ v: { x: 1 } }, "v")).toBe('{"x":1}');
+    expect(readVersion({ v: { x: 1 } }, "v")).toBe('["{\\"x\\":1}"]');
   });
+
+  it("readVersion combina varios campos: cambia si cambia cualquiera", () => {
+    const fields = "kind,version,groupVersion";
+    const base = { kind: "profile", version: "a.1", groupVersion: "a.4" };
+    expect(readVersion(base, fields)).toBe('["profile","a.1","a.4"]');
+    expect(readVersion({ ...base, groupVersion: "a.5" }, fields)).not.toBe(
+      readVersion(base, fields),
+    );
+    expect(readVersion({ ...base, groupVersion: null }, fields)).toBe(
+      '["profile","a.1",null]',
+    );
+  });
+
+  it("statusUrl rellena el slug como valor de query y grupo solo en la pestaña Grupo", () => {
+    const path = "/api/estado?perfil={slug}{grupo}";
+    expect(statusUrl("http://x", path, "bejito%20mambo-1991", "grupo")).toBe(
+      "http://x/api/estado?perfil=bejito%2520mambo-1991&grupo=1",
+    );
+    expect(statusUrl("http://x", path, "hylimichi-euw", "resumen")).toBe(
+      "http://x/api/estado?perfil=hylimichi-euw",
+    );
+  });
+
   it("repinta solo si la versión cambia respecto a la línea base", () => {
     expect(shouldRepaint(null, "1")).toBe(false);
     expect(shouldRepaint("1", "1")).toBe(false);

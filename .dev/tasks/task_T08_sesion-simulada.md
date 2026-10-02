@@ -1,7 +1,7 @@
 # Task T08 — Script de sesión simulada y medición del antes
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -35,10 +35,17 @@ Reglas comunes (todas las tasks de código):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Script y script npm sin dependencias nuevas, modos `antes`/`despues`, para al primer 5xx.
-- [ ] Medición "antes" en local con 5 clientes en la pestaña Grupo (AC8).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Script y script npm sin dependencias nuevas, modos `antes`/`despues`, para al primer 5xx.
+- [x] Medición "antes" en local con 5 clientes en la pestaña Grupo (AC8).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-{Se completa al cerrar.}
+- Commit `88f05b1` (worker Sonnet en worktree), integrado con `dc6265b`. El orquestador enchufó después el contrato de T02 al modo `despues` (`STATUS_CONTRACT`: `/api/estado?perfil={slug}{grupo}`, versión = `kind,version,groupVersion`).
+- Uso: `npm run sim:session -- --base-url <url> --slugs "Nombre#TAG,..." [--clients 5] [--duration 15] [--mode antes|despues] [--start-tab grupo] [--switch-every 30|0]`. Para al primer 5xx, fallo de red o timeout (código 2). Resumen: peticiones por tipo, estados, renders/min por minuto, p50/p95/max por tipo y pestaña. "Actualizar grupo" (server action) se pulsa a mano desde una pestaña real. `scripts/simulate-session.ts`, `scripts/session-sim-model.ts` (puro) y `tests/session-sim.test.ts`.
+- **Medición "antes"** (código de `develop`, build de producción local, BD local con 1222 partidas y 6 miembros, worker en pausa; 5 clientes en la pestaña Grupo, 5 min en reposo, `--switch-every 0`):
+  - 105 peticiones (5 cargas + 100 refrescos), 0 × 5xx.
+  - **21,0 renders de página/min** (25, 20, 20, 20, 20): 5 clientes × 2 pollers × 2/min. Tamaño medio de respuesta 188 KB.
+  - Carga HTML (5 en frío a la vez) p50 830 ms / p95 846 ms; refresco RSC p50 191 ms / p95 214 ms / max 339 ms.
+  - CPU del proceso Next: 21 s en 5 min (~4,2 s/min, ~7 % de un núcleo del Mac).
+- lint, typecheck, build y tests en verde en el worktree (65 ficheros, 1382); tras enchufar el contrato, 15 tests del script en verde.

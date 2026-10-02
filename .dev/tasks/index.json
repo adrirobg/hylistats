@@ -91,14 +91,14 @@
     {
       "id": "T08",
       "title": "Script de sesión simulada y medición del antes",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T08_sesion-simulada.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:30:53Z"
+      "updated_at": "2026-10-02T20:47:14Z"
     },
     {
       "id": "T09",
