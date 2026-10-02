@@ -160,6 +160,47 @@ describe("advanceWatch", () => {
     expect(step.settled).toBe("ok");
   });
 
+  it("job terminado con partidas: espera a que la página traiga los datos nuevos (dataCurrent)", () => {
+    const seen = advanceWatch(
+      startWatch(snapshot()),
+      snapshot({ active: true }),
+    );
+    const watch = seen.watch as ReturnType<typeof startWatch>;
+    // El estado dice que acabó, pero falta el repintado: sigue esperando, sin toast.
+    const done = snapshot({ lastSyncedAt: 2_000 });
+    expect(advanceWatch(watch, done, false)).toEqual({ settled: null, watch });
+    // Llega el repintado con las partidas: ahora sí.
+    const repainted = snapshot({ games: 12, lastSyncedAt: 2_000 });
+    expect(advanceWatch(watch, repainted, true)).toEqual({
+      settled: "ok",
+      watch: null,
+    });
+    expect(refreshOutcome(watch.before, repainted).newGames).toBe(2);
+  });
+
+  it("job terminado sin partidas: la versión no cambia y sale ya «Sin partidas nuevas»", () => {
+    const watch = startWatch(snapshot());
+    const step = advanceWatch(watch, snapshot({ lastSyncedAt: 2_000 }), true);
+    expect(step.settled).toBe("ok");
+    expect(outcomeMessage(refreshOutcome(watch.before, snapshot())).lead).toBe(
+      "Sin partidas nuevas",
+    );
+  });
+
+  it("un error no espera al repintado", () => {
+    const seen = advanceWatch(
+      startWatch(snapshot()),
+      snapshot({ active: true }),
+    );
+    expect(
+      advanceWatch(
+        seen.watch as ReturnType<typeof startWatch>,
+        snapshot({ errorAt: 3_000 }),
+        false,
+      ).settled,
+    ).toBe("error");
+  });
+
   it("un done posterior a un error previo (errorAt pasa a null) es éxito, no fallo", () => {
     const before = snapshot({ errorAt: 500 });
     const seen = advanceWatch(startWatch(before), snapshot({ active: true }));

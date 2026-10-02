@@ -1,5 +1,6 @@
 // Resultado de un "Actualizar" (brief §4.1): compara los datos de antes y de después y decide qué
-// dice el toast. Funciones puras, sin React: las usa `use-refresh.ts` y las prueban los tests.
+// dice el toast. Funciones puras, sin React: las usan `use-refresh.tsx` y `profile-states.tsx`, y
+// las prueban los tests.
 
 /** Lo que la vista sabe del perfil en un instante; se compara la foto previa con la actual. */
 export interface RefreshSnapshot {
@@ -84,12 +85,19 @@ export type WatchStep =
 
 /**
  * Avanza la vigilancia con la foto actual. Termina cuando ya no hay job en curso y o se vio uno
- * o `lastSyncedAt` cambió (el job pudo empezar y acabar entre dos refrescos de la página); si en
+ * o `lastSyncedAt` cambió (el job pudo empezar y acabar entre dos consultas del estado); si en
  * su lugar hay un error de job nuevo, termina en `error`.
+ *
+ * La foto mezcla el estado (job, `lastSyncedAt`, error) con los datos de la página (partidas y
+ * campeones). `dataCurrent = false` dice que esos datos aún no son los de la versión del estado
+ * (falta el repintado que trae las partidas nuevas): el resultado espera a que lleguen. Si el job
+ * no guardó nada, la versión no cambia, no hay repintado y el resultado sale ya ("Sin partidas
+ * nuevas").
  */
 export function advanceWatch(
   watch: RefreshWatch,
   now: RefreshSnapshot,
+  dataCurrent = true,
 ): WatchStep {
   if (now.active) {
     return watch.sawActive
@@ -100,7 +108,9 @@ export function advanceWatch(
     return { settled: "error", watch: null };
   }
   if (watch.sawActive || now.lastSyncedAt !== watch.before.lastSyncedAt) {
-    return { settled: "ok", watch: null };
+    return dataCurrent
+      ? { settled: "ok", watch: null }
+      : { settled: null, watch };
   }
   return { settled: null, watch };
 }

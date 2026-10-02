@@ -11,7 +11,7 @@ import { matchHref } from "./view-model";
 
 // Forma reciente (brief §4.7, `.form` y `.fc` de la maqueta): un chip redondo por partida con el
 // puesto dentro, la más reciente a la izquierda. Componente de servidor: el «hace cuánto» de cada
-// chip se calcula con la hora del servidor (`nowMs`) y se renueva con el `router.refresh()`. Cada
+// chip se calcula con la hora del servidor (`nowMs`) y se renueva al repintar. Cada
 // chip es un enlace a su partida abierta en la pestaña Partidas (`?tab=partidas&partida=…`).
 
 interface FormStripProps {

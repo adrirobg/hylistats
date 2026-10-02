@@ -1,4 +1,8 @@
-import type { SyncProgress } from "@/domain/sync-status";
+import type {
+  GroupSyncState,
+  ProfileSyncState,
+  SyncProgress,
+} from "@/domain/sync-status";
 
 // Contrato del JSON de `GET /api/estado` (F26): lo que el poller del cliente lee cada 10 s (5 s
 // con sincronización en marcha). Módulo puro, sin BD: lo importan la ruta y el cliente. Fechas en
@@ -73,4 +77,27 @@ export function syncProgressFromJson(sync: SyncProgressJson): SyncProgress {
     ...sync,
     retryAt: sync.retryAt === null ? null : new Date(sync.retryAt),
   } as SyncProgress;
+}
+
+/** Estado de la sincronización del perfil -> JSON (servidor: la ruta y el render de la página). */
+export function profileSyncToJson(state: ProfileSyncState): ProfileSyncJson {
+  return {
+    lastSyncedAt: state.lastSyncedAt?.getTime() ?? null,
+    sync: state.sync && syncProgressToJson(state.sync),
+    lastJobErrorAt: state.lastJobError?.at.getTime() ?? null,
+    paused: state.paused,
+  };
+}
+
+/** Estado de la sincronización del grupo -> JSON (servidor: la ruta y el render de la página). */
+export function groupSyncToJson(state: GroupSyncState): GroupSyncJson {
+  return {
+    members: state.members,
+    active: state.active,
+    oldest: state.oldestSync && {
+      gameName: state.oldestSync.gameName,
+      tagLine: state.oldestSync.tagLine,
+      lastSyncedAt: state.oldestSync.lastSyncedAt?.getTime() ?? null,
+    },
+  };
 }

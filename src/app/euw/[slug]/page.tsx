@@ -1,19 +1,20 @@
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { type ReactNode, Suspense } from "react";
 import { Box } from "@/components/hy/box";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDb } from "@/db";
+import { loadStatus } from "@/domain/status";
+import { loadGroupSyncState } from "@/domain/sync-status";
 import { getSeasonStart } from "@/lib/config";
 import { getChampionCatalog } from "@/lib/ddragon";
 import { formatDateTime } from "@/lib/format";
 import { getGameData } from "@/lib/game-data";
 import { parseProfileSlug, profileSlug } from "@/lib/riot-id";
-import { GroupFreshnessSection } from "../../grupo/group-freshness-section";
+import { GroupFreshness } from "../../grupo/group-freshness";
 import { GroupViewPanel } from "../../grupo/group-view";
 import { type Periodo, parsePeriodo } from "../../grupo/group-view-model";
 import { Album } from "./album";
 import { ArenaGodBar } from "./arena-god";
-import { AutoRefresh } from "./auto-refresh";
 import { Cabin } from "./cabin";
 import { ChampionPanel } from "./champion-panel";
 import { CHAMPION_PARAM } from "./champion-panel-view";
@@ -23,11 +24,14 @@ import { ProfileHeader } from "./header";
 import { pickEloMatches, visibleMatchIds } from "./matches-elo";
 import { MatchesPanel } from "./matches-panel";
 import { parseMatchParams } from "./matches-view";
+import { profilePageStatus } from "./page-status";
 import { NotFoundCard, UnregisteredCard } from "./profile-states";
 import { Scoreboard } from "./scoreboard";
 import { StatsPanel } from "./stats-panel";
+import { StatusProvider } from "./status-provider";
 import { SummaryPanel } from "./summary-panel";
 import { SyncBand } from "./sync-band";
+import { SyncEmpty } from "./sync-empty";
 import { TabPanel, Titled } from "./tab-panel";
 import { Tabs } from "./tabs";
 import { TeammatesPanel } from "./teammates-panel";
@@ -35,13 +39,7 @@ import { RailTeammates } from "./teammates-rail";
 import { parseTeammateParams } from "./teammates-view";
 import { titleBadges } from "./title-badges";
 import { TopBar } from "./top-bar";
-import {
-  emptyState,
-  parseProfileTab,
-  queryParams,
-  syncBandModel,
-  visibleTabs,
-} from "./view-model";
+import { parseProfileTab, queryParams, visibleTabs } from "./view-model";
 
 // Depende de la BD y cambia con el worker: nunca se prerenderiza.
 export const dynamic = "force-dynamic";
@@ -64,6 +62,8 @@ export default async function ProfilePage({
   const tab = parseProfileTab(query.tab);
   const matches = parseMatchParams(queryParams(query));
   const catalog = getChampionCatalog();
+  // Hora del servidor del estado inicial (`StatusProvider`): antes de cargar, como las versiones.
+  const loadedAt = Date.now();
   const data = await loadProfilePage(
     getDb(),
     riotId.gameName,
@@ -82,21 +82,43 @@ export default async function ProfilePage({
   );
   // Las actions identifican el perfil por el Riot ID de la URL (`riotIdNorm`), no por el canónico.
   const actionSlug = profileSlug(riotId.gameName, riotId.tagLine);
+  // Estado con el que se pinta la página (`StatusProvider`, el único mecanismo de relectura). En
+  // la vista del grupo (como `?grupo=1`) lleva también el de los miembros. «No encontrado» solo
+  // pinta que Riot no lo conoce: manda el `kind` (si el estado dice otro, se repinta), así que su
+  // estado se lee aquí, tras cargar.
+  const groupView = data.kind === "profile" && data.tab === "grupo";
+  const initial =
+    data.kind === "profile"
+      ? profilePageStatus(
+          data,
+          loadedAt,
+          groupView ? await loadGroupSyncState(getDb()) : null,
+        )
+      : data.kind === "not_found"
+        ? {
+            ...(await loadStatus(getDb(), riotId, { group: false })),
+            kind: data.kind,
+          }
+        : null;
 
   return (
     // `tabIndex={-1}`: a él vuelve el foco al cerrar el panel de campeón abierto por URL.
     <main tabIndex={-1} className="flex flex-1 flex-col outline-none">
       <TopBar />
-      {data.kind === "profile" ? (
-        <>
-          <AutoRefresh slug={actionSlug} active={data.sync !== null} />
+      {data.kind === "profile" && initial ? (
+        <StatusProvider
+          key={actionSlug}
+          slug={actionSlug}
+          group={groupView}
+          initial={initial}
+        >
           <ProfileCabin
             data={data}
             slug={actionSlug}
             periodo={parsePeriodo(query.periodo)}
           />
           <ChampionSheet data={data} />
-        </>
+        </StatusProvider>
       ) : (
         <div className="mx-auto w-full max-w-[640px] px-1.5 pt-4 sm:pt-10">
           <h1 className="mb-4 font-display text-[40px] leading-none font-extrabold uppercase [overflow-wrap:anywhere]">
@@ -110,11 +132,20 @@ export default async function ProfilePage({
               tagLine={data.tagLine}
             />
           ) : (
-            <NotFoundCard
-              slug={actionSlug}
-              gameName={data.gameName}
-              tagLine={data.tagLine}
-            />
+            initial && (
+              <StatusProvider
+                key={actionSlug}
+                slug={actionSlug}
+                group={false}
+                initial={initial}
+              >
+                <NotFoundCard
+                  slug={actionSlug}
+                  gameName={data.gameName}
+                  tagLine={data.tagLine}
+                />
+              </StatusProvider>
+            )
           )}
         </div>
       )}
@@ -133,7 +164,6 @@ function ProfileCabin({
   slug: string;
   periodo: Periodo;
 }) {
-  const band = syncBandModel(data.sync, data.paused, Date.now());
   return (
     <Cabin
       header={
@@ -144,10 +174,6 @@ function ProfileCabin({
           iconUrl={data.profileIconUrl}
           nowMs={Date.now()}
           lastGameAt={data.lastGameAt}
-          lastSyncedAt={data.lastSyncedAt?.getTime() ?? null}
-          sync={data.sync}
-          lastJobErrorAt={data.lastJobError?.at.getTime() ?? null}
-          paused={data.paused}
           arenaQuietSince={data.arenaQuiet?.lastArenaGameAt ?? null}
           arenaDeity={data.arenaGod.reached}
           titleBadges={titleBadges(data.titles)}
@@ -165,7 +191,7 @@ function ProfileCabin({
           }))}
         />
       }
-      band={band && <SyncBand model={band} />}
+      band={<SyncBand />}
       god={
         <ArenaGodBar
           gameName={data.gameName}
@@ -270,19 +296,33 @@ function NoGames({
   );
 }
 
+/**
+ * Pestaña sin partidas: esqueleto mientras llega el backfill o el porqué. Lo elige el estado de la
+ * página (`SyncEmpty`); `null` si hay partidas y se pinta el contenido.
+ */
+function NoGamesYet({
+  data,
+  skeleton,
+}: {
+  data: ProfileView;
+  skeleton: ReactNode;
+}) {
+  if (data.summary.games > 0) return null;
+  return (
+    <SyncEmpty
+      skeleton={skeleton}
+      never={<NoGames empty="never" seasonStart={data.seasonStart} />}
+      empty={<NoGames empty="empty" seasonStart={data.seasonStart} />}
+    />
+  );
+}
+
 function ChampionsPanel({ data }: { data: ProfileView }) {
-  const empty = emptyState({
-    games: data.summary.games,
-    syncing: data.sync !== null,
-    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
-  });
+  const empty = data.summary.games === 0;
   return (
     <TabPanel tab="campeones">
-      {empty === "syncing" && <AlbumSkeleton />}
-      {(empty === "never" || empty === "empty") && (
-        <NoGames empty={empty} seasonStart={data.seasonStart} />
-      )}
-      {empty === null && (
+      <NoGamesYet data={data} skeleton={<AlbumSkeleton />} />
+      {!empty && (
         // `Album` lee `?vista`, `?filtro`, `?q` y `?orden` con `useSearchParams`.
         <Suspense fallback={<AlbumSkeleton />}>
           <Album
@@ -315,18 +355,11 @@ function AlbumSkeleton() {
 // --- Pestaña Compañeros (main) -----------------------------------------------------------
 
 function TeammatesTab({ data }: { data: ProfileView }) {
-  const empty = emptyState({
-    games: data.summary.games,
-    syncing: data.sync !== null,
-    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
-  });
+  const empty = data.summary.games === 0;
   return (
     <TabPanel tab="companeros">
-      {empty === "syncing" && <TeammatesSkeleton />}
-      {(empty === "never" || empty === "empty") && (
-        <NoGames empty={empty} seasonStart={data.seasonStart} />
-      )}
-      {empty === null && (
+      <NoGamesYet data={data} skeleton={<TeammatesSkeleton />} />
+      {!empty && (
         // `TeammatesPanel` lee `?min` y `?orden` con `useSearchParams`.
         <Suspense fallback={<TeammatesSkeleton />}>
           <TeammatesPanel teammates={data.teammates ?? []} nowMs={Date.now()} />
@@ -353,18 +386,11 @@ function TeammatesSkeleton() {
 // --- Pestaña Partidas (main) -------------------------------------------------------------
 
 function MatchesTab({ data }: { data: ProfileView }) {
-  const empty = emptyState({
-    games: data.summary.games,
-    syncing: data.sync !== null,
-    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
-  });
+  const empty = data.summary.games === 0;
   return (
     <TabPanel tab="partidas">
-      {empty === "syncing" && <MatchesSkeleton />}
-      {(empty === "never" || empty === "empty") && (
-        <NoGames empty={empty} seasonStart={data.seasonStart} />
-      )}
-      {empty === null && data.matches && (
+      <NoGamesYet data={data} skeleton={<MatchesSkeleton />} />
+      {!empty && data.matches && (
         // `MatchesPanel` lee `?q`, `?puesto`, `?companero`, `?n` y `?partida` con `useSearchParams`.
         <Suspense fallback={<MatchesSkeleton />}>
           <MatchesPanel
@@ -400,18 +426,11 @@ function MatchesSkeleton() {
 // --- Pestaña Resumen (main) --------------------------------------------------------------
 
 function SummaryTab({ data, slug }: { data: ProfileView; slug: string }) {
-  const empty = emptyState({
-    games: data.summary.games,
-    syncing: data.sync !== null,
-    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
-  });
+  const empty = data.summary.games === 0;
   return (
     <TabPanel tab="resumen">
-      {empty === "syncing" && <SummarySkeleton />}
-      {(empty === "never" || empty === "empty") && (
-        <NoGames empty={empty} seasonStart={data.seasonStart} />
-      )}
-      {empty === null && data.summaryTab && (
+      <NoGamesYet data={data} skeleton={<SummarySkeleton />} />
+      {!empty && data.summaryTab && (
         <SummaryPanel
           summary={data.summary}
           form={data.form}
@@ -441,18 +460,11 @@ function SummarySkeleton() {
 // --- Pestaña Estadísticas (main) ---------------------------------------------------------
 
 function StatsTab({ data, slug }: { data: ProfileView; slug: string }) {
-  const empty = emptyState({
-    games: data.summary.games,
-    syncing: data.sync !== null,
-    lastSyncedAt: data.lastSyncedAt?.getTime() ?? null,
-  });
+  const empty = data.summary.games === 0;
   return (
     <TabPanel tab="estadisticas">
-      {empty === "syncing" && <StatsSkeleton />}
-      {(empty === "never" || empty === "empty") && (
-        <NoGames empty={empty} seasonStart={data.seasonStart} />
-      )}
-      {empty === null && data.records && (
+      <NoGamesYet data={data} skeleton={<StatsSkeleton />} />
+      {!empty && data.records && (
         <StatsPanel records={data.records} album={data.album} slug={slug} />
       )}
     </TabPanel>
@@ -482,7 +494,7 @@ function GroupTab({ data, periodo }: { data: ProfileView; periodo: Periodo }) {
           view={data.group.view}
           periodo={periodo}
           highlightKey={data.group.ownerKey}
-          freshness={<GroupFreshnessSection view={data.group.view} />}
+          freshness={<GroupFreshness />}
         />
       )}
     </TabPanel>
@@ -495,7 +507,7 @@ function GroupTab({ data, periodo }: { data: ProfileView; periodo: Periodo }) {
  * Bloques del raíl (D2). A partir de 1100 px de contenedor el marcador vive aquí; por debajo lo
  * sustituye la franja bajo la barra Arena God (`strip`) y solo queda la forma, que el `Cabin`
  * deja al final del main, seguida de los compañeros con más partidas. Todo sale de `data` en el
- * servidor: sube en vivo con el `AutoRefresh` durante el backfill.
+ * servidor: sube en vivo durante el backfill con los repintados de `StatusProvider`.
  */
 function RailBoxes({ data, slug }: { data: ProfileView; slug: string }) {
   return (

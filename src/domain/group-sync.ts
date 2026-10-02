@@ -6,8 +6,8 @@ import { listGroupMembers } from "./group";
 
 // Frescura del grupo (P9): pedir el incremental de los miembros. No hay reglas nuevas: cada
 // miembro pasa por `ensureFreshOnView` (disparos automáticos) o `requestRefresh` (botón), con su
-// límite de 2 min o de 60 s y su job activo propio, así que un doble disparo (la vista del grupo
-// y el `AutoRefresh` del perfil del dueño) no encola dos veces. Aquí nunca se llama a Riot: todo
+// límite de 2 min o de 60 s y su job activo propio, así que un doble disparo (dos visores de la
+// vista del grupo, o la frescura del propio perfil) no encola dos veces. Aquí nunca se llama a Riot: todo
 // va a `sync_jobs` y lo atiende el worker con su limitador.
 
 /** Resultado de pedir el incremental de todos los miembros, contado por desenlace. */
