@@ -1,5 +1,5 @@
 # Think: hylistats
-**Estado**: iter-09 cerrada — grill de iter-10 cerrado, §5 lista para Spec
+**Estado**: iter-10 en curso — spec aprobada (issue #22, rama `feat/22-carga-y-refrescos`), Execute pendiente
 **Ultima sesion**: 2026-10-02
 **Sesiones**: 2026-10-02 (grill de iter-10: carga, refrescos y flujo de ramas); 2026-10-02 (análisis de los 502 de la sesión conjunta y semilla de iter-10); 2026-10-02 (grill del ELO del grupo, con el grupo presente); 2026-10-02 (grill de iter-09 sobre protección de la superficie pública y modo mantenimiento: `no-init`); 2026-10-01 (grill de iter-05 sobre la capa de grupo); 2026-09-30 (grill de iter-04 sobre las ideas del grupo); 2026-09-29 (Webapp de estadísticas de perfil de jugador para trackear progreso en el modo Arena de LoL usando la Riot API (inspiración: lolalytics.com/arena, op.gg/lol/modes/arena, metasrc.com/lol/arena, arenasweats.lol, arena.trott.dev))
 **Grill**: cerrado (2026-10-02) — §5 cerrada (F26–F27); gate confirmado, pasa a Spec
