@@ -168,7 +168,7 @@ describe("refreshGroupAction (botón «Actualizar grupo»)", () => {
     );
     expect(pending.every((job) => job.interactive)).toBe(true);
     expect(pending.every((job) => job.kind === "incremental")).toBe(true);
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/grupo", "page");
+    expect(mocks.revalidatePath).not.toHaveBeenCalledWith("/grupo", "page");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/euw/[slug]", "page");
   });
 

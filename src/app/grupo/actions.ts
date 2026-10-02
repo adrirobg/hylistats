@@ -33,7 +33,6 @@ export async function refreshGroupAction(
   _previous: GroupRefreshState,
 ): Promise<GroupRefreshState> {
   const summary = await refreshGroup(getDb());
-  revalidatePath("/grupo", "page");
   revalidatePath("/euw/[slug]", "page");
   return { summary };
 }

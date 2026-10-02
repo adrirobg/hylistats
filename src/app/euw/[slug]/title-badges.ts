@@ -6,9 +6,12 @@
 import type { PlayerTitle } from "@/domain/group-titles";
 import { TITLES_ANCHOR, TITLES_LINK_LABEL } from "../../grupo/group-view-model";
 
-/** Enlace al apartado Títulos de `/grupo` (la cabecera del perfil no es la vista del grupo). */
+/**
+ * Enlace al apartado Títulos de la pestaña Grupo del mismo perfil (la cabecera no es la vista del
+ * grupo). Relativo: conserva la ruta del perfil donde se pinta el badge, que solo sale en miembros.
+ */
 export const TITLES_LINK = {
-  href: `/grupo#${TITLES_ANCHOR}`,
+  href: `?tab=grupo#${TITLES_ANCHOR}`,
   label: TITLES_LINK_LABEL,
 } as const;
 

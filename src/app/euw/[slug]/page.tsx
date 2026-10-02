@@ -467,7 +467,7 @@ function StatsSkeleton() {
 
 // --- Pestaña Grupo (main) ----------------------------------------------------------------
 
-/** La vista de `/grupo` con la fila del dueño del perfil destacada (`data.group` solo existe en miembros). */
+/** La vista del grupo con la fila del dueño del perfil destacada (`data.group` solo existe en miembros). */
 function GroupTab({ data, periodo }: { data: ProfileView; periodo: Periodo }) {
   return (
     <TabPanel tab="grupo">
