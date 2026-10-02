@@ -29,7 +29,7 @@
     {
       "id": "T03",
       "title": "Bloque Clasificación en la vista del grupo",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/18-elo-del-grupo",
       "worktree": null,
@@ -38,7 +38,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T03_clasificacion-ui.md",
       "created_at": "2026-10-02T14:21:50Z",
-      "updated_at": "2026-10-02T14:29:13Z"
+      "updated_at": "2026-10-02T14:32:08Z"
     },
     {
       "id": "T04",
@@ -57,7 +57,7 @@
     {
       "id": "T05",
       "title": "Cambio de rating en el historial de partidas",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:sonnet",
       "branch": "feat/18-elo-del-grupo",
       "worktree": null,
@@ -66,7 +66,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T05_historial-elo.md",
       "created_at": "2026-10-02T14:21:50Z",
-      "updated_at": "2026-10-02T14:21:50Z"
+      "updated_at": "2026-10-02T14:32:08Z"
     },
     {
       "id": "T06",

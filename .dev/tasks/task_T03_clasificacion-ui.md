@@ -1,7 +1,7 @@
 # Task T03 — Bloque Clasificación en la vista del grupo
 
 **Owner**: worker:sonnet
-**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -38,11 +38,17 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Bloque encima de los actuales en `/grupo` y pestaña Grupo, con las columnas de AC3.
-- [ ] Orden, empates, provisional y fila destacada.
-- [ ] Nota de la regla con valores de `config.ts`.
+- [x] Bloque encima de los actuales en `/grupo` y pestaña Grupo, con las columnas de AC3.
+- [x] Orden, empates, provisional y fila destacada.
+- [x] Nota de la regla con valores de `config.ts`.
 - [ ] Sin scroll horizontal de página a 375 px.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
+
+- `src/app/grupo/clasificacion-model.ts` (+ 12 tests), `clasificacion-block.tsx` (componente de servidor) y `group-view.tsx` (bloque encima de Hoy / Semana).
+- Columnas #, Jugador, Liga, Rating, Hoy, Semana y Partidas; cabeceras con etiqueta si el periodo no es el actual; píldora "provisional"; fila destacada con `HIGHLIGHT`; nota con cifras de `config.ts`.
+- Rating sin separador de miles ("1526", como la spec).
+- 375 px: pendiente de comprobar en el navegador (orquestador, T07).
+- `npm run lint && npm run typecheck && npm test && npm run build` en verde (1329 tests).
 
