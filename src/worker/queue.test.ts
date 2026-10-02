@@ -226,7 +226,8 @@ describe("enqueueSeasonBackfill", () => {
 });
 
 describe("ensureFreshOnView", () => {
-  it("encola un refresco no interactivo si la última sync tiene más de 5 min", async () => {
+  it("encola un refresco no interactivo si la última sync tiene más de 2 min (STALE_AFTER_MS)", async () => {
+    expect(STALE_AFTER_MS).toBe(2 * 60_000); // F26: de 5 a 2 min
     const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
     // Con el backfill en curso no se encola nada.
     expect(await ensureFreshOnView(db, profile.id)).toBe("active");
@@ -246,7 +247,7 @@ describe("ensureFreshOnView", () => {
     });
   });
 
-  it("un incremental automático que acaba en error no se repite antes de 5 min", async () => {
+  it("un incremental automático que acaba en error no se repite antes de 2 min", async () => {
     const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
     // `lastSyncedAt` viejo y un job terminado en `error` (no lo toca): solo manda el cooldown.
     const failedAt = new Date("2026-09-29T12:00:00Z");
@@ -260,9 +261,9 @@ describe("ensureFreshOnView", () => {
       .where(eq(profiles.id, profile.id));
 
     const at = (ms: number) => new Date(failedAt.getTime() + ms);
-    expect(
-      await ensureFreshOnView(db, profile.id, { now: at(2 * 60_000) }),
-    ).toBe("cooldown");
+    expect(await ensureFreshOnView(db, profile.id, { now: at(60_000) })).toBe(
+      "cooldown",
+    );
     expect(
       await ensureFreshOnView(db, profile.id, { now: at(STALE_AFTER_MS - 1) }),
     ).toBe("cooldown");

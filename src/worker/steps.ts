@@ -34,6 +34,11 @@ import {
   RiotSchemaError,
 } from "@/lib/riot/errors";
 import { PRIORITY, type Priority } from "@/lib/riot/limiter";
+import {
+  bumpVersions,
+  targetsByPuuid,
+  targetsOfProfile,
+} from "./version-bumps";
 
 // Pasos del worker (sync-strategy.md §2): cada llamada a `runNextStep` elige UN trabajo, hace
 // como mucho UNA petición a Riot y persiste el resultado. El estado vive entero en la BD
@@ -420,7 +425,8 @@ async function resolveAccount(deps: StepDeps, row: JobRow, now: Date) {
       error instanceof RiotNotFoundError ||
       error instanceof RiotBadRequestError
     ) {
-      await db.transaction(async (tx) => {
+      // `not_found` se ve (la página pasa a "no encontrado"): sube la versión del perfil.
+      const targets = await db.transaction(async (tx) => {
         await tx
           .update(profiles)
           .set({ status: "not_found" })
@@ -435,7 +441,9 @@ async function resolveAccount(deps: StepDeps, row: JobRow, now: Date) {
             nextRunAt: null,
           })
           .where(eq(syncJobs.id, job.id));
+        return targetsOfProfile(tx, job.profileId);
       });
+      bumpVersions(targets);
       deps.log(`${label(row)}: Riot ID no encontrado`);
       return;
     }
@@ -465,7 +473,8 @@ async function resolveAccount(deps: StepDeps, row: JobRow, now: Date) {
     return;
   }
 
-  await db.transaction(async (tx) => {
+  // Perfil resuelto (Riot ID canónico y `active`): sube la versión del perfil.
+  const targets = await db.transaction(async (tx) => {
     await tx
       .update(profiles)
       .set({
@@ -476,7 +485,9 @@ async function resolveAccount(deps: StepDeps, row: JobRow, now: Date) {
       })
       .where(eq(profiles.id, job.profileId));
     await tx.update(syncJobs).set(toListing).where(eq(syncJobs.id, job.id));
+    return targetsOfProfile(tx, job.profileId);
   });
+  bumpVersions(targets);
   deps.log(
     `job ${job.id} (${account.gameName}#${account.tagLine}): Riot ID resuelto`,
   );
@@ -665,7 +676,14 @@ async function fetchMatch(
     return;
   }
 
-  await storeMatch(db, detail.match, detail.raw);
+  // Partida nueva: sube la versión de cada perfil registrado que juega en ella (no solo la del
+  // dueño del job). Los perfiles se buscan antes de guardar; si ya estaba guardada, nada cambia.
+  const targets = await targetsByPuuid(
+    db,
+    detail.match.info.participants.map((p) => p.puuid),
+  );
+  const { inserted } = await storeMatch(db, detail.match, detail.raw);
+  if (inserted) bumpVersions(targets);
   await resolveMatchFetch(db, job.id, matchId, "done", now, { served: true });
   const [progress] = await db
     .select({ fetched: syncJobs.fetched, totalIds: syncJobs.totalIds })
@@ -761,7 +779,21 @@ async function closeJob(deps: StepDeps, row: JobRow, now: Date) {
   }
   const closeError = closeErrors.length > 0 ? closeErrors.join("; ") : null;
 
-  await db.transaction(async (tx) => {
+  // Versión de datos: sube solo si cambian el 602002 o el icono (`lastSyncedAt` solo, no).
+  const targets = await db.transaction(async (tx) => {
+    const [before] = await tx
+      .select({
+        challengeValue: profiles.challengeValue,
+        challengeLevel: profiles.challengeLevel,
+        profileIconId: profiles.profileIconId,
+      })
+      .from(profiles)
+      .where(eq(profiles.id, job.profileId));
+    const visibleChange =
+      (profileIconId !== null && profileIconId !== before?.profileIconId) ||
+      (challenge !== null &&
+        (challenge.value !== before?.challengeValue ||
+          challenge.level !== before?.challengeLevel));
     await tx
       .update(profiles)
       .set({
@@ -787,7 +819,9 @@ async function closeJob(deps: StepDeps, row: JobRow, now: Date) {
         nextRunAt: null,
       })
       .where(eq(syncJobs.id, job.id));
+    return visibleChange ? targetsOfProfile(tx, job.profileId) : null;
   });
+  bumpVersions(targets);
   const challengeText = challenge ? `, 602002 = ${challenge.value}` : "";
   deps.log(
     `${label(row)}: terminado (${job.kind}, ${job.totalIds} partidas${challengeText})${closeError ? ` [${closeError}]` : ""}`,

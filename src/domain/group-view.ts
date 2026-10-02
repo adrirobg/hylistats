@@ -170,7 +170,9 @@ async function loadMemberRows(
 }
 
 /** El miembro menos recientemente sincronizado; quien nunca se sincronizó (`null`) gana. */
-function oldestSyncOf(members: readonly GroupMember[]): OldestSync | null {
+export function oldestSyncOf(
+  members: readonly GroupMember[],
+): OldestSync | null {
   let oldest: GroupMember | null = null;
   for (const member of members) {
     if (

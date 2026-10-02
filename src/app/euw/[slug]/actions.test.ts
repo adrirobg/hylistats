@@ -155,7 +155,7 @@ describe("ensureFreshOnViewAction", () => {
     expect(await ensureFreshOnViewAction(SLUG)).toBe("active");
   });
 
-  it("sincronizado hace poco: fresh; hace más de 5 min: queued (no interactivo)", async () => {
+  it("sincronizado hace poco: fresh; hace más de 2 min: queued (no interactivo)", async () => {
     const profile = await register();
     await finishJob(profile.id, 30_000);
     expect(await ensureFreshOnViewAction(SLUG)).toBe("fresh");

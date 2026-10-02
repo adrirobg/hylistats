@@ -6,7 +6,7 @@ import { listGroupMembers } from "./group";
 
 // Frescura del grupo (P9): pedir el incremental de los miembros. No hay reglas nuevas: cada
 // miembro pasa por `ensureFreshOnView` (disparos automáticos) o `requestRefresh` (botón), con su
-// límite de 5 min o de 60 s y su job activo propio, así que un doble disparo (la vista del grupo
+// límite de 2 min o de 60 s y su job activo propio, así que un doble disparo (la vista del grupo
 // y el `AutoRefresh` del perfil del dueño) no encola dos veces. Aquí nunca se llama a Riot: todo
 // va a `sync_jobs` y lo atiende el worker con su limitador.
 
@@ -18,14 +18,25 @@ export interface GroupSyncSummary {
   queued: number;
   /** Miembros que ya tenían un job en curso. */
   active: number;
-  /** Miembros dentro del límite de su último job (el de 5 min o el de 60 s del botón). */
+  /** Miembros dentro del límite de su último job (el de 2 min o el de 60 s del botón). */
   cooldown: number;
-  /** Miembros que no hacían falta (sincronizados hace poco, o perfil `not_found`). Solo en automático. */
+  /**
+   * Miembros que no hacían falta (sincronizados hace poco, perfil `not_found` o, con `shouldCheck`,
+   * comprobados hace poco por otro visor). Solo en automático.
+   */
   fresh: number;
 }
 
 function emptySummary(members: number): GroupSyncSummary {
   return { members, queued: 0, active: 0, cooldown: 0, fresh: 0 };
+}
+
+export interface EnsureGroupFreshOptions {
+  /**
+   * Si devuelve `false`, el miembro no se comprueba (cuenta como `fresh`): la petición de estado
+   * lo usa para comprobar cada perfil como mucho una vez cada 30 s entre todos los visores.
+   */
+  shouldCheck?: (profileId: number) => boolean;
 }
 
 /**
@@ -35,10 +46,15 @@ function emptySummary(members: number): GroupSyncSummary {
 export async function ensureGroupFresh(
   db: Db,
   now: Date = new Date(),
+  { shouldCheck }: EnsureGroupFreshOptions = {},
 ): Promise<GroupSyncSummary> {
   const members = await listGroupMembers(db);
   const summary = emptySummary(members.length);
   for (const { profileId } of members) {
+    if (shouldCheck && !shouldCheck(profileId)) {
+      summary.fresh += 1;
+      continue;
+    }
     const result = await ensureFreshOnView(db, profileId, { now });
     summary[result] += 1;
   }
