@@ -1,7 +1,7 @@
 # Task T05 — Cambio de rating en el historial de partidas
 
 **Owner**: worker:sonnet
-**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -37,11 +37,16 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Cambio con signo en la fila de las partidas que cuentan.
-- [ ] Desglose en el detalle con base, multiplicador y desconocidos, cambio final y rating tras la partida.
-- [ ] Nada en no miembros ni en partidas que no cuentan.
-- [ ] Tests del view-model.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Cambio con signo en la fila de las partidas que cuentan.
+- [x] Desglose en el detalle con base, multiplicador y desconocidos, cambio final y rating tras la partida.
+- [x] Nada en no miembros ni en partidas que no cuentan.
+- [x] Tests del view-model.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
+
+- `matches-view.ts` (`eloRowChange`, `eloBreakdown`) + tests; `matches-panel.tsx` (chip con el cambio en la fila), `match-detail.tsx` (bloque "Cambio de rating": puesto, cambio base, multiplicador y desconocidos, cambio final, rating tras la partida), `match-parts.tsx` (`ELO_TONE_CLASS`), `page.tsx` (una línea).
+- Ejemplo: "Puesto 2º · Cambio base +23,4 · Multiplicador ×1,15 · 1 desconocido · Cambio final +26,9 · Rating tras la partida 1552".
+- Orquestador: rating sin separador de miles, igual que la Clasificación ("1552", no "1.552").
+- `npm run lint && npm run typecheck && npm test && npm run build` en verde (1337 tests).
 

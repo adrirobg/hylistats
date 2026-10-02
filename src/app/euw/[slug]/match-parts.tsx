@@ -79,3 +79,10 @@ export function PlaceChip({
     </span>
   );
 }
+
+/** Color del cambio de rating según su tono (como la Clasificación); el signo va en el texto. */
+export const ELO_TONE_CLASS = {
+  up: "text-ok",
+  down: "text-danger",
+  flat: "text-muted-foreground",
+} as const;

@@ -363,6 +363,7 @@ function MatchesTab({ data }: { data: ProfileView }) {
             matches={data.matches}
             detail={data.matchDetail ?? null}
             nowMs={Date.now()}
+            elo={data.elo?.matches ?? null}
           />
         </Suspense>
       )}

@@ -5,6 +5,12 @@
 // usa para dar forma a lo que viaja a la página.
 
 import type { AlbumEntry } from "@/domain/album";
+import {
+  type EloMatch,
+  formatEloChange,
+  formatEloChangeDetailed,
+  roundRating,
+} from "@/domain/elo";
 import type {
   MatchDetail,
   MatchListRow,
@@ -408,10 +414,15 @@ export const trioTitle = (trio: readonly MatchMate[]) =>
  * Nombre accesible de la fila (un enlace que abre o cierra la partida; el estado lo dice
  * `aria-expanded`): «Ahri, 1º, nuevo 1º con este campeón, con A y B, 25 min, hace 2 h».
  */
-export function matchRowLabel(row: MatchRowData, nowMs: number): string {
+export function matchRowLabel(
+  row: MatchRowData,
+  nowMs: number,
+  elo: EloRowChange | null = null,
+): string {
   return [
     row.championName,
     `${row.placement}º`,
+    elo ? `${elo.text} de rating` : null,
     row.newFirst ? "nuevo 1º con este campeón" : null,
     row.trio.length === 0
       ? null
@@ -421,6 +432,93 @@ export function matchRowLabel(row: MatchRowData, nowMs: number): string {
   ]
     .filter((part) => part !== null)
     .join(", ");
+}
+
+// --- Cambio de rating (ELO del grupo) ------------------------------------------------------
+
+/** Historial del ELO de un miembro por `matchId` (`ProfileElo.matches`); `null` si no es miembro. */
+export type EloMatches = Readonly<Record<string, EloMatch>>;
+
+export type EloTone = "up" | "down" | "flat";
+
+/** El cambio de rating de la fila: entero con signo y su tono (color + signo, nunca solo color). */
+export interface EloRowChange {
+  text: string;
+  tone: EloTone;
+}
+
+const eloTone = (text: string): EloTone =>
+  text.startsWith("+") ? "up" : text.startsWith("-") ? "down" : "flat";
+
+/** La partida del historial del ELO; `null` sin historial (no miembro) o si no cuenta para el rating. */
+function eloMatchOf(
+  matches: EloMatches | null,
+  matchId: string,
+): EloMatch | null {
+  return matches !== null && Object.hasOwn(matches, matchId)
+    ? matches[matchId]
+    : null;
+}
+
+/** «+29» / «-14» / «0» de la fila; `null` si la partida no cuenta para el rating. */
+export function eloRowChange(
+  matches: EloMatches | null,
+  matchId: string,
+): EloRowChange | null {
+  const match = eloMatchOf(matches, matchId);
+  if (match === null) return null;
+  const text = formatEloChange(match.delta);
+  return { text, tone: eloTone(text) };
+}
+
+/** Una línea del desglose del detalle. */
+export interface EloBreakdownItem {
+  label: string;
+  value: string;
+  /** Solo el cambio final lleva tono. */
+  tone?: EloTone;
+}
+
+/** Multiplicador sin ceros de relleno: `1`, `0,5`, `1,15`. */
+const formatMultiplier = (value: number) =>
+  `×${formatDecimal(value, Number.isInteger(value) ? 0 : Number.isInteger(value * 10) ? 1 : 2)}`;
+
+/** «1 desconocido» / «2 desconocidos»; `null` si no hay. */
+const strangersText = (strangers: number) =>
+  strangers > 0
+    ? `${strangers} ${strangers === 1 ? "desconocido" : "desconocidos"}`
+    : null;
+
+/**
+ * Desglose de una partida que cuenta para el rating, con los valores del dominio: puesto, cambio
+ * base, multiplicador (con los desconocidos si los hay), cambio final y rating tras la partida.
+ * `null` si la partida no cuenta.
+ */
+export function eloBreakdown(
+  matches: EloMatches | null,
+  matchId: string,
+): EloBreakdownItem[] | null {
+  const match = eloMatchOf(matches, matchId);
+  if (match === null) return null;
+  const delta = formatEloChangeDetailed(match.delta);
+  return [
+    { label: "Puesto", value: `${match.placement}º` },
+    { label: "Cambio base", value: formatEloChangeDetailed(match.base) },
+    {
+      label: "Multiplicador",
+      value: [
+        formatMultiplier(match.multiplier),
+        strangersText(match.strangers),
+      ]
+        .filter((part) => part !== null)
+        .join(" · "),
+    },
+    { label: "Cambio final", value: delta, tone: eloTone(delta) },
+    {
+      label: "Rating tras la partida",
+      value: String(roundRating(match.ratingAfter)),
+    },
+  ];
 }
 
 /** «234 partidas con estos filtros · se muestran las 50 más recientes». */

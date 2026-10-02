@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AlbumEntry } from "@/domain/album";
+import type { EloMatch } from "@/domain/elo";
 import type { MatchDetail, MatchListRow } from "@/domain/matches";
 import { EMPTY_GAME_DATA, type GameData, type GameIcon } from "@/lib/game-data";
 import {
@@ -11,6 +12,8 @@ import {
   companionOptions,
   companionsForSelect,
   DEFAULT_MATCH_PARAMS,
+  eloBreakdown,
+  eloRowChange,
   formatDuration,
   hasFilters,
   hasIcons,
@@ -663,5 +666,128 @@ describe("matchDetailView", () => {
       [5, true],
     ]);
     expect(view.teams[1].players.map((p) => p.isSelf)).toEqual([true, false]);
+  });
+});
+
+// --- Cambio de rating ---------------------------------------------------------------------
+
+function eloMatch(overrides: Partial<EloMatch> = {}): EloMatch {
+  return {
+    matchId: "EUW1_1",
+    gameStartTimestamp: NOW,
+    placement: 1,
+    strangers: 0,
+    base: 25,
+    multiplier: 1,
+    delta: 25,
+    ratingBefore: 1500,
+    ratingAfter: 1525,
+    ...overrides,
+  };
+}
+
+const ELO: Record<string, EloMatch> = {
+  EUW1_1: eloMatch(),
+  EUW1_2: eloMatch({
+    matchId: "EUW1_2",
+    placement: 2,
+    strangers: 1,
+    base: 23.4,
+    multiplier: 1.15,
+    delta: 26.91,
+    ratingBefore: 1525,
+    ratingAfter: 1551.91,
+  }),
+  EUW1_3: eloMatch({
+    matchId: "EUW1_3",
+    placement: 5,
+    strangers: 2,
+    base: -15.5,
+    multiplier: 0.5,
+    delta: -7.75,
+    ratingBefore: 1551.91,
+    ratingAfter: 1544.16,
+  }),
+  EUW1_4: eloMatch({
+    matchId: "EUW1_4",
+    placement: 3,
+    base: 0.2,
+    delta: 0.2,
+    ratingBefore: 1544.16,
+    ratingAfter: 1544.36,
+  }),
+};
+
+describe("eloRowChange", () => {
+  it("entero con signo y tono según el cambio", () => {
+    expect(eloRowChange(ELO, "EUW1_1")).toEqual({ text: "+25", tone: "up" });
+    expect(eloRowChange(ELO, "EUW1_2")).toEqual({ text: "+27", tone: "up" });
+    expect(eloRowChange(ELO, "EUW1_3")).toEqual({ text: "-8", tone: "down" });
+  });
+
+  it("un cambio que redondea a 0 es plano y sin signo", () => {
+    expect(eloRowChange(ELO, "EUW1_4")).toEqual({ text: "0", tone: "flat" });
+  });
+
+  it("nada sin historial (no miembro) ni en partidas que no cuentan", () => {
+    expect(eloRowChange(null, "EUW1_1")).toBeNull();
+    expect(eloRowChange(ELO, "EUW1_99")).toBeNull();
+    expect(eloRowChange(ELO, "constructor")).toBeNull();
+  });
+});
+
+describe("eloBreakdown", () => {
+  it("0 desconocidos: multiplicador ×1, sin texto de desconocidos", () => {
+    expect(eloBreakdown(ELO, "EUW1_1")).toEqual([
+      { label: "Puesto", value: "1º" },
+      { label: "Cambio base", value: "+25" },
+      { label: "Multiplicador", value: "×1" },
+      { label: "Cambio final", value: "+25", tone: "up" },
+      { label: "Rating tras la partida", value: "1525" },
+    ]);
+  });
+
+  it("1 desconocido: base con decimal, ×1,15 y «1 desconocido»", () => {
+    expect(eloBreakdown(ELO, "EUW1_2")).toEqual([
+      { label: "Puesto", value: "2º" },
+      { label: "Cambio base", value: "+23,4" },
+      { label: "Multiplicador", value: "×1,15 · 1 desconocido" },
+      { label: "Cambio final", value: "+26,9", tone: "up" },
+      { label: "Rating tras la partida", value: "1552" },
+    ]);
+  });
+
+  it("2 desconocidos con pérdida: ×0,5 y «2 desconocidos»", () => {
+    expect(eloBreakdown(ELO, "EUW1_3")).toEqual([
+      { label: "Puesto", value: "5º" },
+      { label: "Cambio base", value: "-15,5" },
+      { label: "Multiplicador", value: "×0,5 · 2 desconocidos" },
+      { label: "Cambio final", value: "-7,8", tone: "down" },
+      { label: "Rating tras la partida", value: "1544" },
+    ]);
+  });
+
+  it("nada sin historial ni en partidas que no cuentan", () => {
+    expect(eloBreakdown(null, "EUW1_1")).toBeNull();
+    expect(eloBreakdown(ELO, "EUW1_99")).toBeNull();
+  });
+});
+
+describe("matchRowLabel con rating", () => {
+  const base = {
+    ...row(),
+    portraitUrl: null,
+    championSlug: "ahri",
+    newFirst: false,
+  };
+
+  it("añade el cambio tras el puesto solo si la partida cuenta", () => {
+    expect(
+      matchRowLabel(base, NOW, { text: "+29", tone: "up" })
+        .split(", ")
+        .slice(0, 3),
+    ).toEqual(["Ahri", "1º", "+29 de rating"]);
+    expect(matchRowLabel(base, NOW, null)).toBe(matchRowLabel(base, NOW));
+    expect(matchRowLabel(base, NOW)).not.toContain("rating");
   });
 });
