@@ -1,7 +1,7 @@
 # Task T10 — Verificación: mediciones, verify-report y prueba en producción
 
 **Owner**: orchestrator
-**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -29,9 +29,9 @@
 - [x] AC1–AC9 y AC12 con evidencia en el verify-report.
 - [x] AC8 medido antes y después en local.
 - [x] AC11 registrado como gate manual abierto (F18).
-- [ ] AC10 ejecutado tras la release y añadido al verify-report.
+- [ ] AC10 ejecutado tras la release y añadido al verify-report. → **gate posterior a la release**, abierto al cerrar la task: el cierre de la iteración (en `develop`) va antes de la release, así que el resultado se añade a `.dev/archive/iter-10/verify-report.md` (learn → Acciones siguientes).
 
 ## Evidencias <!-- MUST -->
 
 - `.dev/verify-report.md` escrito con PASS: AC1–AC9 (salvo entrega) y AC12 con evidencia; AC8 antes 21 renders/min → después 0 tras las cargas, 1 cálculo de `GroupView` para 5 visores, 95 cálculos = 95 versiones durante el backfill, 0 tras "Actualizar grupo" sin partidas; navegador con el worker real (BD local migrada a la Personal key por decisión del supervisor). AC10 y AC11 abiertos.
-- Pendiente: AC10 tras la release `v1.1.0`.
+- AC10 queda como gate posterior a la release `v1.1.0` (dogfood #35): se ejecuta con el sí del supervisor y su resultado se añade al verify-report archivado.

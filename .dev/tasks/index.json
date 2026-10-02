@@ -115,7 +115,7 @@
     {
       "id": "T10",
       "title": "Verificación: mediciones, verify-report y prueba en producción",
-      "status": "in_progress",
+      "status": "done",
       "owner": "orchestrator",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
@@ -132,7 +132,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T10_verificacion.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T21:48:31Z"
+      "updated_at": "2026-10-02T21:57:29Z"
     }
   ]
 }
