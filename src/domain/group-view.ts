@@ -1,13 +1,13 @@
 // Carga de datos de la vista del grupo (iter-05, T04): una sola función (`loadGroupView`) devuelve
-// todo lo que pintan `/grupo`, la pestaña Grupo y los badges, y otra ligera (`loadProfileTitles`)
-// los datos de grupo de un perfil (títulos vigentes y ELO). Va en su propio módulo para no hacer crecer
-// `src/app/euw/[slug]/data.ts`.
+// todo lo que pintan la pestaña Grupo y los badges, y `profileGroupDataOf` saca de ella los datos de
+// grupo de un perfil (títulos vigentes y ELO). Va en su propio módulo para no hacer crecer
+// `src/app/euw/[slug]/data.ts`. La vista se calcula una vez por versión, día y semana: el memo vive
+// en `group-view-memo.ts` (iter-10, F26).
 //
 // Las reglas viven en el dominio puro (`group-titles`, `group-season`, `elo`); aquí solo se cargan
 // las partidas de los miembros (una consulta, `getGroupRows`) y se llama a esas funciones. Los
-// títulos de `loadGroupView` y de `loadProfileGroupData` salen de la MISMA función (`groupPeriods`)
-// y el ELO del perfil es la fila de la Clasificación de `computeGroupElo` (el mismo cálculo que
-// `GroupView.elo`), así que coinciden por construcción. Nada se guarda: se calcula al leer (P9).
+// títulos y el ELO de la cabecera del perfil salen de la MISMA `GroupView` (`profileGroupDataOf`),
+// así que coinciden por construcción. Nada se guarda en la BD: se calcula al leer (P9).
 //
 // Exposición de `puuid`: el `puuid` es interno (ver `GroupMember`) y NO sale de este módulo. Antes
 // de calcular nada, cada `puuid` de miembro se sustituye por su clave de miembro
@@ -134,7 +134,7 @@ export interface GroupView {
 
 /**
  * Periodos mostrados (día y semana) con su ranking y títulos, sobre las filas de los miembros ya
- * con claves de miembro. ÚNICO cálculo de títulos: lo usan `loadGroupView` y `loadProfileTitles`.
+ * con claves de miembro. ÚNICO cálculo de títulos (`loadGroupView`).
  */
 function groupPeriods(
   rows: readonly SeasonMatchRow[],
@@ -334,31 +334,25 @@ export interface ProfileGroupData {
 
 /**
  * Títulos vigentes de un perfil (los de los periodos que muestra el bloque Hoy / Semana, día
- * primero, incluidos los de dúo y trío de los que forma parte) y su ELO, con UNA sola lectura del
- * grupo (miembros + partidas). Son exactamente `titlesOf(view.day.titles, key)` +
- * `titlesOf(view.week.titles, key)` y la fila de `view.elo` de `loadGroupView`. Para un no miembro
- * (o un perfil que no existe) no se leen partidas: `{ titles: [], elo: null }`.
+ * primero, incluidos los de dúo y trío de los que forma parte) y su ELO, sacados de la vista del
+ * grupo ya calculada: `titlesOf(view.day.titles, key)` + `titlesOf(view.week.titles, key)` y la
+ * fila de `view.elo`. Así la cabecera y la pestaña Grupo coinciden por construcción. Para quien no
+ * está en la vista: `{ titles: [], elo: null }`. La carga (con el memo) es `loadProfileGroupData`
+ * de `group-view-memo.ts`.
  */
-export async function loadProfileGroupData(
-  db: Db,
+export function profileGroupDataOf(
+  view: GroupView,
   profileId: number,
-  now: number,
-  seasonStart: Date = getSeasonStart(),
-): Promise<ProfileGroupData> {
-  const members = await listGroupMembers(db);
-  if (!members.some((m) => m.profileId === profileId)) {
+): ProfileGroupData {
+  const key = memberKey(profileId);
+  if (!view.members.some((m) => m.key === key)) {
     return { titles: [], elo: null };
   }
-  const rows = await loadMemberRows(db, members, seasonStart);
-  const { day, week } = groupPeriods(rows, now);
-  const key = memberKey(profileId);
-  const elo = computeGroupElo(
-    rows,
-    members.map((m) => memberKey(m.profileId)),
-    now,
-  );
   return {
-    titles: [...titlesOf(day.titles, key), ...titlesOf(week.titles, key)],
-    elo: profileEloOf(elo, key),
+    titles: [
+      ...titlesOf(view.day.titles, key),
+      ...titlesOf(view.week.titles, key),
+    ],
+    elo: profileEloOf(view.elo, key),
   };
 }
