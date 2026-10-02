@@ -593,16 +593,13 @@ describe("AC5 refresco incremental", () => {
       await requestRefresh(db, profile.id, { interactive: true, now: now() }),
     ).toBe("active");
 
+    const synced = await getProfile(profile.id);
+    expect(synced.challengeValue).not.toBeNull();
     let before = fake.calls.length;
     await drain(worker);
     let delta = fake.calls.slice(before);
-    // 1 de ids por cola + el contador 602002 y el icono (otro host); ningún detalle.
-    expect(delta.map((c) => c.method)).toEqual([
-      "matchIds",
-      "matchIds",
-      "playerData",
-      "summoner",
-    ]);
+    // 1 de ids por cola y nada más: ni detalle ni el contador 602002 ni el icono (AC7).
+    expect(delta.map((c) => c.method)).toEqual(["matchIds", "matchIds"]);
     const [lastEnd] = await db
       .select({ max: sql<string>`max(${matches.gameEndTimestamp})` })
       .from(matches);
@@ -617,7 +614,15 @@ describe("AC5 refresco incremental", () => {
       status: "done",
       totalIds: 0,
       fetched: 0,
+      lastError: null,
     });
+    // El cierre anota la sincronización y conserva lo guardado (sin pisarlo con `null`).
+    const kept = await getProfile(profile.id);
+    expect(kept.lastSyncedAt).toEqual(new Date(clock.now()));
+    expect(kept.challengeValue).toBe(synced.challengeValue);
+    expect(kept.challengeLevel).toBe(synced.challengeLevel);
+    expect(kept.challengeCheckedAt).toEqual(synced.challengeCheckedAt);
+    expect(kept.profileIconId).toBe(FAKE_PROFILE_ICON_ID);
 
     // Una partida nueva.
     fake.addMatch(laterVariant("EUW1_7999000001", 1));
@@ -636,6 +641,17 @@ describe("AC5 refresco incremental", () => {
     expect(job).toMatchObject({ status: "done", totalIds: 1, fetched: 1 });
     expect(job.matchIds).toEqual(["EUW1_7999000001"]);
     expect((await counts()).matches).toBe(11);
+    // Con una partida nueva, el cierre sí pide el contador 602002 y el icono (AC7).
+    expect(delta.map((c) => c.method)).toEqual([
+      "matchIds",
+      "matchIds",
+      "match",
+      "playerData",
+      "summoner",
+    ]);
+    expect((await getProfile(profile.id)).challengeCheckedAt).toEqual(
+      new Date(clock.now()),
+    );
   });
 
   it("al abrir la página se encola un refresco no interactivo (prioridades de lista y detalle)", async () => {
@@ -1083,6 +1099,116 @@ describe("errores en el detalle", () => {
   });
 });
 
+describe("AC7 incremental ligero: 602002 e icono solo si el perfil pudo cambiar", () => {
+  /** El jugador de prueba sincronizado y, tras él, una partida en trío con el amigo 013. */
+  async function selfWithSharedMatch() {
+    const ctx = setup();
+    const self = await registerProfile(db, "BEJITO MAMBO", "1991");
+    await drain(ctx.worker);
+    // La última lectura del 602002 fue justo al acabar la última partida guardada: la nueva
+    // (2 h después) acaba más tarde que esa lectura.
+    const [{ lastEnd }] = await db
+      .select({ lastEnd: sql<string>`max(${matches.gameEndTimestamp})` })
+      .from(matches);
+    await db
+      .update(profiles)
+      .set({ challengeCheckedAt: new Date(Number(lastEnd)) })
+      .where(eq(profiles.id, self.id));
+    ctx.fake.addMatch(laterVariant("EUW1_7999000020", 2));
+    return { ...ctx, self };
+  }
+
+  const refresh = async (
+    clock: ReturnType<typeof setup>["clock"],
+    profileId: number,
+  ) => {
+    clock.advance(REFRESH_COOLDOWN_MS);
+    expect(
+      await requestRefresh(db, profileId, {
+        interactive: false,
+        now: new Date(clock.now()),
+      }),
+    ).toBe("queued");
+  };
+
+  it("una partida en trío que ya guardó un amigo no se descarga, pero el contador del perfil sí se lee", async () => {
+    const { fake, worker, clock, self } = await selfWithSharedMatch();
+    // El amigo sincroniza primero y guarda la partida (su job pide su propio contador).
+    const mate = await registerProfile(db, "Player013", "ANON");
+    await drain(worker);
+    expect(await lastJob(mate.id)).toMatchObject({ status: "done" });
+    const checkedBefore = (await getProfile(self.id)).challengeCheckedAt;
+
+    await refresh(clock, self.id);
+    const before = fake.calls.length;
+    await drain(worker);
+
+    const delta = fake.calls.slice(before);
+    expect(await lastJob(self.id)).toMatchObject({
+      status: "done",
+      totalIds: 0,
+    });
+    expect(delta.map((c) => c.method)).toEqual([
+      "matchIds",
+      "matchIds",
+      "playerData",
+      "summoner",
+    ]);
+    expect(
+      (await getProfile(self.id)).challengeCheckedAt?.getTime(),
+    ).toBeGreaterThan(checkedBefore?.getTime() ?? 0);
+
+    // Ya leído después de esa partida: el siguiente incremental vuelve a ser ligero.
+    await refresh(clock, self.id);
+    const next = fake.calls.length;
+    await drain(worker);
+    expect(fake.calls.slice(next).map((c) => c.method)).toEqual([
+      "matchIds",
+      "matchIds",
+    ]);
+  });
+
+  it("un perfil con partidas guardadas y sin lectura previa del 602002 lo pide aunque no haya partidas nuevas", async () => {
+    const { fake, worker, clock } = setup();
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+    await drain(worker);
+    await db
+      .update(profiles)
+      .set({ challengeCheckedAt: null })
+      .where(eq(profiles.id, profile.id));
+
+    await refresh(clock, profile.id);
+    const before = fake.calls.length;
+    await drain(worker);
+
+    expect(fake.calls.slice(before).map((c) => c.method)).toEqual([
+      "matchIds",
+      "matchIds",
+      "playerData",
+      "summoner",
+    ]);
+    expect((await getProfile(profile.id)).challengeCheckedAt).not.toBeNull();
+  });
+
+  it("un incremental vacío no toca euw1: un fallo de player-data y de summoner no le afecta", async () => {
+    const { fake, worker, clock } = setup();
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+    await drain(worker);
+    fake.failWith = (call) =>
+      call.method === "playerData" || call.method === "summoner"
+        ? new RiotRetryableError({ host: "euw1", path: "/x", status: 500 })
+        : undefined;
+
+    await refresh(clock, profile.id);
+    await drain(worker);
+
+    expect(await lastJob(profile.id)).toMatchObject({
+      status: "done",
+      lastError: null,
+    });
+  });
+});
+
 describe("icono de invocador (Summoner-V4 al cerrar)", () => {
   it("guarda el profileIconId en el perfil", async () => {
     const { fake, worker } = setup();
@@ -1138,6 +1264,8 @@ describe("icono de invocador (Summoner-V4 al cerrar)", () => {
       call.method === "summoner"
         ? new RiotRetryableError({ host: "euw1", path: "/x", status: 500 })
         : undefined;
+    // Con una partida nueva: un incremental vacío no pide el icono.
+    fake.addMatch(laterVariant("EUW1_7999000003", 1));
     clock.advance(REFRESH_COOLDOWN_MS);
     expect(
       await requestRefresh(db, profile.id, {

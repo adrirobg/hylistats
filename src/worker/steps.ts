@@ -4,6 +4,7 @@ import {
   DrizzleQueryError,
   desc,
   eq,
+  gt,
   inArray,
   isNull,
   lte,
@@ -17,6 +18,7 @@ import {
   type KEY_STATUSES,
   matches,
   matchFetch,
+  participants,
   profiles,
   type SyncJob,
   settings,
@@ -48,7 +50,8 @@ import {
 //
 // Máquina de estados de un job:
 //   pending --Account-V1--> listing --Match-V5 ids (páginas de 100, una cola tras otra)--> fetching
-//   fetching --detalle por matchId (match_fetch)--> [todos resueltos] --player-data--> done
+//   fetching --detalle por matchId (match_fetch)--> [todos resueltos] --player-data + icono--> done
+//   (player-data e icono solo si el perfil pudo cambiar: ver `needsCloseCounters`)
 //   error: Riot ID inexistente, fallo permanente o 5 fallos seguidos en pending/listing/cierre.
 // Máquina de estados de `match_fetch` (única global por matchId):
 //   pending --OK / ya en `matches`--> done · --404--> missing
@@ -741,13 +744,48 @@ async function registerFetchFailure(
 }
 
 /**
+ * ¿Hay que pedir al cerrar el contador 602002 y el icono? Solo cambian cuando el perfil juega, así
+ * que un incremental que no trae nada del perfil no gasta las dos peticiones (cada incremental
+ * vacío cuesta 1 petición de ids por cola, no 3 más). Se piden siempre en el backfill y cuando:
+ * - el job descargó partidas (`totalIds > 0`: ids que no estaban en `matches`);
+ * - hay una partida guardada del perfil que acabó después de la última lectura del 602002, o este
+ *   no se ha leído nunca. Cubre las partidas en trío que un amigo ya guardó: el incremental de este
+ *   perfil las lista, las encuentra en `matches` y no descarga nada, pero su contador sí subió.
+ */
+async function needsCloseCounters(
+  db: Db,
+  row: JobRow,
+  checkedAt: Date | null,
+): Promise<boolean> {
+  const { job, puuid } = row;
+  if (job.kind === "backfill" || job.totalIds > 0) return true;
+  if (!puuid) return false;
+  const [newer] = await db
+    .select({ one: sql<number>`1` })
+    .from(participants)
+    .innerJoin(matches, eq(matches.matchId, participants.matchId))
+    .where(
+      and(
+        eq(participants.puuid, puuid),
+        checkedAt
+          ? gt(matches.gameEndTimestamp, checkedAt.getTime())
+          : undefined,
+      ),
+    )
+    .limit(1);
+  return newer !== undefined;
+}
+
+/**
  * Cierre: contador del challenge 602002 (Challenges-V1, host `euw1`), icono de invocador
- * (Summoner-V4, host `euw1`), `lastSyncedAt` y job `done`. También en el incremental sin
- * partidas nuevas: el criterio AC5 cuenta peticiones de ids (1 por cola), y refrescar el contador
- * oficial en cada sync es lo que permite compararlo con la lista verificada (va a otro host, con
- * su propia ventana de límite). Si `player-data` falla por algo que no es la key, se anota en
- * `lastError` y el job se cierra igualmente. Con el icono igual (`summoner: …`): las dos
- * llamadas son independientes y un fallo de una no quita la otra.
+ * (Summoner-V4, host `euw1`), `lastSyncedAt` y job `done`. Las dos peticiones solo se hacen si el
+ * perfil pudo cambiar (`needsCloseCounters`): el backfill, el incremental con partidas nuevas y el
+ * que encuentra partidas guardadas después de la última lectura. Un incremental vacío solo cierra
+ * el job y anota `lastSyncedAt`: no pide nada a `euw1` y deja el 602002 y el icono guardados (AC5
+ * cuenta 1 petición de ids por cola; el resto del coste de un refresco lo ponían estas dos).
+ * Si `player-data` falla por algo que no es la key, se anota en `lastError` y el job se cierra
+ * igualmente. Con el icono igual (`summoner: …`): las dos llamadas son independientes y un fallo
+ * de una no quita la otra.
  */
 async function closeJob(deps: StepDeps, row: JobRow, now: Date) {
   const { db } = deps;
@@ -755,7 +793,14 @@ async function closeJob(deps: StepDeps, row: JobRow, now: Date) {
   let challenge: ReturnType<typeof extractChallenge> = null;
   let profileIconId: number | null = null;
   const closeErrors: string[] = [];
-  if (row.puuid) {
+  const [stored] = await db
+    .select({ checkedAt: profiles.challengeCheckedAt })
+    .from(profiles)
+    .where(eq(profiles.id, job.profileId));
+  if (
+    row.puuid &&
+    (await needsCloseCounters(db, row, stored?.checkedAt ?? null))
+  ) {
     try {
       const playerData = await deps.riot.getPlayerData(
         row.puuid,
