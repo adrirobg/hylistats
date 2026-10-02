@@ -1,15 +1,22 @@
+"use client";
+
+import { useMemo } from "react";
+import { syncProgressFromJson } from "@/lib/status-payload";
 import { cn } from "@/lib/utils";
+import { usePageStatus } from "./status-provider";
 import {
   rateLimitPhrase,
   type SyncBandModel,
   sharingPhrase,
+  syncBandModel,
 } from "./view-model";
 
 // Banda de progreso de la sincronización bajo el header (brief §4.10, `.sync-band` de la
 // maqueta). Solo la pinta el backfill (el incremental va dentro del botón Actualizar y en el
 // header, `header.tsx`), la pausa por key caducada y el límite de peticiones, ambas en azul
 // acero: no son un error del usuario (§4.3). La cola compartida usa el tono neutro del progreso:
-// esperar turno no avisa de nada.
+// esperar turno no avisa de nada. Es cliente porque se pinta desde el estado que consulta
+// `StatusProvider`, sin repintar la página.
 
 /** Barra `.track`; sin `value` es indeterminada (pulsa). */
 function Track({
@@ -49,7 +56,25 @@ function Track({
   );
 }
 
-export function SyncBand({ model }: { model: SyncBandModel }) {
+/** La banda según el estado de la página; nada si no toca (`syncBandModel`). */
+export function SyncBand() {
+  const { status } = usePageStatus();
+  const syncJson = status.profile?.sync ?? null;
+  const paused = status.profile?.paused ?? false;
+  // La hora del servidor del estado: el primer render coincide con el HTML.
+  const model = useMemo(
+    () =>
+      syncBandModel(
+        syncJson && syncProgressFromJson(syncJson),
+        paused,
+        status.now,
+      ),
+    [syncJson, paused, status.now],
+  );
+  return model && <Band model={model} />;
+}
+
+function Band({ model }: { model: SyncBandModel }) {
   const warning = model.kind === "paused" || model.kind === "rate_limit";
   return (
     <div className="px-5 pt-3 @max-[640px]:px-3.5">

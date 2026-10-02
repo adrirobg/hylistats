@@ -1,6 +1,6 @@
 {
   "name": "hylistats",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,7 +17,8 @@
     "db:backfill-columns": "tsx --env-file-if-exists=.env.local scripts/backfill-participant-columns.ts",
     "db:reset": "tsx --env-file-if-exists=.env.local scripts/db-reset.ts",
     "fixtures:record": "tsx --env-file-if-exists=.env.local scripts/record-fixtures.ts",
-    "sync:season": "tsx --env-file-if-exists=.env.local scripts/sync-season.ts"
+    "sync:season": "tsx --env-file-if-exists=.env.local scripts/sync-season.ts",
+    "sim:session": "tsx scripts/simulate-session.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

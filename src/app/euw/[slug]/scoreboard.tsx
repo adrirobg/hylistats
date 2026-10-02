@@ -5,7 +5,7 @@ import { DistributionBar } from "./distribution-bar";
 
 // Marcador del perfil (brief §4.6, `.kpis` y `.dist` de la maqueta): cinco cifras y la
 // distribución 1º–6º. Es un componente de servidor: las cifras salen de `data` y suben en vivo
-// con el `router.refresh()` de `AutoRefresh` mientras dura el backfill. Lo del formato y los
+// con los repintados de `StatusProvider` mientras dura el backfill. Lo del formato y los
 // colores es `domain/scoreboard.ts`; aquí solo se pinta.
 //
 // `rail`: rejilla de cinco cifras de 30 px y la barra apilada (va en una `Box` del raíl).

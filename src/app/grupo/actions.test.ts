@@ -2,10 +2,10 @@ import { asc } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDb } from "@/db";
 import { groupMembers, profiles, syncJobs } from "@/db/schema";
-import { countActiveGroupSyncs } from "@/domain/group-sync";
+import { countActiveGroupSyncs, ensureGroupFresh } from "@/domain/group-sync";
 import { wakeSeq } from "@/worker/queue";
 import { getTestDb, truncateAll } from "../../../tests/helpers/db";
-import { ensureGroupFreshAction, refreshGroupAction } from "./actions";
+import { refreshGroupAction } from "./actions";
 
 // Fuera de una petición de Next no hay caché que invalidar: `revalidatePath` se espía.
 const mocks = vi.hoisted(() => ({ revalidatePath: vi.fn() }));
@@ -65,14 +65,15 @@ async function pendingJobs() {
   return (await jobs()).filter((job) => job.status === "pending");
 }
 
-describe("ensureGroupFreshAction (al abrir la vista, volver a la pestaña y latido)", () => {
-  it("encola solo a los miembros sin job activo y fuera del límite de 5 min, sin interactivo", async () => {
+// La frescura automática va en la petición de estado (`loadStatus`); aquí, su regla de grupo.
+describe("ensureGroupFresh (latido de la vista del grupo)", () => {
+  it("encola solo a los miembros sin job activo y fuera del límite de 2 min, sin interactivo", async () => {
     const stale = await profile("Antiguo", 10 * MIN);
     await profile("Reciente", 1 * MIN);
     const busy = await profile("Ocupado", 10 * MIN);
     await activeJob(busy);
     const limited = await profile("Limitado", 10 * MIN);
-    await finishedJob(limited, 2 * MIN);
+    await finishedJob(limited, 1 * MIN);
     const neverSynced = await db
       .insert(profiles)
       .values({
@@ -85,7 +86,7 @@ describe("ensureGroupFreshAction (al abrir la vista, volver a la pestaña y lati
     await db.insert(groupMembers).values({ profileId: neverSynced[0].id });
     const seq = wakeSeq();
 
-    const summary = await ensureGroupFreshAction();
+    const summary = await ensureGroupFresh(db);
 
     expect(summary).toEqual({
       members: 5,
@@ -111,18 +112,18 @@ describe("ensureGroupFreshAction (al abrir la vista, volver a la pestaña y lati
     await profile("Miembro", 1 * MIN);
     await profile("Externo", 60 * MIN, false);
 
-    const summary = await ensureGroupFreshAction();
+    const summary = await ensureGroupFresh(db);
 
     expect(summary).toMatchObject({ members: 1, queued: 0, fresh: 1 });
     expect(await jobs()).toHaveLength(0);
   });
 
-  it("un segundo disparo (otra pestaña, el AutoRefresh del perfil) no encola otra vez", async () => {
+  it("un segundo disparo (otra pestaña u otro visor) no encola otra vez", async () => {
     await profile("A", 10 * MIN);
     await profile("B", 10 * MIN);
 
-    await ensureGroupFreshAction();
-    const second = await ensureGroupFreshAction();
+    await ensureGroupFresh(db);
+    const second = await ensureGroupFresh(db);
 
     expect(second).toMatchObject({ queued: 0, active: 2 });
     expect(await jobs()).toHaveLength(2);
@@ -130,7 +131,7 @@ describe("ensureGroupFreshAction (al abrir la vista, volver a la pestaña y lati
 
   it("sin miembros no hace nada", async () => {
     await profile("Externo", 60 * MIN, false);
-    expect(await ensureGroupFreshAction()).toEqual({
+    expect(await ensureGroupFresh(db)).toEqual({
       members: 0,
       queued: 0,
       active: 0,
@@ -168,7 +169,7 @@ describe("refreshGroupAction (botón «Actualizar grupo»)", () => {
     );
     expect(pending.every((job) => job.interactive)).toBe(true);
     expect(pending.every((job) => job.kind === "incremental")).toBe(true);
-    expect(mocks.revalidatePath).toHaveBeenCalledWith("/grupo", "page");
+    expect(mocks.revalidatePath).not.toHaveBeenCalledWith("/grupo", "page");
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/euw/[slug]", "page");
   });
 

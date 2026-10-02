@@ -14,9 +14,8 @@ import { SeasonTableView } from "./season-table";
 import { TeamsBlock } from "./teams-block";
 import { TitlesSection } from "./titles-section";
 
-// Vista del grupo (iter-05): un solo componente que muestra `/grupo` (`page.tsx`) y, con T07, la
-// pestaña Grupo del perfil. Con los mismos datos pinta los mismos valores en los dos sitios. Es de
-// servidor: no carga nada (recibe el `GroupView` de `loadGroupView`) y su único JS de cliente es el
+// Vista del grupo (iter-05): la pestaña Grupo del perfil (`/grupo` ya no existe, redirige a `/`).
+// Es de servidor: no carga nada (recibe el `GroupView` de `loadGroupView`) y su único JS de cliente es el
 // selector Hoy / Semana, que vive en la URL.
 //
 // Estructura, de arriba abajo; los huecos de las tasks siguientes están marcados:
