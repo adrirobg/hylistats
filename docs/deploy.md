@@ -32,7 +32,7 @@ La decide el supervisor, normalmente tras cerrar una iteración en `develop` (pu
    ```bash
    npm version minor --no-git-tag-version
    ```
-   (`patch` si la release solo corrige) y commit `maint(release): vX.Y.Z` con `package.json` y `package-lock.json`. Push de `develop`. El tag no se crea aquí: va sobre el merge commit de `main`.
+   (`patch` si la release solo corrige) y commit `maint(release): vX.Y.Z` con `package.json` y `package-lock.json`. Antes, comprobar que la versión de `package.json` es la del último tag (`git describe --tags --abbrev=0`): `npm version minor` sube desde lo que haya en `package.json`. Si no coinciden, fijar la versión explícita (`npm version X.Y.Z --no-git-tag-version`); pasó en `v1.1.0`, porque `package.json` seguía en `0.1.0`. Push de `develop`. El tag no se crea aquí: va sobre el merge commit de `main`.
 2. **PR `develop → main`** con título `release: vX.Y.Z` y, en el cuerpo, las issues y PR incluidas desde la release anterior (`git log --merges --oneline vANTERIOR..develop`). La mergea el supervisor con **merge commit** (sin squash ni rebase, para que `main` y `develop` compartan la historia).
 3. **Tag** sobre el merge commit de `main`:
    ```bash
