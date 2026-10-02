@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { closeDb } from "@/db";
-import { groupMembers, profiles } from "@/db/schema";
+import { groupMembers, matches, profiles } from "@/db/schema";
 import type { ChampionCatalog } from "@/lib/ddragon";
 import { getTestDb, truncateAll } from "../../tests/helpers/db";
 import {
@@ -13,7 +13,7 @@ import { computeSeasonTable, type SeasonMatchRow } from "./group-season";
 import { type AwardedTitle, titlesOf } from "./group-titles";
 import {
   loadGroupView,
-  loadProfileTitles,
+  loadProfileGroupData,
   memberKey,
   withDisplayNames,
 } from "./group-view";
@@ -347,7 +347,12 @@ describe("loadGroupView", () => {
   });
 });
 
-describe("loadProfileTitles", () => {
+/** Títulos del perfil: la parte `titles` de `loadProfileGroupData`. */
+const loadProfileTitles = async (
+  ...args: Parameters<typeof loadProfileGroupData>
+) => (await loadProfileGroupData(...args)).titles;
+
+describe("loadProfileTitles (vía loadProfileGroupData)", () => {
   it("coincide con los títulos de loadGroupView para cada miembro (también dúos y tríos)", async () => {
     const { a, b, c, d, e } = await seed();
     const view = await loadGroupView(db, now, seasonStart);
@@ -413,6 +418,132 @@ describe("loadProfileTitles", () => {
   it("un miembro sin resolver: lista vacía (sin partidas)", async () => {
     const { e } = await seed();
     expect(await loadProfileTitles(db, e.id, now, seasonStart)).toEqual([]);
+  });
+});
+
+describe("ELO del grupo", () => {
+  /** Partida de Arena de un solo miembro (el resto, anónimos) en el instante `startMs`. */
+  const solo = (startMs: number, puuid: string, placement: number) =>
+    storePlay(startMs, [{ puuids: [puuid], placement }]);
+
+  it("sin miembros: Clasificación vacía", async () => {
+    const view = await loadGroupView(db, now, seasonStart);
+    expect(view.elo.standings).toEqual([]);
+  });
+
+  it("la Clasificación incluye a todos los miembros (también sin partidas ni resueltos) y ningún no miembro", async () => {
+    const { a, b, c, d, e, x } = await seed();
+    const view = await loadGroupView(db, now, seasonStart);
+    const { standings } = view.elo;
+
+    expect(standings.map((s) => s.key).sort()).toEqual(
+      [a, b, c, d, e].map((m) => memberKey(m.id)).sort(),
+    );
+    expect(standings.map((s) => s.key)).not.toContain(memberKey(x.id));
+    // Ordenada por rating, de mayor a menor.
+    const ratings = standings.map((s) => s.rating);
+    expect(ratings).toEqual([...ratings].sort((p, q) => q - p));
+    // Echo (sin resolver) y quien no juega: 1500, provisional, 0 partidas.
+    const echo = standings.find((s) => s.key === memberKey(e.id));
+    expect(echo).toMatchObject({
+      rating: 1500,
+      roundedRating: 1500,
+      games: 0,
+      provisional: true,
+      dayChange: null,
+      weekChange: null,
+    });
+    expect(echo?.history).toEqual([]);
+    // A, B, C y D juegan 6 partidas cada uno (3 el lunes y 3 hoy): los de hoy son 1º/1º/2º.
+    const alfa = standings.find((s) => s.key === memberKey(a.id));
+    expect(alfa?.games).toBe(6);
+    expect(alfa?.history.map((h) => h.placement)).toEqual([3, 4, 3, 1, 1, 2]);
+    expect(view.elo.day.key).toBeDefined();
+    // X (no miembro) es un desconocido: hoy D juega con X y un anónimo (2 desconocidos).
+    const delta = standings.find((s) => s.key === memberKey(d.id));
+    expect(delta?.history.map((h) => h.strangers)).toEqual([0, 0, 0, 2, 2, 2]);
+  });
+
+  it("el ELO del perfil de un miembro coincide con su fila de la Clasificación", async () => {
+    const { a, b, c, d, e } = await seed();
+    const view = await loadGroupView(db, now, seasonStart);
+    for (const member of [a, b, c, d, e]) {
+      const { elo } = await loadProfileGroupData(
+        db,
+        member.id,
+        now,
+        seasonStart,
+      );
+      const standing = view.elo.standings.find(
+        (s) => s.key === memberKey(member.id),
+      );
+      expect(standing).toBeDefined();
+      expect(elo).toMatchObject({
+        position: standing?.position,
+        rating: standing?.rating,
+        roundedRating: standing?.roundedRating,
+        league: standing?.league,
+        provisional: standing?.provisional,
+        games: standing?.games,
+        dayChange: standing?.dayChange,
+        weekChange: standing?.weekChange,
+        day: view.elo.day,
+        week: view.elo.week,
+      });
+      expect(elo).not.toHaveProperty("key");
+      // Historial por matchId y serie de la gráfica, en orden cronológico.
+      expect(Object.values(elo?.matches ?? {})).toEqual(standing?.history);
+      for (const m of standing?.history ?? []) {
+        expect(elo?.matches[m.matchId]).toEqual(m);
+      }
+      expect(elo?.series).toEqual(
+        standing?.history.map((h) => ({
+          gameStartTimestamp: h.gameStartTimestamp,
+          ratingAfter: h.ratingAfter,
+        })),
+      );
+      // Serializable: sin Map ni claves de miembro.
+      expect(JSON.parse(JSON.stringify(elo))).toBeDefined();
+    }
+  });
+
+  it("no miembro o perfil inexistente: ELO null y sin títulos", async () => {
+    const { x } = await seed();
+    expect(await loadProfileGroupData(db, x.id, now, seasonStart)).toEqual({
+      titles: [],
+      elo: null,
+    });
+    expect(await loadProfileGroupData(db, 999_999, now, seasonStart)).toEqual({
+      titles: [],
+      elo: null,
+    });
+  });
+
+  it("no cuentan las partidas anteriores a SEASON_START ni las de otras colas", async () => {
+    const a = await insertProfile("Alfa", "puuid-a");
+    await db.insert(groupMembers).values({ profileId: a.id });
+    const inSeason = Date.UTC(2026, 8, 30, 12, 0, 0);
+    await solo(inSeason, "puuid-a", 1);
+    // Antes de la temporada (11 de mayo, un día antes del inicio): no cuenta.
+    await solo(Date.UTC(2026, 4, 11, 12, 0, 0), "puuid-a", 6);
+    // Otra cola (no Arena): no cuenta.
+    await storePlay(inSeason + 3_600_000, [
+      { puuids: ["puuid-a"], placement: 6 },
+    ]);
+    await db
+      .update(matches)
+      .set({ queueId: 420 })
+      .where(eq(matches.matchId, `EUW1_GRP_${matchCounter}`));
+
+    const view = await loadGroupView(db, now, seasonStart);
+    const [alfa] = view.elo.standings;
+    expect(alfa.games).toBe(1);
+    expect(alfa.history).toHaveLength(1);
+    expect(alfa.history[0]).toMatchObject({ placement: 1, ratingBefore: 1500 });
+    const { elo } = await loadProfileGroupData(db, a.id, now, seasonStart);
+    expect(elo?.games).toBe(1);
+    expect(elo?.series).toHaveLength(1);
+    expect(elo?.rating).toBe(alfa.rating);
   });
 });
 

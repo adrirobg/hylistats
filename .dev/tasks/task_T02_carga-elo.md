@@ -1,7 +1,7 @@
 # Task T02 — Carga del ELO en la vista del grupo y en el perfil
 
 **Owner**: worker:sonnet
-**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -37,11 +37,17 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `GroupView.elo` con la Clasificación.
-- [ ] Una sola lectura en el perfil para títulos y ELO; `null` en no miembros.
-- [ ] Historial por `matchId` y serie para la gráfica en los datos del perfil.
-- [ ] Tests de BD, incluida la exclusión de partidas fuera de temporada o de otras colas.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] `GroupView.elo` con la Clasificación.
+- [x] Una sola lectura en el perfil para títulos y ELO; `null` en no miembros.
+- [x] Historial por `matchId` y serie para la gráfica en los datos del perfil.
+- [x] Tests de BD, incluida la exclusión de partidas fuera de temporada o de otras colas.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
+
+- `src/domain/group-view.ts`: `GroupView.elo: GroupElo`; `loadProfileGroupData(db, profileId, now, seasonStart?)` → `{titles, elo: ProfileElo | null}` con una sola lectura (sustituye a `loadProfileTitles`); `profileEloOf` pura; `ProfileElo` serializable (posición, rating, liga, provisional, partidas, `matches` por `matchId`, `series`, periodos y cambios).
+- `src/app/euw/[slug]/data.ts`: +4 líneas de cableado (`elo` en los datos del perfil).
+- 5 tests nuevos en `group-view.test.ts`, incluida la exclusión de partidas anteriores a `seasonStart` y de otra cola (AC1, última cláusula).
+- Aviso para la UI: `league.min` de Hierro es `-Infinity`.
+- `npm run lint && npm run typecheck && npm test && npm run build` en verde (1319 tests).
 
