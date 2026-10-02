@@ -44,6 +44,7 @@ import {
   ARENA_QUIET_DAYS,
   getSeasonStart,
 } from "@/lib/config";
+import { groupVersion, profileVersion } from "@/lib/data-version";
 import { type ChampionCatalog, profileIconUrl } from "@/lib/ddragon";
 import { EMPTY_GAME_DATA, type GameData } from "@/lib/game-data";
 import { normalizeRiotId } from "@/worker/queue";
@@ -196,6 +197,11 @@ export interface ProfileView {
   elo: ProfileElo | null;
   /** El perfil es miembro del grupo: decide si la barra lleva la pestaña Grupo. */
   isMember: boolean;
+  /**
+   * Versiones de datos leídas antes de cargar la página (`initial` de `StatusProvider`); la del
+   * grupo solo si es miembro.
+   */
+  versions: { version: string; groupVersion: string | null };
 
   /**
    * Panel de campeón abierto (`?campeon` válido, sobre cualquier pestaña): la distribución y las
@@ -308,6 +314,11 @@ export async function loadProfilePage(
     };
   }
 
+  // Antes de cargar nada: un cambio durante la carga no se pierde (el estado lo verá distinto).
+  const versions = {
+    profile: profileVersion(profile.id),
+    group: groupVersion(),
+  };
   const now = new Date();
   const [stats, syncState, championCatalog, groupData, isMember] =
     await Promise.all([
@@ -400,6 +411,10 @@ export async function loadProfilePage(
     titles: groupData.titles,
     elo: groupData.elo,
     isMember,
+    versions: {
+      version: versions.profile,
+      groupVersion: isMember ? versions.group : null,
+    },
     // La clave solo existe con `?campeon` válido: `...null` no añade nada.
     ...(championEntry && {
       champion: championPanelData(championEntry, stats.playerRows, heat),

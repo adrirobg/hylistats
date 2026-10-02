@@ -11,6 +11,7 @@ import { ToastRegion } from "@/components/hy/toast";
 import { DEITY_CONDITION, DEITY_NAME } from "@/domain/arena-god";
 import type { LocalState } from "@/lib/local-store";
 import { normalizeRiotId } from "@/lib/riot-id";
+import { syncProgressFromJson } from "@/lib/status-payload";
 import {
   localActions,
   useLocalReady,
@@ -18,9 +19,9 @@ import {
 } from "@/lib/use-local-store";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
-import type { SyncProgress } from "./data";
 import { LocalMenu } from "./local-menu";
 import type { RefreshSnapshot } from "./refresh-outcome";
+import { usePageStatus } from "./status-provider";
 import type { TitleBadge } from "./title-badges";
 import { REFRESH_BUTTON_ID, useRefresh } from "./use-refresh";
 import {
@@ -37,8 +38,9 @@ import {
 // frescura en dos líneas (más la etiqueta de Arena fuera de rotación, si toca) y botón Actualizar
 // con su progreso: un incremental en cola lo dice el propio botón y el límite de peticiones un
 // aviso bajo el header (§4.10; el backfill lo cuenta la banda). Es cliente porque lee el estado del
-// navegador («mi perfil», favoritos) y porque el reloj de la frescura corre en cliente; lo del
-// servidor llega por props (se renuevan con el polling de `AutoRefresh`).
+// navegador («mi perfil», favoritos) y porque el reloj de la frescura corre en cliente. La
+// sincronización (job, progreso, «Comprobado hace…», error, pausa) sale del estado que consulta
+// `StatusProvider`; el resto llega por props del servidor (se renuevan al repintar).
 //
 // Rangos (container queries sobre `.app`): por debajo de 640 px el header se reduce a Riot ID,
 // ★, ↻ y ⋯; la frescura pasa a una segunda línea y se ocultan las etiquetas fijas.
@@ -65,12 +67,6 @@ export interface ProfileHeaderProps {
   /** Hora del servidor (ms): el primer render coincide con el HTML del servidor. */
   nowMs: number;
   lastGameAt: number | null;
-  lastSyncedAt: number | null;
-  sync: SyncProgress | null;
-  /** Instante (ms) del último job fallido; `null` si el último terminado no falló. */
-  lastJobErrorAt: number | null;
-  /** La key de Riot está caducada: no se actualiza (lo explica la banda). */
-  paused: boolean;
   /**
    * Última partida de Arena de la BD (ms) cuando es tan antigua que Arena puede estar fuera de
    * rotación (`ProfileView.arenaQuiet`); `null` si no hay nada que decir.
@@ -95,10 +91,6 @@ export function ProfileHeader({
   iconUrl,
   nowMs,
   lastGameAt,
-  lastSyncedAt,
-  sync,
-  lastJobErrorAt,
-  paused,
   arenaQuietSince,
   arenaDeity,
   titleBadges,
@@ -130,6 +122,17 @@ export function ProfileHeader({
   );
   const favorite = useLocalStore(selectFavorite);
 
+  // Sincronización: del estado (se consulta cada pocos segundos), no de las props.
+  const { status: pageStatus, dataCurrent } = usePageStatus();
+  const syncJson = pageStatus.profile?.sync ?? null;
+  const sync = useMemo(
+    () => (syncJson ? syncProgressFromJson(syncJson) : null),
+    [syncJson],
+  );
+  const lastSyncedAt = pageStatus.profile?.lastSyncedAt ?? null;
+  const lastJobErrorAt = pageStatus.profile?.lastJobErrorAt ?? null;
+  const paused = pageStatus.profile?.paused ?? false;
+
   const snapshot: RefreshSnapshot = {
     games,
     champions,
@@ -137,7 +140,7 @@ export function ProfileHeader({
     errorAt: lastJobErrorAt,
     active: sync !== null,
   };
-  const refresh = useRefresh(snapshot);
+  const refresh = useRefresh(snapshot, dataCurrent);
   // Solo el descargado de partidas tiene un total con el que medir; el resto es indeterminado.
   const progress =
     sync?.phase === "fetching" && sync.total > 0

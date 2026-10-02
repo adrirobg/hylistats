@@ -3,7 +3,11 @@ import type { Db } from "@/db";
 import { profiles } from "@/db/schema";
 import { groupVersion, profileVersion } from "@/lib/data-version";
 import type { RiotId } from "@/lib/riot-id";
-import { type StatusPayload, syncProgressToJson } from "@/lib/status-payload";
+import {
+  groupSyncToJson,
+  profileSyncToJson,
+  type StatusPayload,
+} from "@/lib/status-payload";
 import { ensureFreshOnView, normalizeRiotId } from "@/worker/queue";
 import { safeErrorMessage } from "@/worker/steps";
 import { isGroupMember } from "./group";
@@ -109,20 +113,7 @@ export async function loadStatus(
     kind: profile.status === "not_found" ? "not_found" : "profile",
     version: profileVersion(profile.id),
     groupVersion: isMember ? groupVersion() : null,
-    profile: {
-      lastSyncedAt: syncState.lastSyncedAt?.getTime() ?? null,
-      sync: syncState.sync && syncProgressToJson(syncState.sync),
-      lastJobErrorAt: syncState.lastJobError?.at.getTime() ?? null,
-      paused: syncState.paused,
-    },
-    group: groupState && {
-      members: groupState.members,
-      active: groupState.active,
-      oldest: groupState.oldestSync && {
-        gameName: groupState.oldestSync.gameName,
-        tagLine: groupState.oldestSync.tagLine,
-        lastSyncedAt: groupState.oldestSync.lastSyncedAt?.getTime() ?? null,
-      },
-    },
+    profile: profileSyncToJson(syncState),
+    group: groupState && groupSyncToJson(groupState),
   };
 }

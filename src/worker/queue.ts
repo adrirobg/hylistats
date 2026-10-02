@@ -237,8 +237,8 @@ export interface EnsureFreshOptions {
 }
 
 /**
- * Guardia de los disparos automáticos de la página de un perfil (montaje, volver a la pestaña y
- * latido de `AutoRefresh`): encola un refresco NO interactivo si la última sincronización tiene
+ * Guardia de los disparos automáticos de la página de un perfil (la petición de estado, que hace
+ * de latido: `src/domain/status.ts`): encola un refresco NO interactivo si la última sincronización tiene
  * más de `staleAfterMs` (o no la hay) y no hay job activo. El cooldown por defecto es el mismo
  * umbral (no los 60 s del botón), así un incremental que acaba en `error` sin tocar
  * `lastSyncedAt` tampoco se repite antes de 2 min. Al vivir aquí, vale para varias pestañas y

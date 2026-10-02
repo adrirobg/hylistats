@@ -1,18 +1,29 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { type ReactNode, useActionState, useEffect, useState } from "react";
+import {
+  type ReactNode,
+  useActionState,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useFormStatus } from "react-dom";
 import { Box } from "@/components/hy/box";
 import { Btn } from "@/components/hy/btn";
 import { RiotIdSearch } from "@/components/landing/riot-id-search";
 import { refreshAction, registerProfileAction } from "./actions";
+import {
+  advanceWatch,
+  type RefreshSnapshot,
+  type RefreshWatch,
+  startWatch,
+} from "./refresh-outcome";
+import { usePageStatus } from "./status-provider";
 
 // Estados de la página de perfil previos a tener datos (brief §5): el Riot ID no está registrado
 // y el Riot ID no existe en Riot. Son tarjetas centradas, sin la cabina.
 
-/** Cada cuánto se relee la página mientras se espera a que el worker resuelva el reintento. */
-const RETRY_POLL_MS = 3_000;
 /** Tras este tiempo sin novedades se deja de esperar. */
 const RETRY_MAX_MS = 25_000;
 
@@ -73,7 +84,9 @@ export function UnregisteredCard({
 /**
  * Riot (Account-V1) no conoce el Riot ID: mensaje, campo con lo escrito para corregir el #TAG y
  * «Reintentar» (vuelve a preguntar a Riot por el mismo Riot ID). El reintento lo resuelve el
- * worker, así que la página se relee cada pocos segundos hasta que el perfil aparezca.
+ * worker: la espera sigue el estado de `StatusProvider` (cada 5 s con el job en marcha). Si Riot
+ * lo encuentra, el estado cambia de `kind` y la página se repinta como perfil; si no, el job acaba
+ * en error y se deja de esperar.
  */
 export function NotFoundCard({
   slug,
@@ -84,25 +97,42 @@ export function NotFoundCard({
   gameName: string;
   tagLine: string;
 }) {
-  const router = useRouter();
   const [state, action, pending] = useActionState(refreshAction, null);
-  const [waiting, setWaiting] = useState(false);
+  const { status } = usePageStatus();
+  // La misma vigilancia que Actualizar (`refresh-outcome.ts`), sin partidas que contar.
+  const lastSyncedAt = status.profile?.lastSyncedAt ?? null;
+  const errorAt = status.profile?.lastJobErrorAt ?? null;
+  const active = status.profile?.sync != null;
+  const snapshot: RefreshSnapshot = useMemo(
+    () => ({ games: 0, champions: [], lastSyncedAt, errorAt, active }),
+    [lastSyncedAt, errorAt, active],
+  );
+  const [watch, setWatch] = useState<RefreshWatch | null>(null);
+  // La foto se toma al pulsar: cuando vuelve la action, la página ya viene refrescada.
+  const before = useRef<RefreshSnapshot | null>(null);
+  const latest = useRef(snapshot);
+  useEffect(() => {
+    latest.current = snapshot;
+  });
 
   useEffect(() => {
     if (state?.result === "queued" || state?.result === "active") {
-      setWaiting(true);
+      setWatch(startWatch(before.current ?? latest.current));
     }
   }, [state]);
 
   useEffect(() => {
+    if (!watch) return;
+    const step = advanceWatch(watch, snapshot);
+    if (step.watch !== watch) setWatch(step.watch);
+  }, [watch, snapshot]);
+
+  const waiting = watch !== null;
+  useEffect(() => {
     if (!waiting) return;
-    const poll = setInterval(() => router.refresh(), RETRY_POLL_MS);
-    const stop = setTimeout(() => setWaiting(false), RETRY_MAX_MS);
-    return () => {
-      clearInterval(poll);
-      clearTimeout(stop);
-    };
-  }, [waiting, router]);
+    const stop = setTimeout(() => setWatch(null), RETRY_MAX_MS);
+    return () => clearTimeout(stop);
+  }, [waiting]);
 
   let message: string | null = null;
   if (waiting) message = "Preguntando a Riot…";
@@ -121,7 +151,14 @@ export function NotFoundCard({
       <RiotIdSearch defaultValue={`${gameName}#${tagLine}`} />
       <form action={action} className="flex flex-wrap items-center gap-3">
         <input type="hidden" name="slug" value={slug} />
-        <Btn type="submit" disabled={pending || waiting} aria-busy={waiting}>
+        <Btn
+          type="submit"
+          onClick={() => {
+            before.current = snapshot;
+          }}
+          disabled={pending || waiting}
+          aria-busy={waiting}
+        >
           Reintentar
         </Btn>
         <span className="text-sm text-muted-foreground">
