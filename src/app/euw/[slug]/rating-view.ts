@@ -48,15 +48,16 @@ export function ratingDomain(points: readonly RatingPoint[]): [number, number] {
   return [start, Math.max(points[points.length - 1]?.at ?? start, start + DAY)];
 }
 
-/** Pasos posibles entre marcas del eje Y, de menor a mayor. */
-const STEPS = [10, 20, 50, 100, 200, 500, 1000];
+/** Pasos posibles entre marcas del eje Y, de menor a mayor: nunca menos de 50. */
+const STEPS = [50, 100, 200, 500, 1000];
 /** Máximo de tramos entre marcas: más se amontonan a 375 px. */
 const MAX_INTERVALS = 5;
 
 /**
- * Eje Y: de lo más bajo a lo más alto que llegó el rating, con un margen (un 15 % del recorrido,
+ * Eje Y: de lo más bajo a lo más alto que llegó el rating, con un margen (un 5 % del recorrido,
  * 10 puntos como mínimo) para que ni la línea ni el punto final queden pegados al borde. Los
- * límites son múltiplos del paso de las marcas, que es el menor de `STEPS` con 5 tramos o menos.
+ * límites son múltiplos del paso de las marcas, que es el menor de `STEPS` (50 como mínimo) con
+ * 5 tramos o menos.
  */
 export function ratingAxis(points: readonly RatingPoint[]): {
   min: number;
@@ -66,7 +67,7 @@ export function ratingAxis(points: readonly RatingPoint[]): {
   const values = points.map((p) => p.rating);
   const low = values.length > 0 ? Math.min(...values) : ELO_START_RATING;
   const high = values.length > 0 ? Math.max(...values) : ELO_START_RATING;
-  const pad = Math.max(10, Math.ceil((high - low) * 0.15));
+  const pad = Math.max(10, Math.ceil((high - low) * 0.05));
   const span = high - low + 2 * pad;
   const step =
     STEPS.find((candidate) => span / candidate <= MAX_INTERVALS) ??
@@ -104,6 +105,44 @@ export function visibleLeagues(min: number, max: number): LeagueBand[] {
     if (from < to) bands.push({ id: league.id, name: league.name, from, to });
   });
   return bands;
+}
+
+/** Alto aproximado del área de dibujo (px): los 240 de la gráfica menos márgenes y eje X. */
+export const PLOT_HEIGHT = 190;
+/** Alto mínimo (px) de una franja para que quepa su etiqueta (11 px de texto con aire). */
+export const MIN_LABEL_BAND = 14;
+
+export interface LeagueLabel {
+  id: string;
+  name: string;
+  /** Rating del centro de la franja: donde va la marca del eje de la derecha. */
+  at: number;
+}
+
+/**
+ * Etiquetas de liga del eje de la derecha: una por franja, en su centro. Una franja recortada por
+ * el eje que mide menos de `MIN_LABEL_BAND` px (con `plotHeight` para el eje `[min, max]`) se queda
+ * sin etiqueta: no cabría sin pisar la de la franja de al lado.
+ */
+export function leagueLabels(
+  bands: readonly LeagueBand[],
+  min: number,
+  max: number,
+  plotHeight: number = PLOT_HEIGHT,
+): LeagueLabel[] {
+  const pxPerPoint = plotHeight / (max - min);
+  return bands
+    .filter((band) => (band.to - band.from) * pxPerPoint >= MIN_LABEL_BAND)
+    .map((band) => ({
+      id: band.id,
+      name: band.name,
+      at: (band.from + band.to) / 2,
+    }));
+}
+
+/** Fronteras entre franjas visibles (la de abajo de cada franja salvo la primera). */
+export function leagueBoundaries(bands: readonly LeagueBand[]): number[] {
+  return bands.slice(1).map((band) => band.from);
 }
 
 /** «1 partida» / «23 partidas». */

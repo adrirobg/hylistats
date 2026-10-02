@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { roundRating } from "@/domain/elo";
 import { ELO_LEAGUES, ELO_START_RATING } from "@/lib/config";
 import {
+  leagueBoundaries,
+  leagueLabels,
+  MIN_LABEL_BAND,
+  PLOT_HEIGHT,
   ratingAxis,
   ratingCaption,
   ratingDomain,
@@ -54,27 +58,42 @@ describe("ratingDomain", () => {
 });
 
 describe("ratingAxis", () => {
-  it("deja margen por arriba y por debajo, en múltiplos del paso de las marcas", () => {
+  it("margen del 5 % (10 puntos como mínimo) y límites y marcas cada 50", () => {
     const points = ratingPoints([
       { gameStartTimestamp: 1, ratingAfter: 1495 },
       { gameStartTimestamp: 2, ratingAfter: 1525 },
     ]);
-    // Recorrido 30, margen 10 -> 1485..1535 con paso 10 -> 1480..1540.
+    // Recorrido 30, margen 10 -> 1485..1535 -> 1450..1550.
     expect(ratingAxis(points)).toEqual({
-      min: 1480,
-      max: 1540,
-      ticks: [1480, 1490, 1500, 1510, 1520, 1530, 1540],
+      min: 1450,
+      max: 1550,
+      ticks: [1450, 1500, 1550],
     });
   });
 
-  it("alarga el paso con un recorrido grande y nunca pasa de 5 tramos", () => {
+  it("con un recorrido de ~200 puntos queda más o menos en 1400..1650", () => {
     const points = ratingPoints([
-      { gameStartTimestamp: 1, ratingAfter: 1400 },
-      { gameStartTimestamp: 2, ratingAfter: 1620 },
+      { gameStartTimestamp: 1, ratingAfter: 1420 },
+      { gameStartTimestamp: 2, ratingAfter: 1625 },
+      { gameStartTimestamp: 3, ratingAfter: 1549 },
     ]);
-    const axis = ratingAxis(points);
-    expect(axis.min).toBeLessThan(1400);
-    expect(axis.max).toBeGreaterThan(1620);
+    // Margen ceil(205 · 0,05) = 11 -> 1409..1636 -> 1400..1650.
+    expect(ratingAxis(points)).toEqual({
+      min: 1400,
+      max: 1650,
+      ticks: [1400, 1450, 1500, 1550, 1600, 1650],
+    });
+  });
+
+  it("alarga el paso con un recorrido enorme y nunca pasa de 5 tramos", () => {
+    const axis = ratingAxis(
+      ratingPoints([
+        { gameStartTimestamp: 1, ratingAfter: 1000 },
+        { gameStartTimestamp: 2, ratingAfter: 1700 },
+      ]),
+    );
+    expect(axis.min).toBeLessThan(1000);
+    expect(axis.max).toBeGreaterThan(1700);
     expect(axis.ticks.length - 1).toBeLessThanOrEqual(6);
     expect(axis.ticks[0]).toBe(axis.min);
     expect(axis.ticks.at(-1)).toBe(axis.max);
@@ -156,6 +175,60 @@ describe("visibleLeagues", () => {
         ELO_LEAGUES.some((l) => l.id === band.id && l.name === band.name),
       ).toBe(true);
     }
+  });
+});
+
+describe("leagueLabels", () => {
+  it("una etiqueta en el centro de cada franja con altura de sobra", () => {
+    const bands = visibleLeagues(1400, 1650);
+    const labels = leagueLabels(bands, 1400, 1650);
+    expect(labels.map((l) => l.id)).toEqual([
+      "hierro",
+      "bronce",
+      "plata",
+      "oro",
+      "platino",
+      "diamante",
+    ]);
+    expect(labels.find((l) => l.id === "oro")).toEqual({
+      id: "oro",
+      name: "Oro",
+      at: 1524.5,
+    });
+    // El centro cae dentro de su franja.
+    for (const label of labels) {
+      const band = bands.find((b) => b.id === label.id);
+      expect(label.at).toBeGreaterThan(band?.from ?? Number.NaN);
+      expect(label.at).toBeLessThan(band?.to ?? Number.NaN);
+    }
+  });
+
+  it("omite la franja recortada demasiado baja para su etiqueta", () => {
+    // Eje 1450..1550: Bronce queda en 1450..1479,5 (sí) y Diamante no entra; con el eje 1450..1571 el
+    // trozo de Diamante (1569,5..1571) mide menos de 14 px y no lleva etiqueta.
+    const bands = visibleLeagues(1450, 1571);
+    const labels = leagueLabels(bands, 1450, 1571);
+    expect(bands.at(-1)?.id).toBe("diamante");
+    expect(labels.some((l) => l.id === "diamante")).toBe(false);
+    expect(labels.some((l) => l.id === "platino")).toBe(true);
+  });
+
+  it("usa la altura del gráfico: 14 px justos sí caben", () => {
+    // Franja de 10 puntos en un eje de 100 con 140 px -> 14 px.
+    const band = { id: "x", name: "X", from: 0, to: 10 };
+    expect(MIN_LABEL_BAND).toBe(14);
+    expect(leagueLabels([band], 0, 100, 140)).toHaveLength(1);
+    expect(leagueLabels([band], 0, 100, 139)).toHaveLength(0);
+    expect(PLOT_HEIGHT).toBeGreaterThan(0);
+  });
+});
+
+describe("leagueBoundaries", () => {
+  it("las fronteras entre franjas visibles, sin los bordes del eje", () => {
+    expect(leagueBoundaries(visibleLeagues(1400, 1650))).toEqual([
+      1449.5, 1479.5, 1509.5, 1539.5, 1569.5,
+    ]);
+    expect(leagueBoundaries(visibleLeagues(1490, 1500))).toEqual([]);
   });
 });
 
