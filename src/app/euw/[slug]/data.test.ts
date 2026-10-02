@@ -10,6 +10,7 @@ import {
   syncJobs,
 } from "@/db/schema";
 import { arenaGodState, officialPhrase } from "@/domain/arena-god";
+import { groupViewComputations } from "@/domain/group-view-memo";
 import { storeMatch } from "@/domain/ingest";
 import { getRecordRows } from "@/domain/queries";
 import { computeRecords } from "@/domain/records";
@@ -1285,6 +1286,18 @@ describe("loadProfilePage", () => {
         ]);
         // Las claves de miembro no son puuids: el puuid real no sale en la vista del grupo.
         expect(JSON.stringify(data.group)).not.toContain(SELF_PUUID);
+      });
+
+      it("la vista y la cabecera salen de un solo cálculo del grupo", async () => {
+        const profile = await insertProfile();
+        await db.insert(groupMembers).values({ profileId: profile.id });
+        const before = groupViewComputations();
+        const data = await loadProfile("grupo");
+        expect(groupViewComputations() - before).toBe(1);
+        expect(data.group?.view).toBeDefined();
+        // Otro visor (otra pestaña) con la misma versión, día y semana: sin cálculo nuevo.
+        await loadProfile("campeones");
+        expect(groupViewComputations() - before).toBe(1);
       });
 
       it("un no miembro no la ve y ?tab=grupo es una pestaña desconocida: campeones, sin vista del grupo", async () => {

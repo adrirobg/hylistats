@@ -16,13 +16,11 @@ import { getTestDb, truncateAll } from "../../../../tests/helpers/db";
 import { GET } from "./route";
 
 // El estado nunca calcula el grupo ni las stats (AC2): si alguien los llamara, el test revienta.
+// `loadGroupView` es el único cálculo de la vista (también el del memo de la cabecera).
 vi.mock("@/domain/group-view", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/domain/group-view")>()),
   loadGroupView: () => {
     throw new Error("el estado no calcula GroupView");
-  },
-  loadProfileGroupData: () => {
-    throw new Error("el estado no calcula la cabecera del grupo");
   },
 }));
 vi.mock("@/domain/queries", async (importOriginal) => ({

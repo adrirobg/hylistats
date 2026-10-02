@@ -12,11 +12,10 @@ import { isGroupMember } from "@/domain/group";
 import type { PlayerTitle } from "@/domain/group-titles";
 import {
   type GroupView,
-  loadGroupView,
-  loadProfileGroupData,
   memberKey,
   type ProfileElo,
 } from "@/domain/group-view";
+import { loadProfileGroupData } from "@/domain/group-view-memo";
 import { computeHeat } from "@/domain/heat";
 import { getProfileMatches } from "@/domain/matches";
 import {
@@ -314,7 +313,7 @@ export async function loadProfilePage(
       getProfileStats(db, profile.id, seasonStart),
       loadProfileSyncState(db, profile, now),
       catalog,
-      loadProfileGroupData(db, profile.id, now.getTime(), seasonStart),
+      loadProfileGroupData(db, profile.id, now.getTime(), seasonStart, catalog),
       isGroupMember(db, profile.id),
     ]);
   const tab = availableTab(view.tab, isMember);
@@ -341,17 +340,10 @@ export async function loadProfilePage(
       ? await loadRecords(db, profile.id, seasonStart)
       : null;
 
+  // La vista sale del mismo cálculo (memorizado) que los títulos y el ELO de la cabecera.
   const group =
-    tab === "grupo"
-      ? {
-          view: await loadGroupView(
-            db,
-            now.getTime(),
-            seasonStart,
-            championCatalog,
-          ),
-          ownerKey: memberKey(profile.id),
-        }
+    tab === "grupo" && groupData.view
+      ? { view: groupData.view, ownerKey: memberKey(profile.id) }
       : null;
 
   const partidas =
