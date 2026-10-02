@@ -20,6 +20,7 @@ import { CHAMPION_PARAM } from "./champion-panel-view";
 import { loadProfilePage, type ProfileView } from "./data";
 import { FormStrip } from "./form-strip";
 import { ProfileHeader } from "./header";
+import { pickEloMatches, visibleMatchIds } from "./matches-elo";
 import { MatchesPanel } from "./matches-panel";
 import { parseMatchParams } from "./matches-view";
 import { NotFoundCard, UnregisteredCard } from "./profile-states";
@@ -370,7 +371,12 @@ function MatchesTab({ data }: { data: ProfileView }) {
             matches={data.matches}
             detail={data.matchDetail ?? null}
             nowMs={Date.now()}
-            elo={data.elo?.matches ?? null}
+            // Solo el desglose de lo que el panel puede pintar (filas y partida abierta): el de
+            // toda la temporada viajaría en cada `router.refresh()`.
+            elo={pickEloMatches(
+              data.elo?.matches ?? null,
+              visibleMatchIds(data.matches.rows, data.matchDetail),
+            )}
           />
         </Suspense>
       )}
