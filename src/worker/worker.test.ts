@@ -9,6 +9,7 @@ import {
   vi,
 } from "vitest";
 import { closeDb } from "@/db";
+import { resetData } from "@/db/reset";
 import {
   matches,
   matchFetch,
@@ -162,6 +163,59 @@ function queue1740After(fixture: MatchFixture) {
 /** Ids de más reciente a más antigua por su parte numérica (en EUW1 crece con el tiempo). */
 const newestFirst = (ids: string[]) =>
   [...ids].sort((a, b) => Number(b.split("_")[1]) - Number(a.split("_")[1]));
+
+describe("migración de key (db:reset --keep-profiles)", () => {
+  it("el worker vuelve a resolver el perfil y rehace el backfill entero", async () => {
+    const { fake, worker } = setup();
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+    await drain(worker);
+    const before = await counts();
+
+    await resetData(db, { keepProfiles: true });
+    expect(await counts()).toEqual({
+      matches: 0,
+      participants: 0,
+      matchFetch: 0,
+    });
+
+    const { result } = await drain(worker);
+    expect(result).toBe("idle");
+    expect(fake.count("account")).toBe(2);
+    expect(await counts()).toEqual(before);
+    expect(await getProfile(profile.id)).toMatchObject({
+      puuid: SELF_PUUID,
+      status: "active",
+    });
+    expect(await lastJob(profile.id)).toMatchObject({
+      kind: "backfill",
+      status: "done",
+      totalIds: 10,
+    });
+  });
+
+  it("un perfil con un Riot ID antiguo se resuelve con el de su última partida", async () => {
+    const { fake, worker } = setup();
+    const profile = await registerProfile(db, "BEJITO MAMBO", "1991");
+    await drain(worker);
+    // Registrado con un nombre que ya no existe en Riot (el jugador se lo cambió después).
+    await db
+      .update(profiles)
+      .set({ gameName: "Nombre Antiguo", tagLine: "OLD" })
+      .where(eq(profiles.id, profile.id));
+
+    await resetData(db, { keepProfiles: true });
+    await drain(worker);
+
+    expect(fake.calls.filter((c) => c.method === "account").at(-1)?.arg).toBe(
+      "BEJITO MAMBO#1991",
+    );
+    expect(await getProfile(profile.id)).toMatchObject({
+      gameName: "BEJITO MAMBO",
+      tagLine: "1991",
+      status: "active",
+    });
+  });
+});
 
 describe("backfill", () => {
   it("completo: más reciente primero, 18 participantes por partida y 602002 guardado", async () => {
