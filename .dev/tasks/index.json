@@ -1,3 +1,103 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Dominio del ELO",
+      "status": "pending",
+      "owner": "worker:opus",
+      "branch": "feat/18-elo-del-grupo",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T01_dominio-elo.md",
+      "created_at": "2026-10-02T14:21:50Z",
+      "updated_at": "2026-10-02T14:21:50Z"
+    },
+    {
+      "id": "T02",
+      "title": "Carga del ELO en la vista del grupo y en el perfil",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/18-elo-del-grupo",
+      "worktree": null,
+      "depends_on": [
+        "T01"
+      ],
+      "artifact_path": ".dev/tasks/task_T02_carga-elo.md",
+      "created_at": "2026-10-02T14:21:50Z",
+      "updated_at": "2026-10-02T14:21:50Z"
+    },
+    {
+      "id": "T03",
+      "title": "Bloque Clasificación en la vista del grupo",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/18-elo-del-grupo",
+      "worktree": null,
+      "depends_on": [
+        "T02"
+      ],
+      "artifact_path": ".dev/tasks/task_T03_clasificacion-ui.md",
+      "created_at": "2026-10-02T14:21:50Z",
+      "updated_at": "2026-10-02T14:21:50Z"
+    },
+    {
+      "id": "T04",
+      "title": "Liga y rating en la cabecera del perfil",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/18-elo-del-grupo",
+      "worktree": null,
+      "depends_on": [
+        "T02"
+      ],
+      "artifact_path": ".dev/tasks/task_T04_cabecera-liga.md",
+      "created_at": "2026-10-02T14:21:50Z",
+      "updated_at": "2026-10-02T14:21:50Z"
+    },
+    {
+      "id": "T05",
+      "title": "Cambio de rating en el historial de partidas",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/18-elo-del-grupo",
+      "worktree": null,
+      "depends_on": [
+        "T02"
+      ],
+      "artifact_path": ".dev/tasks/task_T05_historial-elo.md",
+      "created_at": "2026-10-02T14:21:50Z",
+      "updated_at": "2026-10-02T14:21:50Z"
+    },
+    {
+      "id": "T06",
+      "title": "Gráfica de evolución del rating",
+      "status": "pending",
+      "owner": "worker:sonnet",
+      "branch": "feat/18-elo-del-grupo",
+      "worktree": null,
+      "depends_on": [
+        "T02"
+      ],
+      "artifact_path": ".dev/tasks/task_T06_grafica-rating.md",
+      "created_at": "2026-10-02T14:21:50Z",
+      "updated_at": "2026-10-02T14:21:50Z"
+    },
+    {
+      "id": "T07",
+      "title": "Verificación y recálculo independiente",
+      "status": "pending",
+      "owner": "orchestrator",
+      "branch": "feat/18-elo-del-grupo",
+      "worktree": null,
+      "depends_on": [
+        "T03",
+        "T04",
+        "T05",
+        "T06"
+      ],
+      "artifact_path": ".dev/tasks/task_T07_verificacion.md",
+      "created_at": "2026-10-02T14:21:50Z",
+      "updated_at": "2026-10-02T14:21:50Z"
+    }
+  ]
 }
