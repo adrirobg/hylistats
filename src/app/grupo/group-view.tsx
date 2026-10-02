@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { GroupView } from "@/domain/group-view";
 import { GROUP_TEAM_MIN_GAMES } from "@/lib/config";
+import { ClasificacionBlock } from "./clasificacion-block";
 import {
   memberMap,
   PERIODO_KIND,
@@ -20,10 +21,11 @@ import { TitlesSection } from "./titles-section";
 //
 // Estructura, de arriba abajo; los huecos de las tasks siguientes están marcados:
 //   1. `freshness`        hueco de T09: botón «Actualizar grupo» y aviso de antigüedad.
-//   2. Hoy / Semana        (T05) ranking, «sin mínimo», títulos del periodo y equipos del periodo.
-//   3. Equipos, Temporada  (T06) tablas de Dúos y Tríos de la temporada y tabla de Temporada
+//   2. Clasificación      (iter-09, T03) tabla del ELO del grupo y nota de la regla.
+//   3. Hoy / Semana        (T05) ranking, «sin mínimo», títulos del periodo y equipos del periodo.
+//   4. Equipos, Temporada  (T06) tablas de Dúos y Tríos de la temporada y tabla de Temporada
 //                          (Resumen y Récords, ordenable); la tabla es el otro componente de cliente.
-//   4. Títulos             (T05) apartado fijo, ancla `#titulos`.
+//   5. Títulos             (T05) apartado fijo, ancla `#titulos`.
 
 export interface GroupViewProps {
   view: GroupView;
@@ -77,6 +79,20 @@ export function GroupViewPanel({
     // deben ensanchar la columna de quien contiene la vista.
     <div className="@container grid min-w-0 gap-4">
       {freshness}
+
+      <section
+        aria-labelledby="clasificacion-heading"
+        className="grid min-w-0 gap-3 rounded-[8px] border border-line bg-surface-1 p-3.5"
+      >
+        <SectionHeading id="clasificacion-heading">
+          Clasificación
+        </SectionHeading>
+        <ClasificacionBlock
+          elo={view.elo}
+          members={members}
+          highlightKey={highlightKey}
+        />
+      </section>
 
       <section
         aria-labelledby="periodo-heading"

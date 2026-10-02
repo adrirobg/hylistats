@@ -16,7 +16,7 @@
 
 ## Rol
 
-- El orquestador (Opus) **planifica, coordina, revisa y verifica**. Delega la implementación de cada task a **subagentes Sonnet** con prompts autocontenidos: rutas de archivo, criterios, restricciones y la referencia a la research relevante (regla global de delegación).
+- El orquestador (Opus) **planifica, coordina, revisa y verifica**. Delega la implementación de cada task a **subagentes** con prompts autocontenidos: rutas de archivo, criterios, restricciones y la referencia a la research relevante (regla global de delegación). El modelo y el nivel de razonamiento de cada subagente se eligen según la task, no siempre Sonnet (supervisor, 2026-10-02).
 - Una iteración cada vez, en orden **#1 → #2 → #3**. La siguiente no empieza hasta que la anterior está mergeada **y** cerrada en main.
 
 ## Bucle por iteración
@@ -27,7 +27,7 @@
 4. **Tasks**: descomponer la spec en `.dev/tasks/task_*.md` + `index.json` con el formato de la skill `dev-task`. Tasks pequeñas y verificables, en orden de dependencias; cada criterio de aceptación queda cubierto por al menos una task. Commit: `docs(spec): spec y tasks de iter-0N` + `Refs: #N`.
 5. **Execute**, por cada task:
    - Activarla con `dev-task`.
-   - Delegar a un subagente Sonnet.
+   - Delegar a un subagente con el modelo y el razonamiento que pida la task.
    - Revisar el diff y ejecutar `npm run lint && npm test && npm run build`.
    - Commit Conventional (`feat(scope): …` + `Refs: #N`).
    - Marcarla como completada.
@@ -69,5 +69,5 @@
 ```
 Eres el orquestador de hylistats v1. Lee `.dev/research/orquestacion-v1.md` y síguelo:
 empieza por /dev-start y ejecuta el bucle para el issue #1. Delega la implementación en
-subagentes Sonnet y respeta los límites del runbook. Para en cada PR y avísame.
+subagentes (modelo según la task) y respeta los límites del runbook. Para en cada PR y avísame.
 ```

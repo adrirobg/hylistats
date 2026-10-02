@@ -13,10 +13,14 @@ import { useNow } from "@/lib/use-now";
 import { championHref } from "./champion-panel-view";
 import type { MatchesData } from "./data";
 import { MatchDetail } from "./match-detail";
-import { ChampionThumb, PlaceChip } from "./match-parts";
+import { ChampionThumb, ELO_TONE_CLASS, PlaceChip } from "./match-parts";
 import {
   BLOCK_SIZE,
   companionOptions,
+  type EloMatches,
+  type EloRowChange,
+  eloBreakdown,
+  eloRowChange,
   type FilterPatch,
   formatDuration,
   hasFilters,
@@ -57,6 +61,8 @@ export interface MatchesPanelProps {
   detail: MatchDetailView | null;
   /** Hora del servidor (ms): el primer render coincide con el HTML del servidor. */
   nowMs: number;
+  /** Historial del ELO del perfil por `matchId`; `null` si no es miembro del grupo. */
+  elo: EloMatches | null;
 }
 
 /** Espera tras la última pulsación antes de escribir la búsqueda en la URL (como el álbum). */
@@ -64,7 +70,12 @@ const DEBOUNCE_MS = 200;
 
 const PUESTO_LABEL = { todos: "Todos", "1": "1º", top3: "Top 3" } as const;
 
-export function MatchesPanel({ matches, detail, nowMs }: MatchesPanelProps) {
+export function MatchesPanel({
+  matches,
+  detail,
+  nowMs,
+  elo,
+}: MatchesPanelProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -166,6 +177,7 @@ export function MatchesPanel({ matches, detail, nowMs }: MatchesPanelProps) {
       )}
       championUrl={championHref(pathname, search, row.championSlug)}
       now={now}
+      elo={elo}
       onCopyLink={() => copyLink(row.matchId)}
     />
   );
@@ -310,6 +322,18 @@ function NewFirst() {
   );
 }
 
+/** Cambio de rating de la partida («+29»): el signo va en el texto además del color. */
+function RatingChange({ change }: { change: EloRowChange }) {
+  return (
+    <span
+      title="Cambio de rating"
+      className={`num flex-none font-mono text-[13px] font-medium whitespace-nowrap ${ELO_TONE_CLASS[change.tone]}`}
+    >
+      {change.text}
+    </span>
+  );
+}
+
 function MatchItem({
   row,
   open,
@@ -317,6 +341,7 @@ function MatchItem({
   href,
   championUrl,
   now,
+  elo,
   inList,
   onCopyLink,
 }: {
@@ -329,12 +354,15 @@ function MatchItem({
   /** Abre el panel del campeón de la fila (`?campeon=`), sin tocar la partida abierta. */
   championUrl: string;
   now: number;
+  /** Historial del ELO del perfil; `null` si no es miembro. */
+  elo: EloMatches | null;
   /** Está en la lista (no en el bloque aparte de arriba): si además está abierta, el scroll la trae a la vista. */
   inList: boolean;
   onCopyLink: () => void;
 }) {
   const detailId = useId();
   const when = formatRelative(row.gameCreation, now);
+  const change = eloRowChange(elo, row.matchId);
   return (
     <li
       data-scroll-target={open && inList ? "" : undefined}
@@ -353,7 +381,7 @@ function MatchItem({
           href={href}
           aria-expanded={open}
           aria-controls={open && detail ? detailId : undefined}
-          aria-label={matchRowLabel(row, now)}
+          aria-label={matchRowLabel(row, now, change)}
           // El tooltip del trío (con los tags) va aquí: el enlace estirado tapa el texto de debajo.
           title={row.trio.length > 0 ? trioTitle(row.trio) : undefined}
           className="absolute inset-0 rounded-lg"
@@ -389,6 +417,7 @@ function MatchItem({
                 {row.championName}
               </Link>
             </b>
+            {change && <RatingChange change={change} />}
             {row.newFirst && <NewFirst />}
           </span>
           <span className="block truncate text-[13px] text-muted-foreground">
@@ -411,7 +440,12 @@ function MatchItem({
         />
       </div>
       {open && detail && (
-        <MatchDetail id={detailId} detail={detail} onCopyLink={onCopyLink} />
+        <MatchDetail
+          id={detailId}
+          detail={detail}
+          elo={eloBreakdown(elo, row.matchId)}
+          onCopyLink={onCopyLink}
+        />
       )}
     </li>
   );

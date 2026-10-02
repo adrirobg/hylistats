@@ -1,12 +1,13 @@
 // Carga de datos de la vista del grupo (iter-05, T04): una sola función (`loadGroupView`) devuelve
 // todo lo que pintan `/grupo`, la pestaña Grupo y los badges, y otra ligera (`loadProfileTitles`)
-// los títulos vigentes de un perfil para su cabecera. Va en su propio módulo para no hacer crecer
+// los datos de grupo de un perfil (títulos vigentes y ELO). Va en su propio módulo para no hacer crecer
 // `src/app/euw/[slug]/data.ts`.
 //
-// Las reglas viven en el dominio puro (`group-titles`, `group-season`); aquí solo se cargan las
-// partidas de los miembros (una consulta, `getGroupRows`) y se llama a esas funciones. Los títulos
-// de `loadGroupView` y de `loadProfileTitles` salen de la MISMA función (`groupPeriods`), así que
-// coinciden por construcción. Nada se guarda: se calcula al leer (P9).
+// Las reglas viven en el dominio puro (`group-titles`, `group-season`, `elo`); aquí solo se cargan
+// las partidas de los miembros (una consulta, `getGroupRows`) y se llama a esas funciones. Los
+// títulos de `loadGroupView` y de `loadProfileGroupData` salen de la MISMA función (`groupPeriods`)
+// y el ELO del perfil es la fila de la Clasificación de `computeGroupElo` (el mismo cálculo que
+// `GroupView.elo`), así que coinciden por construcción. Nada se guarda: se calcula al leer (P9).
 //
 // Exposición de `puuid`: el `puuid` es interno (ver `GroupMember`) y NO sale de este módulo. Antes
 // de calcular nada, cada `puuid` de miembro se sustituye por su clave de miembro
@@ -21,7 +22,13 @@ import { profiles } from "@/db/schema";
 import { getSeasonStart } from "@/lib/config";
 import { type ChampionCatalog, profileIconUrl } from "@/lib/ddragon";
 import { profileSlug } from "@/lib/riot-id";
-import { type GroupMember, isGroupMember, listGroupMembers } from "./group";
+import {
+  computeGroupElo,
+  type EloMatch,
+  type EloStanding,
+  type GroupElo,
+} from "./elo";
+import { type GroupMember, listGroupMembers } from "./group";
 import {
   computeSeasonTable,
   computeSeasonTeams,
@@ -32,6 +39,7 @@ import {
 } from "./group-season";
 import {
   computeGroupPeriod,
+  type DisplayedPeriod,
   type GroupPeriodView,
   type PlayerTitle,
   titlesOf,
@@ -108,6 +116,12 @@ export interface GroupView {
   day: GroupPeriodView;
   /** Bloque Semana: ídem. */
   week: GroupPeriodView;
+  /**
+   * ELO del grupo (iter-09): Clasificación de TODOS los miembros (también los sin partidas, con
+   * 1500 y provisionales) y periodos del cambio del día y de la semana. Mismas filas y mismo
+   * `now` que `day` y `week`. `standings[i].key` es `GroupViewMember.key`.
+   */
+  elo: GroupElo;
   /** Dúos y tríos de miembros de toda la temporada con 3 o más partidas juntos. */
   seasonTeams: SeasonTeams;
   /** Tabla de Temporada: una fila por miembro (en el orden de `members`) y líderes por columna. */
@@ -232,6 +246,11 @@ export async function loadGroupView(
   return {
     members: viewMembers,
     ...groupPeriods(rows, now),
+    elo: computeGroupElo(
+      rows,
+      viewMembers.map((m) => m.key),
+      now,
+    ),
     seasonTeams: computeSeasonTeams(rows),
     seasonTable: withDisplayNames(
       computeSeasonTable(
@@ -245,25 +264,99 @@ export async function loadGroupView(
   };
 }
 
+/** Un punto de la gráfica del ELO: rating con decimales tras una partida. */
+export interface EloSeriesPoint {
+  /** Epoch en ms del inicio de la partida. */
+  gameStartTimestamp: number;
+  ratingAfter: number;
+}
+
 /**
- * Títulos vigentes de un perfil para su cabecera: los de los periodos que muestra el bloque Hoy /
- * Semana (día primero, después semana), incluidos los de dúo y trío de los que forma parte. Lista
- * vacía si el perfil no es miembro (o no existe). Usa el mismo cálculo que `loadGroupView`
- * (`groupPeriods`): son exactamente los de `titlesOf(view.day.titles, key)` y
- * `titlesOf(view.week.titles, key)`.
+ * ELO de un miembro para su perfil: su fila de la Clasificación de `GroupView.elo` (misma
+ * posición, rating, liga y cambios), con el historial indexable por `matchId` y la serie de la
+ * gráfica. Serializable (sin `Map`): puede pasar a componentes cliente. No lleva la clave de miembro.
  */
-export async function loadProfileTitles(
+export interface ProfileElo {
+  /** Posición en la Clasificación (los empates de rating redondeado la comparten). */
+  position: number;
+  /** Rating con decimales. */
+  rating: number;
+  /** Rating mostrado (`Math.round`). */
+  roundedRating: number;
+  league: EloStanding["league"];
+  provisional: boolean;
+  /** Partidas de la temporada que cuentan para el rating. */
+  games: number;
+  /** Desglose de cada partida que cuenta, por `matchId`. */
+  matches: Record<string, EloMatch>;
+  /** Una entrada por partida que cuenta, en orden cronológico (gráfica del rating). */
+  series: EloSeriesPoint[];
+  /** Día y semana mostrados por el bloque Hoy / Semana, y lo que cambió el rating en cada uno. */
+  day: DisplayedPeriod;
+  week: DisplayedPeriod;
+  /** `null` si no jugó en el periodo. */
+  dayChange: number | null;
+  weekChange: number | null;
+}
+
+/** ELO del perfil a partir de la Clasificación del grupo. `null` si la clave no está en ella. */
+export function profileEloOf(elo: GroupElo, key: string): ProfileElo | null {
+  const standing = elo.standings.find((s) => s.key === key);
+  if (!standing) return null;
+  return {
+    position: standing.position,
+    rating: standing.rating,
+    roundedRating: standing.roundedRating,
+    league: standing.league,
+    provisional: standing.provisional,
+    games: standing.games,
+    matches: Object.fromEntries(standing.history.map((m) => [m.matchId, m])),
+    series: standing.history.map((m) => ({
+      gameStartTimestamp: m.gameStartTimestamp,
+      ratingAfter: m.ratingAfter,
+    })),
+    day: elo.day,
+    week: elo.week,
+    dayChange: standing.dayChange,
+    weekChange: standing.weekChange,
+  };
+}
+
+/** Lo que el grupo aporta a la cabecera y al cuerpo del perfil de un miembro. */
+export interface ProfileGroupData {
+  /** Títulos vigentes (día primero, después semana); vacío si no es miembro. */
+  titles: PlayerTitle[];
+  /** ELO del miembro; `null` si el perfil no es miembro del grupo (o no existe). */
+  elo: ProfileElo | null;
+}
+
+/**
+ * Títulos vigentes de un perfil (los de los periodos que muestra el bloque Hoy / Semana, día
+ * primero, incluidos los de dúo y trío de los que forma parte) y su ELO, con UNA sola lectura del
+ * grupo (miembros + partidas). Son exactamente `titlesOf(view.day.titles, key)` +
+ * `titlesOf(view.week.titles, key)` y la fila de `view.elo` de `loadGroupView`. Para un no miembro
+ * (o un perfil que no existe) no se leen partidas: `{ titles: [], elo: null }`.
+ */
+export async function loadProfileGroupData(
   db: Db,
   profileId: number,
   now: number,
   seasonStart: Date = getSeasonStart(),
-): Promise<PlayerTitle[]> {
-  if (!(await isGroupMember(db, profileId))) return [];
+): Promise<ProfileGroupData> {
   const members = await listGroupMembers(db);
-  const { day, week } = groupPeriods(
-    await loadMemberRows(db, members, seasonStart),
+  if (!members.some((m) => m.profileId === profileId)) {
+    return { titles: [], elo: null };
+  }
+  const rows = await loadMemberRows(db, members, seasonStart);
+  const { day, week } = groupPeriods(rows, now);
+  const key = memberKey(profileId);
+  const elo = computeGroupElo(
+    rows,
+    members.map((m) => memberKey(m.profileId)),
     now,
   );
-  const key = memberKey(profileId);
-  return [...titlesOf(day.titles, key), ...titlesOf(week.titles, key)];
+  return {
+    titles: [...titlesOf(day.titles, key), ...titlesOf(week.titles, key)],
+    elo: profileEloOf(elo, key),
+  };
 }

@@ -150,6 +150,13 @@ function ProfileCabin({
           arenaQuietSince={data.arenaQuiet?.lastArenaGameAt ?? null}
           arenaDeity={data.arenaGod.reached}
           titleBadges={titleBadges(data.titles)}
+          elo={
+            data.elo && {
+              leagueName: data.elo.league.name,
+              rating: String(data.elo.roundedRating),
+              provisional: data.elo.provisional,
+            }
+          }
           games={data.summary.games}
           champions={data.verifiedChampions.map((c) => ({
             championId: c.championId,
@@ -363,6 +370,7 @@ function MatchesTab({ data }: { data: ProfileView }) {
             matches={data.matches}
             detail={data.matchDetail ?? null}
             nowMs={Date.now()}
+            elo={data.elo?.matches ?? null}
           />
         </Suspense>
       )}
@@ -404,6 +412,7 @@ function SummaryTab({ data, slug }: { data: ProfileView; slug: string }) {
           verifiedChampions={data.verifiedChampions}
           album={data.album}
           tab={data.summaryTab}
+          elo={data.elo}
           slug={slug}
           nowMs={Date.now()}
         />

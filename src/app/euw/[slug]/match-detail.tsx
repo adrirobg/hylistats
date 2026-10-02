@@ -5,9 +5,10 @@ import { CHIP_TEXT, placeTone, TONE_BG } from "@/domain/scoreboard";
 import { formatCount } from "@/lib/format";
 import type { GameIcon } from "@/lib/game-data";
 import { cn } from "@/lib/utils";
-import { ChampionThumb } from "./match-parts";
+import { ChampionThumb, ELO_TONE_CLASS } from "./match-parts";
 import {
   compactNumber,
+  type EloBreakdownItem,
   hasIcons,
   kdaText,
   type MatchDetailView,
@@ -165,20 +166,51 @@ function Team({ team }: { team: MatchTeamView }) {
   );
 }
 
+/** Desglose del cambio de rating de la partida (solo si cuenta para el rating). */
+function EloBreakdown({ items }: { items: readonly EloBreakdownItem[] }) {
+  return (
+    <section
+      aria-label="Cambio de rating"
+      className="mb-3 rounded-md border border-line bg-surface-2 px-3 py-2"
+    >
+      <dl className="flex flex-wrap gap-x-5 gap-y-1.5 text-[13px]">
+        {items.map((item) => (
+          <div key={item.label} className="min-w-0">
+            <dt className="text-xs text-muted-foreground">{item.label}</dt>
+            <dd
+              className={cn(
+                "num font-mono",
+                item.tone ? ELO_TONE_CLASS[item.tone] : undefined,
+                item.tone && "font-medium",
+              )}
+            >
+              {item.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 export function MatchDetail({
   id,
   detail,
+  elo,
   onCopyLink,
 }: {
   /** `id` del bloque: la fila que lo abre lo referencia con `aria-controls`. */
   id: string;
   detail: MatchDetailView;
+  /** Desglose del rating de la partida; `null` si no cuenta o el perfil no es miembro. */
+  elo: readonly EloBreakdownItem[] | null;
   onCopyLink: () => void;
 }) {
   const augments = hasIcons(detail, "augments");
   const items = hasIcons(detail, "items");
   return (
     <div id={id} className="border-t border-line p-3">
+      {elo && <EloBreakdown items={elo} />}
       <div className="grid grid-cols-3 gap-2 @max-[960px]:grid-cols-2 @max-[640px]:grid-cols-1">
         {detail.teams.map((team) => (
           <Team key={team.placement} team={team} />

@@ -34,8 +34,9 @@ import type { PlayerTitle } from "@/domain/group-titles";
 import {
   type GroupView,
   loadGroupView,
-  loadProfileTitles,
+  loadProfileGroupData,
   memberKey,
+  type ProfileElo,
 } from "@/domain/group-view";
 import { computeHeat } from "@/domain/heat";
 import { getProfileMatches } from "@/domain/matches";
@@ -245,6 +246,8 @@ export interface ProfileView {
   railTeammates: RailTeammate[];
   /** Títulos vigentes del miembro (badges de la cabecera); vacío si el perfil no es del grupo. */
   titles: PlayerTitle[];
+  /** ELO del miembro (iter-09); `null` si el perfil no es del grupo. */
+  elo: ProfileElo | null;
   /** El perfil es miembro del grupo: decide si la barra lleva la pestaña Grupo. */
   isMember: boolean;
 
@@ -533,14 +536,14 @@ export async function loadProfilePage(
   }
 
   const now = new Date();
-  const [stats, sync, lastJobError, key, championCatalog, titles, isMember] =
+  const [stats, sync, lastJobError, key, championCatalog, groupData, isMember] =
     await Promise.all([
       getProfileStats(db, profile.id, seasonStart),
       loadSyncProgress(db, profile.id, now),
       loadLastJobError(db, profile.id),
       getKeyStatus(db),
       catalog,
-      loadProfileTitles(db, profile.id, now.getTime(), seasonStart),
+      loadProfileGroupData(db, profile.id, now.getTime(), seasonStart),
       isGroupMember(db, profile.id),
     ]);
   const tab = availableTab(view.tab, isMember);
@@ -623,7 +626,8 @@ export async function loadProfilePage(
       championTotal: championCatalog.champions.length,
     }),
     railTeammates: railTeammates(stats.teammates, RAIL_TEAMMATES),
-    titles,
+    titles: groupData.titles,
+    elo: groupData.elo,
     isMember,
     // La clave solo existe con `?campeon` válido: `...null` no añade nada.
     ...(championEntry && {

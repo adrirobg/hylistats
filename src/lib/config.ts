@@ -96,3 +96,53 @@ export function getSeasonStart(
   }
   return date;
 }
+
+// ---------------------------------------------------------------------------------------------
+// ELO del grupo (F24, F25). Todas revisables tras la sesión conjunta (F18).
+// ---------------------------------------------------------------------------------------------
+
+/** Rating con el que empieza la temporada cada miembro del grupo (F24). */
+export const ELO_START_RATING = 1500;
+
+/**
+ * Puntos por puesto del cambio base (F24), con índice = puesto − 1: 1º +25, 2º +12, 3º +2,
+ * 4º −5, 5º −15, 6º −19. Con un rating de 1500 el cambio base es exactamente este valor.
+ */
+export const ELO_PLACEMENT_POINTS = [25, 12, 2, -5, -15, -19] as const;
+
+/**
+ * Pendiente del cambio base (F24): `base = puntos[puesto] − ELO_SLOPE·(E − 0,5)`. Por encima de
+ * 1500 se gana menos y se pierde más; por debajo, al revés.
+ */
+export const ELO_SLOPE = 44;
+
+/** Escala de la esperanza (F24): `E = 1 / (1 + 10^((ELO_START_RATING − R) / ELO_SCALE))`. */
+export const ELO_SCALE = 400;
+
+/**
+ * Multiplicador del cambio base por desconocidos en el equipo (F24), con índice = número de
+ * desconocidos (0..2). `gain` se aplica si el cambio base es positivo y `loss` si es negativo:
+ * jugar con desconocidos premia más al ganar y castiga menos al perder.
+ */
+export const ELO_STRANGER_MULTIPLIERS = [
+  { gain: 1, loss: 1 },
+  { gain: 1.15, loss: 0.75 },
+  { gain: 1.3, loss: 0.5 },
+] as const;
+
+/**
+ * Ligas del ELO (F25) por rating **redondeado**, de menor a mayor: cada una empieza en `min`
+ * (incluido) y llega hasta el `min` de la siguiente. Hierro < 1450 · Bronce 1450–1479 · Plata
+ * 1480–1509 (la de salida) · Oro 1510–1539 · Platino 1540–1569 · Diamante ≥ 1570.
+ */
+export const ELO_LEAGUES = [
+  { id: "hierro", name: "Hierro", min: Number.NEGATIVE_INFINITY },
+  { id: "bronce", name: "Bronce", min: 1450 },
+  { id: "plata", name: "Plata", min: 1480 },
+  { id: "oro", name: "Oro", min: 1510 },
+  { id: "platino", name: "Platino", min: 1540 },
+  { id: "diamante", name: "Diamante", min: 1570 },
+] as const;
+
+/** Partidas de la temporada por debajo de las cuales un miembro está *provisional* (F25). */
+export const ELO_PROVISIONAL_GAMES = 10;
