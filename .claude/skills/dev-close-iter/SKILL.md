@@ -2,8 +2,8 @@
 name: dev-close-iter
 description: 'Cerrar una iteracion dev-system: validar precondiciones semanticas, disparar `scripts/dev-close-iter.py` (que
   archiva `spec.md`, `verify-report.md`, `tasks/` y `learn.md`, resetea los activos y actualiza el header de `think.md`) y
-  reconciliar los hilos abiertos de `think.md`. Usar al final de Verify/Learn, normalmente invocada por `/dev-ship` en main
-  tras el merge.'
+  reconciliar los hilos abiertos de `think.md`. Usar al final de Verify/Learn, normalmente invocada por `/dev-ship` en develop
+  tras el merge (en hylistats la iteración se cierra en `develop`, no en `main`; ver `AGENTS.md`).'
 disable-model-invocation: true
 argument-hint: '[iter-NN]'
 allowed-tools: Read Edit Bash Glob Grep

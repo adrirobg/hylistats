@@ -20,6 +20,48 @@ Coste: €0. Ninguno de los dos tiene tarjeta asociada.
 - **Solape**: al desplegar, la instancia vieja sigue 60 s tras arrancar la nueva. El `pg_try_advisory_lock` del worker garantiza que solo uno trabaja; el otro espera el lock.
 - **Manual**: panel de Render → *Manual Deploy*, o el MCP de Render (`trigger_deploy`).
 
+## Releases y hotfixes
+
+Flujo de ramas (F27, resumen en `AGENTS.md`): se trabaja en `develop`; `main` es producción y solo recibe releases y hotfixes. Versiones SemVer desde `v1.0.0`: minor por release con funcionalidad, patch por hotfix.
+
+### Release
+
+La decide el supervisor, normalmente tras cerrar una iteración en `develop` (puede juntar varias). `/dev-ship` la ofrece al terminar el cierre, pero no la hace sin su sí.
+
+1. **Versión en `develop`**: con `develop` al día y limpio,
+   ```bash
+   npm version minor --no-git-tag-version
+   ```
+   (`patch` si la release solo corrige) y commit `maint(release): vX.Y.Z` con `package.json` y `package-lock.json`. Push de `develop`. El tag no se crea aquí: va sobre el merge commit de `main`.
+2. **PR `develop → main`** con título `release: vX.Y.Z` y, en el cuerpo, las issues y PR incluidas desde la release anterior (`git log --merges --oneline vANTERIOR..develop`). La mergea el supervisor con **merge commit** (sin squash ni rebase, para que `main` y `develop` compartan la historia).
+3. **Tag** sobre el merge commit de `main`:
+   ```bash
+   git checkout main && git pull
+   git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z
+   ```
+   La release de GitHub (`gh release create vX.Y.Z --generate-notes`) es opcional.
+4. **Comprobar el deploy**: el push a `main` lanza el deploy de Render. Comprobar que el evento termina en `deploy_ended` sin `server_failed` (MCP de Render: `list_deploys` / `list_events`) y que `/api/health` responde con la BD y el worker bien.
+
+### Hotfix
+
+Solo si producción está rota o molesta en uso real; si no, el arreglo va por `develop` y sale en la próxima release.
+
+1. Rama `fix/N-slug` desde `main` (issue `N` con label `fix`).
+2. Arreglo, tests y `npm version patch --no-git-tag-version` (commit `maint(release): vX.Y.Z`) en la misma rama.
+3. PR a `main`; la mergea el supervisor con merge commit.
+4. Tag `vX.Y.Z` sobre el merge commit de `main` y push del tag; comprobar el deploy como en el paso 4 de la release.
+5. Merge de `main` en `develop` (PR `main → develop` o merge local y push) para que el arreglo no se pierda en la próxima release.
+
+### Probar `develop` antes de una release
+
+No hay staging. `develop` se prueba en local con build de producción:
+
+```bash
+npm run build && npm run start
+```
+
+con la BD local. Si hace falta reproducir algo con los datos reales, se vuelca producción y se restaura en una BD local migrada y vacía con el procedimiento de "Backup y restauración" (sustituye los datos de esa BD: mejor una base aparte que `hylistats`). Nunca se apunta un `develop` local a la BD de producción: habría dos workers sobre la misma cola.
+
 ## Variables de entorno (Render → Environment)
 
 | Variable | Secreta | Valor |
