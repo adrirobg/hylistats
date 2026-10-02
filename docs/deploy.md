@@ -28,13 +28,15 @@ Coste: €0. Ninguno de los dos tiene tarjeta asociada.
 | `ADMIN_TOKEN` | Sí | ≥ 32 caracteres (`openssl rand -base64 32`). Contraseña de `/admin` y del Bearer de `/api/admin/key` |
 | `SEASON_START` | No | `2026-05-12T00:00:00Z` (si falta, se usa `DEFAULT_SEASON_START` de `src/lib/config.ts`) |
 | `WORKER_ENABLED` | No | `true` |
-| `RIOT_API_KEY` | Sí | Opcional: fallback si no hay key guardada desde `/admin`. Reservada para la futura Personal key |
+| `RIOT_API_KEY` | Sí | Personal key de Riot (no caduca). Se usa cuando no hay key guardada desde `/admin`, que manda sobre esta |
 
 Los secretos los introduce el supervisor en el panel: nunca en el repo, en el chat ni con prefijo `NEXT_PUBLIC_`. Cambiar una variable en Render redepliega el servicio.
 
-## Rotar la dev key de Riot (cada 24 h)
+## Key de Riot
 
-La development key caduca a las 24 h. Se guarda en la BD (tabla `settings`) y se cambia sin redeploy:
+La key vigente es la **Personal key** (concedida el 2026-10-02; hasta ejecutar la migración de abajo, producción sigue con la dev key en la BD): no caduca y tiene los mismos límites que la de desarrollo (100 peticiones cada 2 min, 20 por segundo). Vive en `RIOT_API_KEY` (Render → Environment).
+
+Una key guardada desde `/admin` **manda sobre** `RIOT_API_KEY`. Es la vía rápida si Riot invalida la key, porque no necesita redeploy:
 
 - **Navegador**: <https://hylistats.onrender.com/admin> → login con `ADMIN_TOKEN` → "Nueva key".
 - **Shell**:
@@ -42,7 +44,52 @@ La development key caduca a las 24 h. Se guarda en la BD (tabla `settings`) y se
   curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"key":"RGAPI-..."}' https://hylistats.onrender.com/api/admin/key
   ```
 
-La key se valida contra Riot antes de guardarse. Con una key rechazada el worker se pausa y se reanuda solo al guardar una válida.
+La key se valida contra Riot antes de guardarse. Con una key rechazada el worker se pausa y se reanuda solo al guardar una válida. `/admin` muestra "Caduca aprox." para cualquier key guardada en la BD, porque supone que es de desarrollo. Con la key en el entorno, ese aviso no aparece.
+
+**Cambiar de key de proyecto de Riot** (de la dev key a la Personal, o a otra app) **no es pegar la key nueva y ya**: los PUUID van cifrados por proyecto, y los guardados dejan de servir con la key nueva (Riot responde 400 "Exception decrypting"). Hay que seguir la migración de abajo. Regenerar la key del mismo proyecto no cambia los PUUID.
+
+## Migrar a una key de otro proyecto de Riot
+
+Vuelve a descargarlo todo con la key nueva y conserva los perfiles (ids, URL, icono y 602002), el grupo y `settings`. Son unas 1300 peticiones: 25–30 min con el grupo actual. Todo se lanza desde el Mac, con `SUPABASE_DATABASE_URL` en `.env.local` (ver Backup).
+
+**Antes**: avisar al grupo de que no use la web mientras dura, y que nadie registre perfiles nuevos.
+
+1. **Backup y foto previa.** Hacer el `pg_dump` de "Backup y restauración". Después, la foto previa: el mismo comando del reset sin `--yes` solo imprime el resumen (perfiles, grupo, partidas por perfil, 602002 y Riot ID que se van a corregir) y no toca nada.
+   ```bash
+   set -a; . ./.env.local; set +a
+   npm run db:reset -- --keep-profiles --url "$SUPABASE_DATABASE_URL" | tee foto-previa-$(date +%F).txt
+   ```
+   Hacer también una captura de `/grupo` (Temporada y Equipos).
+2. **Pegar la key nueva en `/admin`** ("Nueva key"). Desde aquí, los refrescos que se lancen fallan con 400 sin guardar nada; el paso 3 los descarta.
+3. **Reset, justo después del paso 2.** Este orden es obligatorio: si el reset va antes, el worker resolvería los PUUID con la key vieja.
+   ```bash
+   npm run db:reset -- --keep-profiles --url "$SUPABASE_DATABASE_URL" --yes
+   ```
+   En una transacción hace lo siguiente:
+   - vacía `participants`, `matches`, `match_fetch` y `sync_jobs`;
+   - corrige el Riot ID de quien se lo haya cambiado (según su última partida guardada; la URL no cambia);
+   - deja los perfiles sin PUUID y en `resolving`;
+   - encola un backfill por perfil.
+
+   El worker de Render los recoge en segundos, no hay que reiniciar nada.
+4. **Seguir el backfill** en `/admin` (Worker) o en `/api/health` (cola y métricas de Riot). La web se va rellenando perfil a perfil.
+5. **Verificar** con el mismo comando del paso 1 (sin `--yes`), comparando con la foto previa:
+   - todos los perfiles están `active`;
+   - las partidas por perfil son ≥ que en la foto;
+   - "campeones ganados" coincide con el 602002 en la cabecera de cada perfil;
+   - `/grupo` es igual a la captura salvo partidas nuevas;
+   - `/api/health` no registra ningún 429.
+
+   Si un perfil queda `not_found`, su Riot ID ya no existe y su última partida guardada no traía el nombre nuevo. Hay que corregir el Riot ID con SQL (`update profiles set game_name = '…', tag_line = '…' where id = N`) y pulsar "Actualizar" en su perfil, que reintenta los `not_found`.
+6. **Pasar la key al entorno.**
+   1. En Render → Environment, poner la key nueva en `RIOT_API_KEY` y esperar al redeploy. Mientras tanto sigue mandando la de la BD, así que no hay corte.
+   2. Vaciar la key de la BD en Supabase → SQL Editor:
+      ```sql
+      update settings set riot_api_key = null where id = 1;
+      ```
+   3. Comprobar en `/admin` que la key sale del entorno, sin aviso de caducidad, y que el estado es correcto.
+
+**En local**: mismo procedimiento contra la BD de Docker. Poner la key en `RIOT_API_KEY` de `.env.local`, dejar la de la BD a `null` y ejecutar `npm run db:reset -- --keep-profiles --yes`. Sin `--url` usa `DATABASE_URL`. Si los datos locales no importan, basta con `npm run db:reset -- --yes`, que también borra perfiles y grupo.
 
 ## Backup y restauración
 

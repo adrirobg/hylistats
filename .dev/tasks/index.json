@@ -1,3 +1,45 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "db:reset --keep-profiles con tests",
+      "status": "done",
+      "owner": "orchestrator",
+      "branch": "cloud/fix/16-personal-key",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T01_db-reset-keep-profiles.md",
+      "created_at": "2026-10-02T11:30:00Z",
+      "updated_at": "2026-10-02T11:30:00Z"
+    },
+    {
+      "id": "T02",
+      "title": "Runbook de migración y docs",
+      "status": "done",
+      "owner": "orchestrator",
+      "branch": "cloud/fix/16-personal-key",
+      "worktree": null,
+      "depends_on": [
+        "T01"
+      ],
+      "artifact_path": ".dev/tasks/task_T02_runbook-docs.md",
+      "created_at": "2026-10-02T11:30:00Z",
+      "updated_at": "2026-10-02T11:30:00Z"
+    },
+    {
+      "id": "T03",
+      "title": "Migración en producción",
+      "status": "pending",
+      "owner": "supervisor",
+      "branch": "cloud/fix/16-personal-key",
+      "worktree": null,
+      "depends_on": [
+        "T01",
+        "T02"
+      ],
+      "artifact_path": ".dev/tasks/task_T03_migracion-produccion.md",
+      "created_at": "2026-10-02T11:30:00Z",
+      "updated_at": "2026-10-02T11:30:00Z"
+    }
+  ]
 }

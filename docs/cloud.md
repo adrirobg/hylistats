@@ -27,7 +27,7 @@ Menú del entorno en la barra de título de la sesión → **Edit**:
 | Campo | Qué poner |
 |---|---|
 | Acceso a la red | **De confianza** basta para programar y pasar tests (npm funciona). Bloquea Riot (`*.api.riotgames.com`, `ddragon.leagueoflegends.com`, `raw.communitydragon.org`) y el MCP de Supabase (`mcp.supabase.com`); solo hay que añadirlos si se necesitan desde la nube |
-| Credenciales de API | Vacío. La dev key de Riot caduca cada día y vive en la BD de producción |
+| Credenciales de API | Vacío. La key de Riot vive en el entorno de producción (Render) y no se trae a la sesión |
 | Script de configuración | Vacío: lo hace el hook, que está versionado en el repo |
 | Variables de entorno | Vacío. Son visibles para cualquiera que use el entorno: **nunca secretos** |
 
