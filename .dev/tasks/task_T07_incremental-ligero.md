@@ -1,7 +1,7 @@
 # Task T07 — Incremental sin partidas nuevas sin 602002 ni icono
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -36,11 +36,15 @@ Reglas comunes (todas las tasks de código):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Comprobación previa del retraso del 602002 documentada en el informe.
-- [ ] Incremental sin partidas nuevas sin `getPlayerData` ni `getSummonerByPuuid` (AC7).
-- [ ] Backfill e incremental con partidas, con ellas; tests del worker (AC7).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Comprobación previa del retraso del 602002 documentada en el informe.
+- [x] Incremental sin partidas nuevas sin `getPlayerData` ni `getSummonerByPuuid` (AC7).
+- [x] Backfill e incremental con partidas, con ellas; tests del worker (AC7).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-{Se completa al cerrar.}
+- Commit `e01c12c` (worker Sonnet en worktree), integrado con `ace9e20`.
+- **Paso 1 (retraso del 602002)**: no concluyente con la BD local; sin indicios de retraso. Solo se guarda la última lectura (`challengeValue`, `challengeCheckedAt`), así que no se puede comparar el valor tras la partida con el posterior. Hoy el oficial cuadra con el recuento propio en 5 de 7 perfiles; en los otros 2 el oficial va 1 **por encima** (dirección contraria a un retraso; no investigado). Nada sobre latencia en `riot-api.md` ni en el archivo de iter-02. Propuesta para medirlo en producción: loguear el valor antes y después en el incremental que trae un 1º con campeón nuevo y en el siguiente.
+- `closeJob`: `needsCloseCounters` decide si se piden `getPlayerData` y `getSummonerByPuuid`: backfill, incremental con `totalIds > 0` y **(desviación, pendiente de decisión del supervisor)** perfil con alguna partida guardada que terminó después de su `challengeCheckedAt` (o sin lectura previa). Motivo: un incremental cuyo perfil ganó una partida que ya descargó un amigo trae `totalIds = 0` (la cola solo incluye ids no guardados) y con la regla literal su 602002 se quedaría sin leer. Un incremental vacío de verdad no pide nada y no pisa los valores guardados ni sube la versión (T02).
+- Tests en `worker.test.ts` (incremental vacío solo `matchIds`×2 y conserva valores; con partida nueva pide las dos; partida compartida pide una vez y el siguiente es ligero; `challengeCheckedAt` nulo pide) y ajuste en `data-version.test.ts`.
+- lint, typecheck, test (68 ficheros, 1403) y build (Turbopack) en verde en el worktree; tests del worker (66) en verde tras integrar.

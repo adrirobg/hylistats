@@ -79,14 +79,14 @@
     {
       "id": "T07",
       "title": "Incremental sin partidas nuevas sin 602002 ni icono",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T07_incremental-ligero.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:43:10Z"
+      "updated_at": "2026-10-02T20:49:05Z"
     },
     {
       "id": "T08",
