@@ -1,6 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import type { Db } from "@/db";
 import { groupMembers, profiles } from "@/db/schema";
+import { bumpGroupVersion } from "@/lib/data-version";
 import {
   normalizeRiotId,
   parseRiotIdInput,
@@ -8,7 +9,8 @@ import {
 } from "@/lib/riot-id";
 
 // Grupo fijo (F19): lista de perfiles guardada en `group_members`. Este módulo solo gestiona la
-// lista; lo que se calcula sobre los miembros vive en otros módulos.
+// lista; lo que se calcula sobre los miembros vive en otros módulos. Cambiar la lista sube la
+// versión del grupo (`@/lib/data-version`): títulos, ELO y la pestaña Grupo dependen de ella.
 
 export interface GroupMember {
   profileId: number;
@@ -57,7 +59,7 @@ export async function isGroupMember(
 /**
  * Añade al grupo un perfil ya registrado, por Riot ID (`Nombre#TAG`, `Nombre-TAG` u op.gg).
  * Si el Riot ID no existe en `profiles` no crea nada. Añadir quien ya es miembro no hace nada
- * (`added: false`).
+ * (`added: false`, sin subir la versión del grupo).
  */
 export async function addGroupMemberByRiotId(
   db: Db,
@@ -88,10 +90,12 @@ export async function addGroupMemberByRiotId(
     .values({ profileId: profile.id })
     .onConflictDoNothing()
     .returning({ profileId: groupMembers.profileId });
-  return { ok: true, added: inserted.length > 0, profileId: profile.id };
+  const added = inserted.length > 0;
+  if (added) bumpGroupVersion();
+  return { ok: true, added, profileId: profile.id };
 }
 
-/** Quita un perfil del grupo. Devuelve `true` si era miembro. */
+/** Quita un perfil del grupo. Devuelve `true` si era miembro (y solo entonces sube la versión). */
 export async function removeGroupMember(
   db: Db,
   profileId: number,
@@ -100,5 +104,7 @@ export async function removeGroupMember(
     .delete(groupMembers)
     .where(eq(groupMembers.profileId, profileId))
     .returning({ profileId: groupMembers.profileId });
-  return removed.length > 0;
+  if (removed.length === 0) return false;
+  bumpGroupVersion();
+  return true;
 }

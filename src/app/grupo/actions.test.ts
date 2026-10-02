@@ -66,13 +66,13 @@ async function pendingJobs() {
 }
 
 describe("ensureGroupFreshAction (al abrir la vista, volver a la pestaña y latido)", () => {
-  it("encola solo a los miembros sin job activo y fuera del límite de 5 min, sin interactivo", async () => {
+  it("encola solo a los miembros sin job activo y fuera del límite de 2 min, sin interactivo", async () => {
     const stale = await profile("Antiguo", 10 * MIN);
     await profile("Reciente", 1 * MIN);
     const busy = await profile("Ocupado", 10 * MIN);
     await activeJob(busy);
     const limited = await profile("Limitado", 10 * MIN);
-    await finishedJob(limited, 2 * MIN);
+    await finishedJob(limited, 1 * MIN);
     const neverSynced = await db
       .insert(profiles)
       .values({
