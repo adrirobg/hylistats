@@ -34,7 +34,7 @@ Los secretos los introduce el supervisor en el panel: nunca en el repo, en el ch
 
 ## Key de Riot
 
-La key vigente es la **Personal key** (concedida el 2026-10-02; hasta ejecutar la migración de abajo, producción sigue con la dev key en la BD): no caduca y tiene los mismos límites que la de desarrollo (100 peticiones cada 2 min, 20 por segundo). Vive en `RIOT_API_KEY` (Render → Environment).
+La key vigente es la **Personal key** (concedida el 2026-10-02; producción migró a ella el mismo día con el procedimiento de abajo): no caduca y tiene los mismos límites que la de desarrollo (100 peticiones cada 2 min, 20 por segundo). Vive en `RIOT_API_KEY` (Render → Environment).
 
 Una key guardada desde `/admin` **manda sobre** `RIOT_API_KEY`. Es la vía rápida si Riot invalida la key, porque no necesita redeploy:
 

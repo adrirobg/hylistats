@@ -1,7 +1,7 @@
 # Task T03 — Migración en producción
 
 **Owner**: supervisor
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 ## Objetivo <!-- MUST -->
 
@@ -18,8 +18,8 @@ Pasos del supervisor, desde el Mac: seguir el runbook. El agente no escribe keys
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] AC7 de la spec
+- [x] AC7 de la spec
 
 ## Evidencias <!-- MUST -->
 
-{Foto previa y resumen tras el backfill; captura de `/admin` con fuente `env`.}
+Ejecutada el 2026-10-02 (11:48–12:31Z). Detalle en `verify-report.md` (AC7); salidas en `~/Backups/hylistats/` del Mac del supervisor (fuera del repo).
