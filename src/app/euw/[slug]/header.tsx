@@ -43,6 +43,14 @@ import {
 // Rangos (container queries sobre `.app`): por debajo de 640 px el header se reduce a Riot ID,
 // ★, ↻ y ⋯; la frescura pasa a una segunda línea y se ocultan las etiquetas fijas.
 
+/** Liga y rating del miembro en el ELO del grupo (los mismos valores que su fila de la Clasificación). */
+export interface HeaderElo {
+  leagueName: string;
+  /** Rating redondeado, entero sin separador de miles ("1526"). */
+  rating: string;
+  provisional: boolean;
+}
+
 export interface ProfileHeaderProps {
   /** Slug de la URL, el que identifica al perfil en las actions. */
   slug: string;
@@ -72,6 +80,8 @@ export interface ProfileHeaderProps {
   arenaDeity: boolean;
   /** Títulos vigentes del miembro en el grupo, junto a «Deidad de Arena» (vacío si no es miembro). */
   titleBadges: readonly TitleBadge[];
+  /** Liga y rating del ELO del grupo; `null` si el perfil no es miembro (no se muestra nada). */
+  elo: HeaderElo | null;
   games: number;
   champions: RefreshSnapshot["champions"];
 }
@@ -92,6 +102,7 @@ export function ProfileHeader({
   arenaQuietSince,
   arenaDeity,
   titleBadges,
+  elo,
   games,
   champions,
 }: ProfileHeaderProps) {
@@ -192,6 +203,20 @@ export function ProfileHeader({
                   fill={favorite ? "currentColor" : "none"}
                 />
               </button>
+              {elo !== null && (
+                // Texto, no `Badge`. Es un elemento más de la línea del nombre: si no cabe (375 px,
+                // nombre largo) pasa a la línea siguiente por el `flex-wrap`, sin tocar los badges.
+                <p className="text-sm font-medium whitespace-nowrap text-muted-foreground">
+                  <span className="text-foreground">{elo.leagueName}</span>
+                  {" · "}
+                  <span className="text-foreground">{elo.rating}</span>
+                  {elo.provisional && (
+                    <span className="ml-1.5 text-xs font-normal text-faint">
+                      provisional
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
               {ready && (

@@ -1,7 +1,7 @@
 # Task T06 — Gráfica de evolución del rating
 
 **Owner**: worker:sonnet
-**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -37,11 +37,16 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Gráfica de rating con ligas en Resumen, solo en miembros.
-- [ ] Estado vacío sin partidas.
-- [ ] Último punto = rating de la cabecera.
-- [ ] Legible a 375 px y en escritorio; test del view-model.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Gráfica de rating con ligas en Resumen, solo en miembros.
+- [x] Estado vacío sin partidas.
+- [x] Último punto = rating de la cabecera.
+- [x] Legible a 375 px y en escritorio; test del view-model.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
+
+- `rating-view.ts` (+ test), `rating-chart.tsx` (línea de rating, ligas como `ReferenceArea` con nombre, tooltip con fecha, rating y cambio, `ReferenceDot` en el último punto, `figcaption` textual), `summary-panel.tsx` (Box "Rating" tras "Evolución", solo en miembros) y `page.tsx`.
+- Fronteras de liga en `min − 0,5` (la liga se decide por el redondeado); Hierro y Diamante recortados al eje.
+- 375 px y temas: comprobación del orquestador en T07 (el proyecto solo define el tema oscuro).
+- `npm run lint && npm run typecheck && npm test && npm run build` en verde (1350 tests).
 

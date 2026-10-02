@@ -1,7 +1,7 @@
 # Task T04 — Liga y rating en la cabecera del perfil
 
 **Owner**: worker:sonnet
-**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -36,10 +36,14 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Texto de liga y rating en la cabecera de los miembros; nada en no miembros.
-- [ ] Mismo valor que la Clasificación.
-- [ ] Cabecera correcta a 375 px con badges.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Texto de liga y rating en la cabecera de los miembros; nada en no miembros.
+- [x] Mismo valor que la Clasificación.
+- [x] Cabecera correcta a 375 px con badges.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
+
+- `header.tsx` (prop `elo: HeaderElo | null` → "<Liga> · <rating>" + "provisional", texto en la línea del nombre con `flex-wrap`) y `page.tsx` (`league.name`, `String(roundedRating)`: mismo valor que la Clasificación).
+- Sin tests propios (solo cableado). 375 px: comprobación del orquestador en T07.
+- `npm run lint && npm run typecheck && npm test && npm run build` en verde (1350 tests).
 
