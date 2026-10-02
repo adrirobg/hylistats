@@ -1,7 +1,7 @@
 # Task T02 — Versión de datos y petición de estado con frescura dentro
 
 **Owner**: worker:opus
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -46,14 +46,20 @@ Reglas comunes (todas las tasks de código):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Versiones por perfil y del grupo con id de arranque; tests (AC1).
-- [ ] Subidas en worker y `/admin` solo con datos visibles; incremental sin partidas no sube; backfill ajeno no afecta al grupo salvo partidas compartidas; tests de BD (AC1).
-- [ ] Petición de estado con versión y sincronización, sin cálculo del grupo ni stats (AC2, primera cláusula).
-- [ ] Frescura dentro del estado, una vez cada 30 s por perfil compartida entre visores (AC3).
-- [ ] `STALE_AFTER_MS` = 2 min con tests (AC3).
-- [ ] Contrato del JSON exportado y descrito para T04.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Versiones por perfil y del grupo con id de arranque; tests (AC1).
+- [x] Subidas en worker y `/admin` solo con datos visibles; incremental sin partidas no sube; backfill ajeno no afecta al grupo salvo partidas compartidas; tests de BD (AC1).
+- [x] Petición de estado con versión y sincronización, sin cálculo del grupo ni stats (AC2, primera cláusula).
+- [x] Frescura dentro del estado, una vez cada 30 s por perfil compartida entre visores (AC3).
+- [x] `STALE_AFTER_MS` = 2 min con tests (AC3).
+- [x] Contrato del JSON exportado y descrito para T04.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-{Se completa al cerrar.}
+- Commit `c02ff78` (worker Opus en worktree), integrado con `1f6b5ae`.
+- Versiones: `src/lib/data-version.ts` (`globalThis.__hylistatsDataVersions`, id de arranque + contador por perfil + grupo; cadena opaca `"<bootId>.<n>"`), con tests.
+- Subidas (`src/worker/version-bumps.ts`, tests de BD en `src/worker/data-version.test.ts`): partida insertada → cada perfil registrado entre sus participantes (y el grupo si alguno es miembro), tras el commit; `resolveAccount` (resuelto o `not_found`); `closeJob` solo si cambian 602002 (valor o nivel) o icono, no por `lastSyncedAt`. `/admin`: en el dominio (`addGroupMemberByRiotId`, `removeGroupMember`) solo si la lista cambia.
+- Estado: `GET /api/estado?perfil=<slug>[&grupo=1]` (`force-dynamic`, `no-store`) → `StatusPayload` (`src/lib/status-payload.ts`): `now`, `kind`, `version`, `groupVersion`, `profile` (sync, `lastSyncedAt`, `lastJobErrorAt`, `paused`) y `group` (miembros, activos, más antiguo). El test de la ruta hace lanzar a `loadGroupView`, `loadProfileGroupData` y `getProfileStats`: el estado no los llama.
+- Frescura: `ensureFreshOnView` / `ensureGroupFresh` dentro del estado, con registro en `globalThis.__hylistatsFreshnessChecks` (como mucho una vez cada 30 s por perfil, compartido entre visores y entre página y grupo).
+- `STALE_AFTER_MS` = 2 min; tests de cola y acciones ajustados. `data.ts` baja de 720 a 491 líneas (estado de sincronización extraído a `src/domain/sync-status.ts`).
+- lint, typecheck, test (67 ficheros, 1393) y build en verde en el worktree.

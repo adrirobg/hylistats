@@ -3,31 +3,31 @@
     {
       "id": "T01",
       "title": "Flujo de ramas: tag v1.0.0, documentación y skills contra develop",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "orchestrator",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T01_flujo-de-ramas.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:21:32Z"
+      "updated_at": "2026-10-02T20:30:53Z"
     },
     {
       "id": "T02",
       "title": "Versión de datos y petición de estado con frescura dentro",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:opus",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T02_version-y-estado.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:21:32Z"
+      "updated_at": "2026-10-02T20:43:10Z"
     },
     {
       "id": "T03",
       "title": "Vista del grupo calculada una vez por versión, día y semana",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:opus",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
@@ -36,12 +36,12 @@
       ],
       "artifact_path": ".dev/tasks/task_T03_grupo-compartido.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:21:32Z"
+      "updated_at": "2026-10-02T20:43:10Z"
     },
     {
       "id": "T04",
       "title": "Poller único por página y UI de sincronización desde el estado",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:opus",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
@@ -50,55 +50,55 @@
       ],
       "artifact_path": ".dev/tasks/task_T04_poller-unico.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:21:32Z"
+      "updated_at": "2026-10-02T20:43:10Z"
     },
     {
       "id": "T05",
       "title": "Quitar /grupo: redirect, barra y enlace de los badges",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T05_sin-grupo.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:21:32Z"
+      "updated_at": "2026-10-02T20:34:59Z"
     },
     {
       "id": "T06",
       "title": "Desglose ELO solo de las filas visibles en Partidas",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:sonnet",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T06_payload-partidas.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:21:32Z"
+      "updated_at": "2026-10-02T20:37:23Z"
     },
     {
       "id": "T07",
       "title": "Incremental sin partidas nuevas sin 602002 ni icono",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:sonnet",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T07_incremental-ligero.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:21:32Z"
+      "updated_at": "2026-10-02T20:43:10Z"
     },
     {
       "id": "T08",
       "title": "Script de sesión simulada y medición del antes",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:sonnet",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T08_sesion-simulada.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:21:32Z"
+      "updated_at": "2026-10-02T20:30:53Z"
     },
     {
       "id": "T09",

@@ -1,7 +1,7 @@
 # Task T06 — Desglose ELO solo de las filas visibles en Partidas
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -38,11 +38,23 @@ Reglas comunes (todas las tasks de código):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] El desglose ELO que viaja es solo el de las filas visibles (y la partida abierta) (AC6).
-- [ ] Historial, "Ver más", filtros y detalle sin cambios visibles (AC6).
-- [ ] Tamaño antes y después medido (AC6).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] El desglose ELO que viaja es solo el de las filas visibles (y la partida abierta) (AC6).
+- [x] Historial, "Ver más", filtros y detalle sin cambios visibles (AC6).
+- [x] Tamaño antes y después medido (AC6).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-{Se completa al cerrar.}
+- Commit `125467c` (worker Sonnet en worktree), integrado con `539ef21`. Funciones puras `visibleMatchIds` y `pickEloMatches` en `matches-elo.ts` (7 tests); cableado en `MatchesTab` de `page.tsx`; `data.ts` sin cambios.
+- Filtra a los `matchId` de `matches.rows` más la partida abierta (`?partida`), aunque quede fuera del bloque. "Ver más" sigue subiendo `?n` y el servidor recalcula.
+- Sin cambios visibles: con `n=2`, DOM sin `<script>` idéntico byte a byte antes y después (297.334 bytes, 129 `<li>`); `?partida` de la nº 300 conserva "Cambio base" y "Cambio final".
+- Tamaños (`hylimichi-euw`, 933 participaciones, build local; bytes):
+
+  | Petición | HTML | HTML gzip | RSC | RSC gzip |
+  |---|---|---|---|---|
+  | `?tab=partidas` antes | 497.399 | 75.514 | 294.804 | 60.151 |
+  | `?tab=partidas` después | 259.769 | 27.812 | 76.600 | 13.742 |
+  | `&n=2` (100 filas) antes | 645.839 | 82.153 | 312.476 | 62.225 |
+  | `&n=2` (100 filas) después | 421.689 | 37.226 | 106.652 | 18.726 |
+
+- lint, typecheck y tests (65 ficheros, 1376) en verde en el worktree; el build con Turbopack falló allí por `next/font/google` (entorno del worktree) y se midió con `--webpack`. En el árbol principal, tras integrar T05 y T06, `npm run build` (Turbopack) en verde (hubo que borrar `.next/dev`, tipos obsoletos de un `next dev` anterior que aún incluían `/grupo`).

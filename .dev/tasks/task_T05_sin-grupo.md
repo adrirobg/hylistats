@@ -1,7 +1,7 @@
 # Task T05 — Quitar /grupo: redirect, barra y enlace de los badges
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -41,12 +41,17 @@ Reglas comunes (todas las tasks de código):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `/grupo` redirige a `/` y la página ya no existe (AC5).
-- [ ] Sin "Grupo" en la barra superior; "Sorteo" sigue (AC5).
-- [ ] El enlace de los badges lleva a `?tab=grupo#titulos` del mismo perfil; tests (AC5).
-- [ ] Ningún otro enlace a `/grupo` (AC5).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] `/grupo` redirige a `/` y la página ya no existe (AC5).
+- [x] Sin "Grupo" en la barra superior; "Sorteo" sigue (AC5).
+- [x] El enlace de los badges lleva a `?tab=grupo#titulos` del mismo perfil; tests (AC5).
+- [x] Ningún otro enlace a `/grupo` (AC5).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-{Se completa al cerrar.}
+- Commit `063b90f` (worker Sonnet en worktree), integrado en la rama con `fa547a0`.
+- Redirect en `next.config.ts` (`redirects()`, `permanent: false`): `curl -sI /grupo` → `307`, `location: /`; la query se conserva. `src/app/grupo/page.tsx` borrada.
+- `top-bar.tsx` sin "Grupo"; "Sorteo" sigue. `TITLES_LINK.href` = `?tab=grupo#titulos` (relativo al perfil donde se pinta), con test.
+- `revalidatePath("/grupo", "page")` quitado de `refreshGroupAction` (test ajustado). `grep` sin enlaces reales a `/grupo` (quedan comentarios en ficheros de T04).
+- lint, typecheck, test (64 ficheros, 1369 tests) y build en verde en el worktree.
+- Pendiente para T10: comprobación en navegador badge → apartado Títulos.
