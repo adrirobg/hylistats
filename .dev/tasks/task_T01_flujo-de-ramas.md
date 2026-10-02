@@ -1,7 +1,7 @@
 # Task T01 — Flujo de ramas: tag v1.0.0, documentación y skills contra develop
 
 **Owner**: orchestrator
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -29,12 +29,14 @@
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Tag `v1.0.0` en `b955a82`, empujado tras la confirmación del supervisor.
-- [ ] `AGENTS.md` describe `develop`, releases, SemVer, hotfix y la ausencia de staging.
-- [ ] `docs/deploy.md` tiene el runbook de release y el de hotfix.
-- [ ] `dev-ship` y `dev-close-iter` trabajan contra `develop` y `dev-ship` ofrece la release al final.
-- [ ] Entrada #32 en `dogfood-log.md`.
+- [x] Tag `v1.0.0` en `b955a82`, empujado tras la confirmación del supervisor.
+- [x] `AGENTS.md` describe `develop`, releases, SemVer, hotfix y la ausencia de staging.
+- [x] `docs/deploy.md` tiene el runbook de release y el de hotfix.
+- [x] `dev-ship` y `dev-close-iter` trabajan contra `develop` y `dev-ship` ofrece la release al final.
+- [x] Entrada #32 en `dogfood-log.md`.
 
 ## Evidencias <!-- MUST -->
 
-{Se completa al cerrar.}
+- Commit `2d882bf`: `AGENTS.md` (sección "Ramas y releases (F27)"), `docs/deploy.md` (sección "Releases y hotfixes": release en 4 pasos, hotfix en 5, cómo probar `develop` en local; el despliegue automático sigue diciendo `main`), `.claude/skills/dev-ship/SKILL.md` (PR contra `develop`, tramo C en `develop`, paso 4 "Oferta de release" sin ejecutarla sin el sí del supervisor, regla de no mergear intacta), `.claude/skills/dev-close-iter/SKILL.md` (descripción: cierre en `develop`), entrada #32 en `dogfood-log.md`. `scripts/dev-close-iter.py` no asume rama: sin cambios.
+- Tag anotado `v1.0.0` sobre `b955a82` (= `origin/main`), empujado tras el sí del supervisor (2026-10-02): `refs/tags/v1.0.0` en GitHub.
+- Memoria `rama-develop-por-defecto` actualizada (quitada la nota provisional).

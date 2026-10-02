@@ -1,7 +1,7 @@
 # Task T04 — Poller único por página y UI de sincronización desde el estado
 
 **Owner**: worker:opus
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -45,12 +45,19 @@ Reglas comunes (todas las tasks de código):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Política pura 10 s / 5 s, solo visible, un refresh por consulta y solo si cambia la versión, con tests (AC2).
-- [ ] Un solo mecanismo por página; ningún `setInterval` con `router.refresh()` fuera de él (AC3).
-- [ ] Botones, barras, avisos, "sincronizado hace…" y toast de resultado desde el estado, como hoy (AC2).
+- [x] Política pura 10 s / 5 s, solo visible, un refresh por consulta y solo si cambia la versión, con tests (AC2).
+- [x] Un solo mecanismo por página; ningún `setInterval` con `router.refresh()` fuera de él (AC3).
+- [x] Botones, barras, avisos, "sincronizado hace…" y toast de resultado desde el estado, como hoy (AC2).
 - [ ] Propagación ≤ 10 s entre pestañas comprobada en el navegador (AC2).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-{Se completa al cerrar.}
+- Commit `bc571ef` (worker Opus en worktree), integrado con `47fdc3f`.
+- Nuevos en `src/app/euw/[slug]/`: `status-policy.ts` (+ test; 10 s / 5 s con job del perfil o `group.active > 0`, intervalo desde la vuelta de la última consulta, consulta inmediata al montar y al volver a la pestaña, sin temporizador oculta, `router.refresh()` solo si cambian `kind`/`version`/`groupVersion` y no hay otro en curso, nunca dos consultas a la vez), `status-provider.tsx` (proveedor + `usePageStatus`), `page-status.ts` (+ test; estado inicial desde el render), `sync-empty.tsx`.
+- Borrados: `auto-refresh.tsx`, `auto-refresh-policy.ts` (+ test), `grupo/group-freshness-section.tsx`, server actions `ensureFreshOnViewAction` y `ensureGroupFreshAction`.
+- Versiones iniciales: `loadProfilePage` lee `profileVersion`/`groupVersion` antes del `Promise.all` (`ProfileView.versions`); `page.tsx` construye `initial` sin consultas nuevas (en Grupo, `loadGroupSyncState`). Primer render del cliente = HTML del servidor.
+- Toast: la vigilancia de `useRefresh` sin `setInterval` (solo tope de 90 s); "Sin partidas nuevas" sale cuando el estado dice que el job terminó, sin repintar; "+N" espera a que los datos repintados correspondan a la versión del estado. `NotFoundCard` dentro de un `StatusProvider`, mismo mecanismo (5 s con job, tope 25 s). Añadido: los estados vacíos de las pestañas leen el estado (`SyncEmpty`), para que un perfil sin partidas no quede en esqueleto fijo.
+- `grep` de `setInterval`/`router.refresh`: solo `status-provider.tsx:137` refresca; los otros `setInterval` son la animación del sorteo y `use-now.ts` (reloj).
+- lint, typecheck, test (69 ficheros, 1409) y build en verde en el worktree; tras integrar T03+T04: 71 ficheros, 1437 tests, lint, typecheck y build en verde.
+- Pendiente para T10: comprobación en navegador (propagación ≤ 10 s entre pestañas, toasts, backfill, hidratación).
