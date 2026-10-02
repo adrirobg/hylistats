@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { Logo } from "@/components/hy/logo";
 
+const NAV_LINK =
+  "rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground";
+
 /**
- * Rótulo «hylistats» sobre la cabina, con el enlace «Grupo» (`/grupo`) a la derecha. El rótulo
- * enlaza a `/?inicio`: un enlace a `/` redirigiría de vuelta al perfil si hay «mi perfil» guardado,
- * y `?inicio` fuerza la landing.
+ * Rótulo «hylistats» sobre la cabina, con los enlaces «Grupo» (`/grupo`) y «Sorteo» (`/sorteo`) a
+ * la derecha. El rótulo enlaza a `/?inicio`: un enlace a `/` redirigiría de vuelta al perfil si hay
+ * «mi perfil» guardado, y `?inicio` fuerza la landing.
  */
 export function TopBar() {
   return (
@@ -16,12 +19,12 @@ export function TopBar() {
         <Logo />
         hylistats
       </Link>
-      <nav aria-label="Principal">
-        <Link
-          href="/grupo"
-          className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
+      <nav aria-label="Principal" className="flex">
+        <Link href="/grupo" className={NAV_LINK}>
           Grupo
+        </Link>
+        <Link href="/sorteo" className={NAV_LINK}>
+          Sorteo
         </Link>
       </nav>
     </header>
