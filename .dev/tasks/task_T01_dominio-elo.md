@@ -1,7 +1,7 @@
 # Task T01 — Dominio del ELO
 
 **Owner**: worker:opus
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -46,12 +46,17 @@ Reglas comunes (todas las tasks):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Constantes de F24/F25 en `config.ts`.
-- [ ] Cálculo por partida con rating previo, pendiente, multiplicador por desconocidos y orden cronológico (AC1).
-- [ ] Liga por rating redondeado, provisional < 10, cambio del día y de la semana sobre `displayedPeriod` (AC2).
-- [ ] Clasificación ordenada con empates compartidos.
-- [ ] Tests de todos los casos de AC1 y AC2.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Constantes de F24/F25 en `config.ts`.
+- [x] Cálculo por partida con rating previo, pendiente, multiplicador por desconocidos y orden cronológico (AC1).
+- [x] Liga por rating redondeado, provisional < 10, cambio del día y de la semana sobre `displayedPeriod` (AC2).
+- [x] Clasificación ordenada con empates compartidos.
+- [x] Tests de todos los casos de AC1 y AC2.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
+- `src/domain/elo.ts` (`computeGroupElo` → `{standings, day, week}`; `eloMatchChange`, `eloLeague`, `roundRating`, `formatEloChange`, `formatEloChangeDetailed`) y `src/domain/elo.test.ts` (38 tests: todos los casos de AC1 y AC2, temporada sintética de 7 partidas calculada aparte → 1538,67, Oro).
+- `config.ts`: `ELO_START_RATING`, `ELO_PLACEMENT_POINTS`, `ELO_SLOPE`, `ELO_SCALE`, `ELO_STRANGER_MULTIPLIERS`, `ELO_LEAGUES`, `ELO_PROVISIONAL_GAMES`.
+- Decisiones del worker (Opus): filas de no miembros se ignoran (cuentan como desconocidos); orden por rating con decimales y empate compartido por redondeado; formateadores con `-` (el repo no usa el signo tipográfico) y redondeo de la mitad alejándose de 0.
+- La cláusula de AC1 sobre temporada y colas se prueba en T02 (la entrada llega filtrada por la consulta).
+- `npm run lint && npm run typecheck && npm test && npm run build` en verde (1314 tests).
