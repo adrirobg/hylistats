@@ -103,14 +103,14 @@
     {
       "id": "T09",
       "title": "Comprobar si Spectator-V5 expone las partidas de Arena",
-      "status": "in_progress",
+      "status": "done",
       "owner": "orchestrator",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T09_spectator.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:59:20Z"
+      "updated_at": "2026-10-02T21:48:31Z"
     },
     {
       "id": "T10",
@@ -132,7 +132,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T10_verificacion.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:59:20Z"
+      "updated_at": "2026-10-02T21:48:31Z"
     }
   ]
 }
