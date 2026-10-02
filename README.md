@@ -19,6 +19,8 @@ npm run dev                   # http://localhost:3000
 
 `.env.local` está ignorado por git: no lo commitees ni compartas la key de Riot.
 
+En las sesiones cloud de Claude Code el contenedor se prepara solo: ver [`docs/cloud.md`](docs/cloud.md).
+
 ## Scripts
 
 | Script | Descripción |

@@ -21,6 +21,8 @@ Types: feat, fix, research, maint, docs, test, ci
 
 Branches: `tipo/ISSUE_NUMBER-slug-descriptivo`
 
+En sesiones cloud (claude.ai/code): no usar la rama `claude/...` que asigna la plataforma; trabajar en `cloud/tipo/ISSUE_NUMBER-slug-descriptivo`.
+
 Cerrar issues: `Closes #N` en merge PR
 
 ## Skills
@@ -52,6 +54,7 @@ Este proyecto es banco de pruebas de dev-system (instalado vía `/dev-setup`). A
 - **Producción** (F22): Render Free (servicio `hylistats`, Frankfurt, <https://hylistats.onrender.com>) + Supabase Free (Postgres, `eu-central-1`). Se conecta por el pooler Supavisor en **modo session**; el modo transaction rompe el advisory lock. Las migraciones se aplican al arrancar (`npm run start:prod`). Runbook: [`docs/deploy.md`](docs/deploy.md).
 - **MCPs**: Render (conector de la cuenta) y Supabase (`.mcp.json`, limitado al proyecto).
 - **Secretos** (`DATABASE_URL`, `ADMIN_TOKEN`, keys de Riot): solo en `.env.local` o en el panel del host. Nunca en el repo, en logs ni en el chat, ni con prefijo `NEXT_PUBLIC_`.
+- **Sesiones cloud** (claude.ai/code): el hook `SessionStart` (`.claude/hooks/session-start.sh`) instala Node 24, arranca Postgres en 5433 y ejecuta `npm ci`; en local no hace nada. Sin acceso a Riot ni al MCP de Supabase. Guía: [`docs/cloud.md`](docs/cloud.md).
 - **Exposición** (F9): web sin publicitar, con `noindex` en tres capas; se comparte por enlace en el grupo.
 
 ## Next.js 16
