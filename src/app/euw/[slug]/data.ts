@@ -1,27 +1,6 @@
-import {
-  and,
-  count,
-  desc,
-  eq,
-  inArray,
-  isNull,
-  lt,
-  lte,
-  max,
-  ne,
-  or,
-  type SQL,
-  sql,
-} from "drizzle-orm";
+import { eq, inArray, max } from "drizzle-orm";
 import type { Db } from "@/db";
-import {
-  ACTIVE_SYNC_JOB_STATUSES,
-  matches,
-  matchFetch,
-  profiles,
-  type SyncJob,
-  syncJobs,
-} from "@/db/schema";
+import { matches, profiles } from "@/db/schema";
 import {
   type AlbumEntry,
   buildAlbum,
@@ -33,11 +12,10 @@ import { isGroupMember } from "@/domain/group";
 import type { PlayerTitle } from "@/domain/group-titles";
 import {
   type GroupView,
-  loadGroupView,
-  loadProfileGroupData,
   memberKey,
   type ProfileElo,
 } from "@/domain/group-view";
+import { loadProfileGroupData } from "@/domain/group-view-memo";
 import { computeHeat } from "@/domain/heat";
 import { getProfileMatches } from "@/domain/matches";
 import {
@@ -58,16 +36,16 @@ import {
   highlights,
   wonCurve,
 } from "@/domain/summary";
-import { getKeyStatus } from "@/lib/admin/key-service";
+import { loadProfileSyncState, type SyncProgress } from "@/domain/sync-status";
 import {
   ARENA_GOD_THRESHOLD,
   ARENA_QUEUE_IDS,
   ARENA_QUIET_DAYS,
   getSeasonStart,
 } from "@/lib/config";
+import { groupVersion, profileVersion } from "@/lib/data-version";
 import { type ChampionCatalog, profileIconUrl } from "@/lib/ddragon";
 import { EMPTY_GAME_DATA, type GameData } from "@/lib/game-data";
-import { classifyRetry } from "@/lib/riot/errors";
 import { normalizeRiotId } from "@/worker/queue";
 import {
   type ChampionPanelData,
@@ -106,45 +84,13 @@ import { availableTab, type ProfileTab } from "./view-model";
 /** Sin catálogo (por defecto): el álbum solo trae los campeones jugados, sin retratos. */
 const EMPTY_CATALOG: ChampionCatalog = { version: null, champions: [] };
 
-/**
- * Por qué un job espera para reintentar: `rate_limit` (Riot devolvió 429 de forma persistente) o
- * `error` (5xx, red...). Sale de clasificar el `lastError` en el servidor (`classifyRetry`); el
- * texto nunca viaja.
- */
-export type RetryReason = "rate_limit" | "error";
-
-/**
- * Cola compartida de la personal key, en recuentos (sin ids ni perfiles ajenos). Los recuentos
- * siguen el orden de `pickWork` (`src/worker/steps.ts`):
- * - `ahead`: jobs de otros perfiles en `pending`/`listing` que se sirven antes que este (solo con
- *   este job en `pending`/`listing`; en `fetching` vale 0);
- * - `sharing`: otros jobs en `fetching` con los que este reparte las peticiones (solo con este
- *   job en `fetching`; si no, 0).
- */
-export interface SyncQueue {
-  ahead: number;
-  sharing: number;
-}
-
-/** Progreso del job activo. Fases: `pending` -> resolviendo, `listing` -> listando, `fetching` -> descargando. */
-export type SyncProgress = {
-  kind: "backfill" | "incremental";
-  /**
-   * Cuándo se reintenta el job si ahora está esperando (backoff): su `nextRunAt` futuro o, en
-   * `fetching`, la `nextAttemptAt` más próxima si todas las partidas que faltan esperan la suya.
-   * `null` si no espera.
-   */
-  retryAt: Date | null;
-  /** Motivo de la espera; `null` exactamente cuando `retryAt` es `null`. */
-  reason: RetryReason | null;
-  /** Otros jobs delante o repartiendo con este; `null` si no hay ninguno (o si el job espera a reintentar). */
-  queue: SyncQueue | null;
-} & (
-  | { phase: "resolving" }
-  // Durante el listado `totalIds` vale 0 (se fija al acabar de listar): se cuentan los ids ya listados.
-  | { phase: "listing"; listedIds: number }
-  | { phase: "fetching"; fetched: number; total: number }
-);
+// El estado de la sincronización vive en `@/domain/sync-status` (lo comparte `/api/estado`); sus
+// tipos se re-exportan aquí para los consumidores de siempre.
+export type {
+  RetryReason,
+  SyncProgress,
+  SyncQueue,
+} from "@/domain/sync-status";
 
 /**
  * Qué vista del perfil se pide (`?tab` y, en cada pestaña, sus filtros). Es un objeto para que las
@@ -250,6 +196,11 @@ export interface ProfileView {
   elo: ProfileElo | null;
   /** El perfil es miembro del grupo: decide si la barra lleva la pestaña Grupo. */
   isMember: boolean;
+  /**
+   * Versiones de datos leídas antes de cargar la página (`initial` de `StatusProvider`); la del
+   * grupo solo si es miembro.
+   */
+  versions: { version: string; groupVersion: string | null };
 
   /**
    * Panel de campeón abierto (`?campeon` válido, sobre cualquier pestaña): la distribución y las
@@ -293,179 +244,6 @@ export type ProfilePageData =
   /** Riot (Account-V1) no conoce ese Riot ID. */
   | { kind: "not_found"; gameName: string; tagLine: string }
   | ProfileView;
-
-/** El job activo tal como lo lee `loadSyncProgress` (con lo que no sale de este módulo). */
-interface ActiveJob {
-  id: number;
-  status: SyncJob["status"];
-  interactive: boolean;
-  nextRunAt: Date | null;
-  /** Solo para clasificarlo (`classifyRetry`): el texto no sale del servidor. */
-  lastError: string | null;
-}
-
-/** Job sin backoff pendiente: la misma condición que `isDue` de `pickWork`. */
-const dueAt = (now: Date) =>
-  or(isNull(syncJobs.nextRunAt), lte(syncJobs.nextRunAt, now));
-
-/**
- * Si el job está esperando para reintentar: su `nextRunAt` si es futuro (`pickWork` se lo salta
- * entero) y, en `fetching`, la `nextAttemptAt` más próxima si TODAS las partidas que faltan
- * esperan la suya. Para lo segundo basta la primera fila pendiente por `nextAttemptAt` (los
- * vacíos, que están listos, primero): si esa ya venció o no tiene espera, hay algo que descargar.
- */
-async function loadRetry(
-  db: Db,
-  job: ActiveJob,
-  now: Date,
-): Promise<{ retryAt: Date; reason: RetryReason } | null> {
-  if (job.nextRunAt && job.nextRunAt > now) {
-    return { retryAt: job.nextRunAt, reason: classifyRetry(job.lastError) };
-  }
-  if (job.status !== "fetching") return null;
-  const [next] = await db
-    .select({
-      nextAttemptAt: matchFetch.nextAttemptAt,
-      lastError: matchFetch.lastError,
-    })
-    .from(matchFetch)
-    .innerJoin(syncJobs, sql`${matchFetch.matchId} = any(${syncJobs.matchIds})`)
-    .where(and(eq(syncJobs.id, job.id), eq(matchFetch.status, "pending")))
-    .orderBy(sql`${matchFetch.nextAttemptAt} asc nulls first`)
-    .limit(1);
-  if (!next?.nextAttemptAt || next.nextAttemptAt <= now) return null;
-  return {
-    retryAt: next.nextAttemptAt,
-    reason: classifyRetry(next.lastError),
-  };
-}
-
-/**
- * Cuántos jobs de otros perfiles hay delante o repartiendo con este, con el criterio de
- * `pickWork`:
- * - `pending`/`listing`: se sirven antes que cualquier `fetching`, por `interactive desc, id asc`.
- *   Delante están los `pending`/`listing` sin backoff con más prioridad: los interactivos si este
- *   no lo es y, entre iguales, los de `id` menor.
- * - `fetching`: reparto en round-robin entre los `fetching` sin backoff. Un job interactivo solo
- *   reparte con otros interactivos (los demás esperan a que acaben); uno que no lo es, con todos.
- *   Aproximación: no mira si a esos jobs les queda algo que pedir (toda su cola puede estar en
- *   backoff), así que puede contar de más un instante.
- * Solo recuentos: ni ids ni perfiles ajenos.
- */
-async function loadQueue(
-  db: Db,
-  job: ActiveJob,
-  now: Date,
-): Promise<SyncQueue | null> {
-  const fetching = job.status === "fetching";
-  const others: SQL | undefined = and(ne(syncJobs.id, job.id), dueAt(now));
-  const scope = fetching
-    ? and(
-        eq(syncJobs.status, "fetching"),
-        job.interactive ? eq(syncJobs.interactive, true) : undefined,
-      )
-    : and(
-        inArray(syncJobs.status, ["pending", "listing"]),
-        job.interactive
-          ? and(eq(syncJobs.interactive, true), lt(syncJobs.id, job.id))
-          : or(eq(syncJobs.interactive, true), lt(syncJobs.id, job.id)),
-      );
-  const [row] = await db
-    .select({ n: count() })
-    .from(syncJobs)
-    .where(and(others, scope));
-  const n = row?.n ?? 0;
-  if (n === 0) return null;
-  return fetching ? { ahead: 0, sharing: n } : { ahead: n, sharing: 0 };
-}
-
-/** Job activo del perfil (`pending`/`listing`/`fetching`) como progreso; `null` si no hay. */
-async function loadSyncProgress(
-  db: Db,
-  profileId: number,
-  now: Date,
-): Promise<SyncProgress | null> {
-  const [job] = await db
-    .select({
-      id: syncJobs.id,
-      kind: syncJobs.kind,
-      status: syncJobs.status,
-      interactive: syncJobs.interactive,
-      totalIds: syncJobs.totalIds,
-      fetched: syncJobs.fetched,
-      nextRunAt: syncJobs.nextRunAt,
-      lastError: syncJobs.lastError,
-      // Solo el recuento: el array puede tener miles de ids y la página se refresca cada 3 s.
-      listedIds: sql<number>`cardinality(${syncJobs.matchIds})`.mapWith(Number),
-    })
-    .from(syncJobs)
-    .where(
-      and(
-        eq(syncJobs.profileId, profileId),
-        inArray(syncJobs.status, [...ACTIVE_SYNC_JOB_STATUSES]),
-      ),
-    )
-    .orderBy(desc(syncJobs.id))
-    .limit(1);
-  if (!job || job.status === "done" || job.status === "error") return null;
-  const [retry, queue] = await Promise.all([
-    loadRetry(db, job, now),
-    loadQueue(db, job, now),
-  ]);
-  // Un job que espera su reintento no está en la cola: no se sirve hasta `retryAt`.
-  const wait = {
-    retryAt: retry?.retryAt ?? null,
-    reason: retry?.reason ?? null,
-    queue: retry ? null : queue,
-  };
-  switch (job.status) {
-    case "pending":
-      return { kind: job.kind, ...wait, phase: "resolving" };
-    case "listing":
-      return {
-        kind: job.kind,
-        ...wait,
-        phase: "listing",
-        listedIds: job.listedIds,
-      };
-    case "fetching":
-      return {
-        kind: job.kind,
-        ...wait,
-        phase: "fetching",
-        fetched: job.fetched,
-        total: job.totalIds,
-      };
-  }
-}
-
-/**
- * ¿Falló la última actualización? Mira el último job terminado del perfil (`done`/`error`, por
- * `id`: solo hay un job activo por perfil, así que el orden de ids es el de finalización). Un
- * `done` posterior borra el aviso. Solo devuelve el instante: `lastError` no sale de la BD.
- */
-async function loadLastJobError(
-  db: Db,
-  profileId: number,
-): Promise<{ at: Date } | null> {
-  const [last] = await db
-    .select({
-      status: syncJobs.status,
-      finishedAt: syncJobs.finishedAt,
-      updatedAt: syncJobs.updatedAt,
-    })
-    .from(syncJobs)
-    .where(
-      and(
-        eq(syncJobs.profileId, profileId),
-        inArray(syncJobs.status, ["done", "error"]),
-      ),
-    )
-    .orderBy(desc(syncJobs.id))
-    .limit(1);
-  if (last?.status !== "error") return null;
-  return { at: last.finishedAt ?? last.updatedAt };
-}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -535,15 +313,18 @@ export async function loadProfilePage(
     };
   }
 
+  // Antes de cargar nada: un cambio durante la carga no se pierde (el estado lo verá distinto).
+  const versions = {
+    profile: profileVersion(profile.id),
+    group: groupVersion(),
+  };
   const now = new Date();
-  const [stats, sync, lastJobError, key, championCatalog, groupData, isMember] =
+  const [stats, syncState, championCatalog, groupData, isMember] =
     await Promise.all([
       getProfileStats(db, profile.id, seasonStart),
-      loadSyncProgress(db, profile.id, now),
-      loadLastJobError(db, profile.id),
-      getKeyStatus(db),
+      loadProfileSyncState(db, profile, now),
       catalog,
-      loadProfileGroupData(db, profile.id, now.getTime(), seasonStart),
+      loadProfileGroupData(db, profile.id, now.getTime(), seasonStart, catalog),
       isGroupMember(db, profile.id),
     ]);
   const tab = availableTab(view.tab, isMember);
@@ -551,7 +332,7 @@ export async function loadProfilePage(
   const arenaQuiet = await loadArenaQuiet(
     db,
     profile,
-    lastJobError,
+    syncState.lastJobError,
     now.getTime(),
   );
 
@@ -570,17 +351,10 @@ export async function loadProfilePage(
       ? await loadRecords(db, profile.id, seasonStart)
       : null;
 
+  // La vista sale del mismo cálculo (memorizado) que los títulos y el ELO de la cabecera.
   const group =
-    tab === "grupo"
-      ? {
-          view: await loadGroupView(
-            db,
-            now.getTime(),
-            seasonStart,
-            championCatalog,
-          ),
-          ownerKey: memberKey(profile.id),
-        }
+    tab === "grupo" && groupData.view
+      ? { view: groupData.view, ownerKey: memberKey(profile.id) }
       : null;
 
   const partidas =
@@ -605,11 +379,11 @@ export async function loadProfilePage(
       championCatalog.version,
       profile.profileIconId,
     ),
-    lastSyncedAt: profile.lastSyncedAt,
+    lastSyncedAt: syncState.lastSyncedAt,
     lastGameAt: stats.lastGameAt,
-    sync,
-    lastJobError,
-    paused: key.status === "invalid",
+    sync: syncState.sync,
+    lastJobError: syncState.lastJobError,
+    paused: syncState.paused,
     arenaQuiet,
     summary: stats.summary,
     verifiedChampions: stats.verifiedChampions,
@@ -629,6 +403,10 @@ export async function loadProfilePage(
     titles: groupData.titles,
     elo: groupData.elo,
     isMember,
+    versions: {
+      version: versions.profile,
+      groupVersion: isMember ? versions.group : null,
+    },
     // La clave solo existe con `?campeon` válido: `...null` no añade nada.
     ...(championEntry && {
       champion: championPanelData(championEntry, stats.playerRows, heat),

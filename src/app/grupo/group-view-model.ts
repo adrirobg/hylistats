@@ -272,7 +272,7 @@ export function titleRows(
 
 // --- Apartado Títulos -------------------------------------------------------------------------
 
-/** Ancla del apartado Títulos: a ella enlaza la explicación de cada título (`/grupo#titulos`). */
+/** Ancla del apartado Títulos: a ella enlaza la explicación de cada título (`?tab=grupo#titulos`). */
 export const TITLES_ANCHOR = "titulos";
 
 /** Texto del enlace de la explicación de un título. */

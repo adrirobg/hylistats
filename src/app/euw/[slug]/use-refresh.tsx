@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/hy/toast";
 import { refreshAction } from "./actions";
@@ -19,8 +18,6 @@ import {
  */
 export const REFRESH_BUTTON_ID = "refresh-profile";
 
-/** Mientras se espera un job que aún no se ve en la página, se relee cada 3 s (como el polling). */
-const WATCH_POLL_MS = 3_000;
 /** Tope de la vigilancia: si en 90 s no pasa nada, se deja de esperar el resultado. */
 const WATCH_MAX_MS = 90_000;
 
@@ -28,13 +25,14 @@ const WATCH_MAX_MS = 90_000;
  * Botón "Actualizar" (§4.1 y §4.10): la action, su estado y el toast de resultado.
  *
  * - `cooldown` -> toast "Espera un momento"; `active` -> "Ya se está actualizando".
- * - Tras `queued` o `active` vigila las props del perfil (`snapshot`, que se renuevan con el
- *   polling de `AutoRefresh`): cuando el job en curso termina, compara con la foto de antes de
- *   pulsar y muestra "+N partidas · nuevo 1º con X" o "Sin partidas nuevas". Solo ocurre en la
- *   pestaña donde se pulsó.
+ * - Tras `queued` o `active` vigila la foto del perfil (`snapshot`: el job, `lastSyncedAt` y el
+ *   error salen del estado de `StatusProvider`; las partidas y los campeones, de los datos de la
+ *   página). Cuando el estado dice que el job terminó, compara con la foto de antes de pulsar y
+ *   muestra "+N partidas · nuevo 1º con X" o "Sin partidas nuevas". Si hubo partidas, la versión
+ *   cambió y el resultado espera al repintado (`dataCurrent`); si no, sale sin repintar. Sin
+ *   relecturas propias: el ritmo es el del poller. Solo ocurre en la pestaña donde se pulsó.
  */
-export function useRefresh(snapshot: RefreshSnapshot) {
-  const router = useRouter();
+export function useRefresh(snapshot: RefreshSnapshot, dataCurrent: boolean) {
   const [state, formAction, submitting] = useActionState(refreshAction, null);
   const { toast, show } = useToast();
   const [watch, setWatch] = useState<RefreshWatch | null>(null);
@@ -71,7 +69,7 @@ export function useRefresh(snapshot: RefreshSnapshot) {
 
   useEffect(() => {
     if (!watch) return;
-    const step = advanceWatch(watch, snapshot);
+    const step = advanceWatch(watch, snapshot, dataCurrent);
     if (step.watch === watch) return;
     setWatch(step.watch);
     if (step.settled === "ok") {
@@ -90,17 +88,9 @@ export function useRefresh(snapshot: RefreshSnapshot) {
         </>,
       );
     }
-  }, [watch, snapshot, show]);
+  }, [watch, snapshot, dataCurrent, show]);
 
-  // Si el job todavía no aparece en la página, se relee sin esperar al polling lento (30 s).
   const watching = watch !== null;
-  const waitingForJob = watching && !snapshot.active;
-  useEffect(() => {
-    if (!waitingForJob) return;
-    const timer = setInterval(() => router.refresh(), WATCH_POLL_MS);
-    return () => clearInterval(timer);
-  }, [waitingForJob, router]);
-
   useEffect(() => {
     if (!watching) return;
     const timer = setTimeout(() => setWatch(null), WATCH_MAX_MS);

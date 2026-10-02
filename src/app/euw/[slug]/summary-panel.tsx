@@ -17,7 +17,8 @@ import { WonCurveChart } from "./won-curve-chart";
 // Pestaña Resumen (brief §3.3, `data-panel="resumen"` de la maqueta): cuatro bloques a ancho de
 // pestaña —marcador con su distribución, forma, evolución de campeones ganados y destacados—.
 // Es un componente de servidor: el marcador y la forma salen de `ProfileView` y suben en vivo con
-// el `router.refresh()` de `AutoRefresh`; solo la gráfica y los chips son cliente.
+// los repintados de `StatusProvider` (al cambiar la versión); solo la gráfica y los chips son
+// cliente.
 
 interface SummaryPanelProps {
   summary: StatsSummary;

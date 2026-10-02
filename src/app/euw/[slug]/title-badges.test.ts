@@ -70,9 +70,9 @@ describe("titleBadges", () => {
     expect(badges[0]).toMatchObject({
       title: "El trol del día",
       description: "Peor puesto medio del día: 4,60 en 5 partidas",
-      link: { href: "/grupo#titulos", label: TITLES_LINK.label },
+      link: { href: "?tab=grupo#titulos", label: TITLES_LINK.label },
     });
-    expect(TITLES_LINK.href).toBe("/grupo#titulos");
+    expect(TITLES_LINK.href).toBe("?tab=grupo#titulos");
   });
 
   it("el mismo título en día y semana son dos badges distintos, en el orden recibido", () => {

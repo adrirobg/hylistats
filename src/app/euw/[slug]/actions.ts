@@ -7,8 +7,6 @@ import { type Db, getDb } from "@/db";
 import { profiles } from "@/db/schema";
 import { parseProfileSlug, type RiotId } from "@/lib/riot-id";
 import {
-  type EnsureFreshResult,
-  ensureFreshOnView,
   normalizeRiotId,
   type RefreshResult,
   registerProfile,
@@ -67,21 +65,4 @@ export async function refreshAction(
   wakeWorker();
   revalidatePath(PROFILE_PAGE, "page");
   return { result };
-}
-
-/**
- * Lo llama `AutoRefresh` al montarse, al volver a la pestaña y cada 60 s con ella visible: encola
- * un refresco no interactivo si la última sincronización (y el último job) tiene más de 5 min.
- * El guardia de 5 min está en el servidor (`ensureFreshOnView`); el resto de llamadas solo tocan
- * la BD propia. El cliente refresca la página si encoló algo.
- */
-export async function ensureFreshOnViewAction(
-  slug: string,
-): Promise<EnsureFreshResult | "not_found"> {
-  const riotId = riotIdOf(slug);
-  if (!riotId) return "not_found";
-  const db = getDb();
-  const profileId = await findProfileId(db, riotId);
-  if (profileId === null) return "not_found";
-  return ensureFreshOnView(db, profileId);
 }

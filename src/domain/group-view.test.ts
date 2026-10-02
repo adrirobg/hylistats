@@ -11,12 +11,8 @@ import {
 } from "../../tests/helpers/matches";
 import { computeSeasonTable, type SeasonMatchRow } from "./group-season";
 import { type AwardedTitle, titlesOf } from "./group-titles";
-import {
-  loadGroupView,
-  loadProfileGroupData,
-  memberKey,
-  withDisplayNames,
-} from "./group-view";
+import { loadGroupView, memberKey, withDisplayNames } from "./group-view";
+import { loadProfileGroupData } from "./group-view-memo";
 import { storeMatch } from "./ingest";
 
 const db = getTestDb();
@@ -512,10 +508,12 @@ describe("ELO del grupo", () => {
     expect(await loadProfileGroupData(db, x.id, now, seasonStart)).toEqual({
       titles: [],
       elo: null,
+      view: null,
     });
     expect(await loadProfileGroupData(db, 999_999, now, seasonStart)).toEqual({
       titles: [],
       elo: null,
+      view: null,
     });
   });
 

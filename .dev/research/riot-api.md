@@ -35,7 +35,7 @@
 
 | Concepto | Valor EUW | Notas |
 |---|---|---|
-| Plataforma | `euw1` → `https://euw1.api.riotgames.com` | Summoner-V4, Challenges-V1 (también Spectator, League… no usados) |
+| Plataforma | `euw1` → `https://euw1.api.riotgames.com` | Summoner-V4, Challenges-V1 (también Spectator —probado con Arena en §7b—, League… no usados) |
 | Región (cluster) | `europe` → `https://europe.api.riotgames.com` | Account-V1, Match-V5 |
 | Prefijo de `matchId` | `EUW1_<n>` | Match-V5 se consulta en `europe` aunque el id lleve el prefijo de plataforma |
 
@@ -343,6 +343,20 @@ No hay campo. Opciones a valorar en Spec (no elegir aquí):
 - Marcar la fecha de inicio de temporada como configuración manual del supervisor.
 
 ---
+
+## 7b. Spectator-V5 y partidas de Arena en curso (comprobado 2026-10-02, iter-10 T09)
+
+Prueba con la Personal key, host `euw1`, `GET /lol/spectator/v5/active-games/by-summoner/{puuid}` (PUUID del mismo proyecto que la key), con un miembro del grupo (BEJITO MAMBO) jugando Arena en ese momento:
+
+- **Sí devuelve la partida de Arena**: `200` con `gameQueueConfigId: 1750`, `gameMode: "CHERRY"`, `mapId: 30`, `gameType: "MATCHED"`, `platformId: "EUW1"`, `gameId` (el número de la partida; el `matchId` de Match-V5 será `EUW1_<gameId>`), `gameStartTime` (epoch ms) y `gameLength` (s).
+- **Participantes**: los 18, todos con `teamId: 100`: Spectator **no expone el equipo de Arena** (los subequipos de 2–3). Campos por participante: `puuid`, `riotId`, `championId`, `profileIconId`, `bot`, `spell1Id`, `spell2Id`, `perks`, `lastSelectedSkinIndex`, `gameCustomizationObjects`. También `bannedChampions` (18) y `observers.encryptionKey`.
+- **Sin partida**: `404` (los otros 5 miembros, que no estaban jugando).
+- **Seguimiento de la misma partida** (sondeo cada 60 s, partida `EUW1_8001920698`): `gameLength` avanza ~60 s por muestra (la primera repetición de 41 s fue al poco de empezar). Según Match-V5, la partida empezó a las 21:07:36 UTC y **terminó para todo el lobby a las 21:34:11** (`gameDuration` 1595 s), pero el jugador fue **eliminado antes**: `timePlayed` 1238 s, 4º puesto, es decir, a las ~21:28:14.
+  - Tras la eliminación, Spectator **siguió devolviendo la misma partida** a ese jugador (200, `gameLength` creciendo) hasta las 21:31:28. A las 21:32:28 ya devolvía **otra partida** (`gameLength` negativo, en carga) porque el jugador entró en cola de nuevo. Nunca hubo un `404` entre las dos.
+  - Match-V5 solo publica la partida **cuando termina todo el lobby**, no cuando cae el jugador: el incremental de las 21:36:17 la guardó (21:36:18), ~2 min después del final del lobby y ~8 min después de la eliminación (con la guardia de frescura de 2 min de la iter-10).
+- **Coste**: 1 petición por perfil y consulta, en el límite de la app (`100:120,20:1`, compartido con el resto de llamadas).
+- **Implicaciones para "sincronizar al terminar"**: el disparador no puede ser solo "200 → 404", porque un jugador eliminado que vuelve a la cola pasa de una partida a otra sin 404; hay que vigilar también el **cambio de `gameId`**. Además, aunque se detecte la eliminación, Match-V5 no tendrá la partida hasta que termine el lobby (en Arena, hasta ~5–6 min después de caer en 4º; más si se cae antes). Con la guardia de 2 min, la partida ya aparece ~2 min después del final del lobby, así que sondear Spectator (6 perfiles cada 1–2 min) ahorraría como mucho ese margen. Para la decisión de la iteración futura: probablemente no compensa.
+- Sin código de producto (fuera del alcance de la iter-10, F26); queda como base para decidir en una iteración futura.
 
 ## 8. Comparación lista de 1º puestos (Match-V5) vs contador 602002
 

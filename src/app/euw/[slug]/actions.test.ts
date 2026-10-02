@@ -5,11 +5,7 @@ import { profiles, syncJobs } from "@/db/schema";
 import { profileSlug } from "@/lib/riot-id";
 import { wakeSeq } from "@/worker/queue";
 import { getTestDb, truncateAll } from "../../../../tests/helpers/db";
-import {
-  ensureFreshOnViewAction,
-  refreshAction,
-  registerProfileAction,
-} from "./actions";
+import { refreshAction, registerProfileAction } from "./actions";
 
 // Fuera de una petición de Next no hay caché que invalidar ni 404 real: `revalidatePath` se
 // espía y `notFound()` lanza (como el real).
@@ -141,37 +137,5 @@ describe("refreshAction", () => {
     expect(
       await refreshAction(null, form(profileSlug("bejito mambo", "1991"))),
     ).toEqual({ result: "cooldown" });
-  });
-});
-
-describe("ensureFreshOnViewAction", () => {
-  it("perfil no registrado o slug inválido: not_found", async () => {
-    expect(await ensureFreshOnViewAction(SLUG)).toBe("not_found");
-    expect(await ensureFreshOnViewAction("SinTag")).toBe("not_found");
-  });
-
-  it("con un job en curso: active", async () => {
-    await register();
-    expect(await ensureFreshOnViewAction(SLUG)).toBe("active");
-  });
-
-  it("sincronizado hace poco: fresh; hace más de 5 min: queued (no interactivo)", async () => {
-    const profile = await register();
-    await finishJob(profile.id, 30_000);
-    expect(await ensureFreshOnViewAction(SLUG)).toBe("fresh");
-
-    await db
-      .update(profiles)
-      .set({ lastSyncedAt: new Date(Date.now() - 6 * 60_000) })
-      .where(eq(profiles.id, profile.id));
-    await db
-      .update(syncJobs)
-      .set({ finishedAt: new Date(Date.now() - 6 * 60_000) })
-      .where(eq(syncJobs.profileId, profile.id));
-    expect(await ensureFreshOnViewAction(SLUG)).toBe("queued");
-    expect((await jobs()).at(-1)).toMatchObject({
-      kind: "incremental",
-      interactive: false,
-    });
   });
 });

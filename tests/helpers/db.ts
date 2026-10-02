@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { type Db, getDb } from "@/db";
 import { settings } from "@/db/schema";
+import { resetGroupViewMemo } from "@/domain/group-view-memo";
 
 /**
  * BD de tests: `vitest.config.ts` apunta `DATABASE_URL` a `hylistats_test`.
@@ -13,8 +14,13 @@ export function getTestDb(): Db {
   return getDb();
 }
 
-/** Vacía las tablas de datos y devuelve `settings` a sus valores por defecto (la fila id = 1 se conserva). */
+/**
+ * Vacía las tablas de datos y devuelve `settings` a sus valores por defecto (la fila id = 1 se
+ * conserva). También vacía el memo de `GroupView`: los tests cambian la BD sin subir la versión del
+ * grupo, y sin esto un test leería la vista calculada en el anterior.
+ */
 export async function truncateAll(): Promise<void> {
+  resetGroupViewMemo();
   const db = getTestDb();
   await db.execute(
     sql`TRUNCATE participants, matches, match_fetch, sync_jobs, profiles RESTART IDENTITY CASCADE`,

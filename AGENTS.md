@@ -25,6 +25,16 @@ En sesiones cloud (claude.ai/code): no usar la rama `claude/...` que asigna la p
 
 Cerrar issues: `Closes #N` en merge PR
 
+### Ramas y releases (F27)
+
+- **`develop`** es la rama de trabajo y la rama por defecto de GitHub. Las ramas de iteración salen de `develop` y vuelven por PR contra `develop` (`Closes #N` cierra el issue porque es la rama por defecto). La iteración se cierra en `develop` (`/dev-ship` y `/dev-close-iter` están adaptadas a esto).
+- **`main`** es producción: Render la despliega en cada push. Solo recibe:
+  - **Releases**: PR `develop → main` con merge commit, que decide y mergea el supervisor; después, tag de la versión.
+  - **Hotfixes**: rama `fix/N-slug` desde `main`, PR a `main` (la mergea el supervisor), tag de patch y después merge de `main` en `develop`. Solo si producción está rota o molesta en uso real; si no, el arreglo va por `develop`.
+- **SemVer** desde `v1.0.0` (`main` del 2026-10-02): minor por release con funcionalidad, patch por hotfix. `package.json` se sube en la misma release con `npm version`.
+- **Sin staging**: `develop` se prueba en local con build de producción (`npm run build` + `npm run start`) y, si hace falta, con una copia de los datos de producción.
+- Runbook de release y de hotfix: [`docs/deploy.md`](docs/deploy.md) → "Releases y hotfixes".
+
 ## Skills
 
 Las skills del proyecto viven en `.agents/skills/` (wrappers Codex) y `.claude/skills/` (wrappers Claude). Si una tarea coincide con una skill, leer primero su `SKILL.md` y seguir sus instrucciones. Nunca editar los wrappers directamente — editar el canon en `skills/` y regenerar.
