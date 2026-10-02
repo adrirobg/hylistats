@@ -6,6 +6,9 @@
 .env*.local
 .env*
 !.env.example
+# Volcados de la BD (llevan settings) y fotos de migración: docs/deploy.md → Backup
+backup-*.sql
+foto-*.txt
 
 # dependencies
 /node_modules

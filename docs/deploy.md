@@ -57,7 +57,7 @@ Vuelve a descargarlo todo con la key nueva y conserva los perfiles (ids, URL, ic
 1. **Backup y foto previa.** Hacer el `pg_dump` de "Backup y restauración". Después, la foto previa: el mismo comando del reset sin `--yes` solo imprime el resumen (perfiles, grupo, partidas por perfil, 602002 y Riot ID que se van a corregir) y no toca nada.
    ```bash
    set -a; . ./.env.local; set +a
-   npm run db:reset -- --keep-profiles --url "$SUPABASE_DATABASE_URL" | tee foto-previa-$(date +%F).txt
+   npm run db:reset -- --keep-profiles --url "$SUPABASE_DATABASE_URL" | tee ~/Backups/hylistats/foto-previa-$(date +%F).txt
    ```
    Hacer también una captura de `/grupo` (Temporada y Equipos).
 2. **Pegar la key nueva en `/admin`** ("Nueva key"). Desde aquí, los refrescos que se lancen fallan con 400 sin guardar nada; el paso 3 los descarta.
@@ -95,15 +95,17 @@ Vuelve a descargarlo todo con la key nueva y conserva los perfiles (ids, URL, ic
 
 Supabase Free no hace backups. Casi todo se puede volver a descargar de Riot (Match-V5 guarda ~2 años), pero conviene un volcado antes de cambios de esquema o de mover de host. En el Mac no hay cliente de Postgres; se usa el del contenedor de desarrollo (`docker compose up -d`, Postgres 17). Con la URI del pooler en `SUPABASE_DATABASE_URL` dentro de `.env.local`:
 
+Los volcados y las fotos van a `~/Backups/hylistats/`, fuera del repo: el volcado incluye `settings`, con la key de Riot si hay una guardada desde `/admin`. Crear la carpeta una vez con `mkdir -p ~/Backups/hylistats && chmod 700 ~/Backups/hylistats`. El `.gitignore` excluye además `backup-*.sql` y `foto-*.txt` por si se guardan en la raíz.
+
 ```bash
 set -a; . ./.env.local; set +a
-docker exec -e U="$SUPABASE_DATABASE_URL" hylistats-postgres-1 sh -c 'pg_dump "$U" --schema=public --data-only --no-owner --no-privileges' > backup-$(date +%F).sql
+docker exec -e U="$SUPABASE_DATABASE_URL" hylistats-postgres-1 sh -c 'pg_dump "$U" --schema=public --data-only --no-owner --no-privileges' > ~/Backups/hylistats/backup-$(date +%F).sql
 ```
 
 Restaurar en una BD con el esquema ya migrado (`npx tsx scripts/migrate.ts --url "$SUPABASE_DATABASE_URL"`) y vacía. Una migración siembra la fila `settings.id=1`, de ahí el `TRUNCATE`:
 
 ```bash
-{ echo 'TRUNCATE settings;'; cat backup-AAAA-MM-DD.sql; } | docker exec -i -e U="$SUPABASE_DATABASE_URL" hylistats-postgres-1 sh -c 'psql "$U" -v ON_ERROR_STOP=1 -1 -q'
+{ echo 'TRUNCATE settings;'; cat ~/Backups/hylistats/backup-AAAA-MM-DD.sql; } | docker exec -i -e U="$SUPABASE_DATABASE_URL" hylistats-postgres-1 sh -c 'psql "$U" -v ON_ERROR_STOP=1 -1 -q'
 ```
 
 El mismo procedimiento sirve para llevar datos de local a producción (volcado de `hylistats` local con `-U hylistats -d hylistats`), que es como se cargó la BD el 2026-10-02. Después, comparar recuentos por tabla en ambos lados.
