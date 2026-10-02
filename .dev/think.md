@@ -1,5 +1,5 @@
 # Think: hylistats
-**Estado**: iter-08 cerrada — sin iteración activa
+**Estado**: iter-09 cerrada — sin iteración activa
 **Ultima sesion**: 2026-10-02
 **Sesiones**: 2026-10-02 (grill del ELO del grupo, con el grupo presente); 2026-10-02 (grill de iter-09 sobre protección de la superficie pública y modo mantenimiento: `no-init`); 2026-10-01 (grill de iter-05 sobre la capa de grupo); 2026-09-30 (grill de iter-04 sobre las ideas del grupo); 2026-09-29 (Webapp de estadísticas de perfil de jugador para trackear progreso en el modo Arena de LoL usando la Riot API (inspiración: lolalytics.com/arena, op.gg/lol/modes/arena, metasrc.com/lol/arena, arenasweats.lol, arena.trott.dev))
 **Grill**: cerrado (2026-09-29) — gate confirmado; §1 cerrada; I1–I4 entregadas. El supervisor da paso a desarrollo (2026-09-29). Grill de iter-04 (2026-09-30): §2 cerrada (F15–F17); gate confirmado, pasa a Spec. Grill de iter-05 (2026-10-01): §3 cerrada (F19–F21); gate confirmado, pasa a Spec. Grill de iter-09 (2026-10-02): `no-init` (F23); no abre Spec. Grill del ELO del grupo (2026-10-02, con el grupo): §4 cerrada (F24–F25); gate confirmado, pasa a Spec
@@ -10,6 +10,7 @@
 - Semilla del supervisor en `/dev-setup` + respuesta a Pregunta 1 del grill (2026-09-29) -> conversación
 - Ideas del grupo tras ver la v1 (2026-09-30), en `/dev-grill` → CAPTURED "Ideas del grupo tras ver la v1"
 - Webs de referencia: [arenasweats.lol](https://arenasweats.lol/) (leaderboard OpenSkill, badges Arena God, stats augments/items), [arena.trott.dev](https://arena.trott.dev/) (tracker Arena God por sync de historial), lolalytics/op.gg/metasrc (meta agregado)
+- Issue #19 (sorteo de equipos, iteración paralela en cloud, 2026-10-02) → ORGANIZED "Sorteo de equipos"
 
 ---
 
@@ -108,6 +109,17 @@ Idea del supervisor (2026-10-01): un ELO interno de Arena para el grupo, porque 
 - **Dónde se ve** (P9): las cuatro piezas en la misma iteración. (1) Bloque **"Clasificación"** arriba en `/grupo` y en la pestaña Grupo: rating, liga y cambio de hoy y de la semana por miembro; los bloques actuales no cambian. (2) **Cabecera del perfil** de cada miembro: liga y rating junto al nombre, como texto y no como badge (la cabecera ya va justa a 375 px; deuda de iter-05). (3) **Historial**: el cambio de cada partida y el multiplicador si iba con desconocidos ("+29 · ×1,15 · 1 desconocido"). (4) **Gráfica de la evolución del rating** en el perfil; el supervisor la mete en esta iteración porque es sencilla (hecho: ya hay `recharts` con `ui/chart.tsx` y `won-curve-chart.tsx` como precedente).
 - **Quién tiene ELO** (P10): **solo los miembros del grupo** (F19); los perfiles que no son del grupo no muestran rating ni liga. Quien entra al grupo aparece con su temporada ya calculada. Casos, aceptados por el grupo a propuesta del agente: en las partidas en que hay miembros en equipos rivales, cada uno puntúa por su puesto, sin trato especial; quien lleva **menos de 10 partidas** en la temporada sale en la Clasificación marcado como *provisional*. Descartado: ELO para todo perfil registrado (pique con gente de fuera; números poco fiables con pocas partidas). Para después: un "Clásico" con el cara a cara entre miembros.
 - **Criterio de terminado** (P11): ver §4. Se mergea con la aceptación manual abierta, como en F18.
+
+### Sorteo de equipos — entregado en paralelo (2026-10-02)
+Iteración paralela a iter-09, hecha en una sesión cloud. Vivió solo en la issue #19 y en su rama, según la regla de la fricción #26: sin `spec.md`, `tasks/` ni `think.md`. Se mergeó en la PR #20 (`23f432e`) antes de la del ELO. Sus decisiones se pasan aquí al cerrar iter-09, como pedía la issue.
+- **Problema**: cuando juegan 4 o 5 hay que repartir 3+1 o 3+2, y el grupo salía a webs de ruletas o se lo pedía a un chat.
+- **Decisiones** (supervisor, 2026-10-02):
+  - Sortea una sola persona y lo enseña. Sin estado compartido, sin BD para el sorteo y sin historial.
+  - Jugadores: casillas con los miembros del grupo y nombres escritos a mano.
+  - Los nombres salen uno a uno. Los 3 primeros forman el primer equipo; si queda 1, va solo, y si quedan 2, van con un desconocido.
+  - Ruta `/sorteo` con enlace "Sorteo" en la barra superior.
+  - Fuera: sorteo compartido o sincronizado, historial, recordar la última selección y otras reglas de reparto.
+- **Verificación**: el CI de la PR, en verde. Además, el orquestador comprobó en local (2026-10-02) el reparto 3+1 con desconocidos, el rechazo de duplicados sin distinguir mayúsculas y la vista a 375 px y en escritorio. Sin verify-report ni learn propios.
 
 *Glosario lazy*: si `dev-grill` descubre terminos reales que reducen ambiguedad, crear aqui `## Glosario del proyecto <!-- MAY -->`; no provisionar una seccion vacia.
 
