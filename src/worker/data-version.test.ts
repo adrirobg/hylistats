@@ -146,11 +146,18 @@ describe("versión de datos al sincronizar (AC1)", () => {
   it("sube si cambia el 602002 o el icono; con los mismos valores, no", async () => {
     const { worker, clock } = setup();
     const member = await syncedMember(worker);
+    // Un incremental sin partidas nuevas no pide el 602002 ni el icono: se simula que la última
+    // lectura es anterior a las partidas guardadas, que es cuando el cierre los vuelve a pedir.
+    const staleRead = () =>
+      db
+        .update(profiles)
+        .set({ challengeCheckedAt: new Date(0) })
+        .where(eq(profiles.id, member.id));
 
     // El contador guardado difiere del que devolverá Riot: el incremental lo cambia.
     await db
       .update(profiles)
-      .set({ challengeValue: 1 })
+      .set({ challengeValue: 1, challengeCheckedAt: new Date(0) })
       .where(eq(profiles.id, member.id));
     let before = snapshot(member.id);
     await incremental(worker, clock, member.id);
@@ -160,13 +167,14 @@ describe("versión de datos al sincronizar (AC1)", () => {
     // Ídem con el icono.
     await db
       .update(profiles)
-      .set({ profileIconId: 1 })
+      .set({ profileIconId: 1, challengeCheckedAt: new Date(0) })
       .where(eq(profiles.id, member.id));
     before = snapshot(member.id);
     await incremental(worker, clock, member.id);
     expect(snapshot(member.id).profile).not.toBe(before.profile);
 
     // Mismos valores que ya hay: nada.
+    await staleRead();
     before = snapshot(member.id);
     await incremental(worker, clock, member.id);
     expect(snapshot(member.id)).toEqual(before);
