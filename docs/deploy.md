@@ -13,7 +13,7 @@ Coste: €0. Ninguno de los dos tiene tarjeta asociada.
 
 ## Cómo se despliega
 
-- **Automático**: cada push a la rama configurada en Render (`main`) construye y despliega.
+- **Automático**: cada push a la rama configurada en Render (`main`) construye y despliega. Requiere la GitHub App de Render instalada con acceso a `adrirobg/hylistats` (GitHub → Settings → Applications → Installed GitHub Apps). Sin ella, Render clona el repo (es público) pero no se entera de los push: solo despliega a mano o al cambiar la configuración. Así estuvo hasta el 2026-10-02.
 - **Build**: `npm ci && npm run build`. Node sale de `.node-version` (24); CI usa el mismo fichero.
 - **Arranque**: `npm run start:prod` = `npm run db:migrate && next start`. Las migraciones se aplican en cada arranque (idempotentes) porque el *pre-deploy command* de Render no existe en el plan Free. `next start` escucha en `$PORT`.
 - **Health check**: `/api/health` (BD, estado del worker, key, cola, métricas de Riot; sin secretos). Configurado en el panel de Render (Settings → Health Check Path).
