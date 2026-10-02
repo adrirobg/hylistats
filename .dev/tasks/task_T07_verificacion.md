@@ -1,7 +1,7 @@
 # Task T07 — Verificación y recálculo independiente
 
 **Owner**: orchestrator
-**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -25,10 +25,14 @@
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Recálculo independiente cuadra (AC7).
-- [ ] Evidencia de AC1–AC6 (tests y capturas).
-- [ ] AC8 registrado como gate manual abierto (F18).
-- [ ] `.dev/verify-report.md` completo.
+- [x] Recálculo independiente cuadra (AC7).
+- [x] Evidencia de AC1–AC6 (tests y capturas).
+- [x] AC8 registrado como gate manual abierto (F18).
+- [x] `.dev/verify-report.md` completo.
 
 ## Evidencias <!-- MUST -->
+
+- `.dev/verify-report.md`: PASS de AC1–AC7; AC8 abierto (F18).
+- Recálculo independiente (subagente Opus, Python + SQL): 0 diferencias en 6 miembros y 58 partidas-miembro; 2784 partidas-miembro en los dos.
+- Navegador: Clasificación, cabecera, historial y gráfica a 375 px y en escritorio; elruffles sin ELO. Corrección de la gráfica en `da0de81`.
 
