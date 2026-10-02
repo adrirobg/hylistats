@@ -1,7 +1,7 @@
 # Task T03 — Vista del grupo calculada una vez por versión, día y semana
 
 **Owner**: worker:opus
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -42,11 +42,17 @@ Reglas comunes (todas las tasks de código):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Memo por versión + día + semana con promesa compartida; contador de cálculos (AC4).
-- [ ] Cabecera y pestaña Grupo desde el mismo cálculo; `tab=grupo` sin doble cálculo (AC4).
-- [ ] Tests de invalidación por versión, día (06:00) y semana; valores sin cambios (AC4).
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Memo por versión + día + semana con promesa compartida; contador de cálculos (AC4).
+- [x] Cabecera y pestaña Grupo desde el mismo cálculo; `tab=grupo` sin doble cálculo (AC4).
+- [x] Tests de invalidación por versión, día (06:00) y semana; valores sin cambios (AC4).
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Evidencias <!-- MUST -->
 
-{Se completa al cerrar.}
+- Commit `577b33d` (worker Opus en worktree), integrado con `a59d792`.
+- `src/domain/group-view-memo.ts`: una entrada en `globalThis.__hylistatsGroupViewMemo`; clave = `groupVersion()` + `gameDay` + `gameWeek` + año UTC de `now` (etiquetas de periodo) + `seasonStart` + versión y nº de campeones del catálogo. Promesa compartida sin `await` entre comprobar y asignar; si falla, se descarta. Sin `"use cache"` ni `unstable_cache`.
+- `loadProfileGroupData` devuelve `{ titles, elo, view }` de un único cálculo; `loadProfilePage` usa `view` para `tab=grupo` y ya no llama a `loadGroupView`. No miembro: nada. `profileGroupDataOf` (puro) en `group-view.ts`.
+- Decisión fuera de lo escrito: como `lastSyncedAt` cambia sin subir la versión, se superpone en cada petición (`lastSyncedAt` de miembros y `oldestSync`) sobre la vista memorizada con la lectura de miembros que ya se hacía; valores iguales a los de hoy, sin consultas extra.
+- Contador: `groupViewComputations()` (tests) y `GROUP_VIEW_LOG=1` → una línea `[group-view] cálculo #N clave=… X ms` por cálculo (sin la variable, silencio). Prueba local: 5 cargas de miembros, con y sin `tab=grupo` → 1 cálculo.
+- Tests (9 en el memo + `data.test`): N llamadas concurrentes → 1 cálculo y mismo objeto; no miembro → 0; `bumpGroupVersion` recalcula, perfil ajeno no; 05:59 → 06:00 Madrid recalcula; domingo → lunes 06:00 recalcula; catálogo recalcula; vista igual a `loadGroupView`; `tab=grupo` → 1 cálculo. Los tests existentes de títulos y ELO de cabecera siguen en verde.
+- lint, typecheck, test (69 ficheros, 1410) y build (Turbopack) en verde en el worktree.

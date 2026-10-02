@@ -27,7 +27,7 @@
     {
       "id": "T03",
       "title": "Vista del grupo calculada una vez por versión, día y semana",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:opus",
       "branch": "feat/22-carga-y-refrescos",
       "worktree": null,
@@ -36,7 +36,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T03_grupo-compartido.md",
       "created_at": "2026-10-02T20:21:32Z",
-      "updated_at": "2026-10-02T20:43:10Z"
+      "updated_at": "2026-10-02T20:50:59Z"
     },
     {
       "id": "T04",
