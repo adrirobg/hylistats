@@ -1,3 +1,8 @@
 {
-  "tasks": []
+  "tasks": [
+    {"id": "T01", "title": "Vista-modelo de la vitrina (títulos, escalera, liga, splash)", "status": "pending", "owner": "worker:sonnet", "branch": "feat/27-cabecera-vitrina", "worktree": "/Users/adri/dev/hylistats/.claude/worktrees/feat-27", "depends_on": [], "artifact_path": ".dev/tasks/task_T01_vista-modelo-vitrina.md", "created_at": "2026-10-03T01:28:52Z", "updated_at": "2026-10-03T01:28:52Z"},
+    {"id": "T02", "title": "Trofeo Dios de Arena con anillo", "status": "pending", "owner": "worker:opus", "branch": "feat/27-cabecera-vitrina", "worktree": "/Users/adri/dev/hylistats/.claude/worktrees/feat-27", "depends_on": [], "artifact_path": ".dev/tasks/task_T02_trofeo-dios-de-arena.md", "created_at": "2026-10-03T01:28:52Z", "updated_at": "2026-10-03T01:28:52Z"},
+    {"id": "T03", "title": "Vitrina: banner, títulos, escalera y barra fija", "status": "pending", "owner": "worker:opus", "branch": "feat/27-cabecera-vitrina", "worktree": "/Users/adri/dev/hylistats/.claude/worktrees/feat-27", "depends_on": ["T01", "T02"], "artifact_path": ".dev/tasks/task_T03_vitrina.md", "created_at": "2026-10-03T01:28:52Z", "updated_at": "2026-10-03T01:28:52Z"},
+    {"id": "T04", "title": "Verificación visual y verify-report", "status": "pending", "owner": "orchestrator", "branch": "feat/27-cabecera-vitrina", "worktree": "/Users/adri/dev/hylistats/.claude/worktrees/feat-27", "depends_on": ["T03"], "artifact_path": ".dev/tasks/task_T04_verificacion.md", "created_at": "2026-10-03T01:28:52Z", "updated_at": "2026-10-03T01:28:52Z"}
+  ]
 }
