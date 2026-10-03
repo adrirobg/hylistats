@@ -15,19 +15,19 @@
     {
       "id": "T02",
       "title": "Trofeo Dios de Arena con anillo",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:opus",
       "branch": "feat/27-cabecera-vitrina",
       "worktree": "/Users/adri/dev/hylistats/.claude/worktrees/feat-27",
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T02_trofeo-dios-de-arena.md",
       "created_at": "2026-10-03T01:28:52Z",
-      "updated_at": "2026-10-03T01:31:12Z"
+      "updated_at": "2026-10-03T01:35:54Z"
     },
     {
       "id": "T03",
       "title": "Vitrina: banner, títulos, escalera y barra fija",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "worker:opus",
       "branch": "feat/27-cabecera-vitrina",
       "worktree": "/Users/adri/dev/hylistats/.claude/worktrees/feat-27",
@@ -37,7 +37,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T03_vitrina.md",
       "created_at": "2026-10-03T01:28:52Z",
-      "updated_at": "2026-10-03T01:28:52Z"
+      "updated_at": "2026-10-03T01:35:54Z"
     },
     {
       "id": "T04",

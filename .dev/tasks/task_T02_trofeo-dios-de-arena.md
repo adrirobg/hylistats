@@ -1,7 +1,7 @@
 # Task T02 — Trofeo Dios de Arena con anillo
 
 **Owner**: worker:opus
-**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -40,10 +40,20 @@ Reglas comunes (todas las tasks de código):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `god-ring.ts` + tests de los casos listados.
-- [ ] `GodTrophy` con anillo de tres capas, cifras, hitos, aviso, acciones y explicación con el comportamiento de `ArenaGodBar`.
-- [ ] `ArenaGodBar` sigue compilando; dominio `arena-god.ts` sin cambios.
-- [ ] `npm run lint && npm run typecheck && npm test` en verde.
+- [x] `god-ring.ts` + tests de los casos listados.
+- [x] `GodTrophy` con anillo de tres capas, cifras, hitos, aviso, acciones y explicación con el comportamiento de `ArenaGodBar`.
+- [x] `ArenaGodBar` sigue compilando; dominio `arena-god.ts` sin cambios.
+- [x] `npm run lint && npm run typecheck && npm test` en verde.
+
+## Notas de implementacion <!-- MAY -->
+
+- Lógica común sacada a `arena-god-notice.tsx` (`ArenaGodProps`, `useArenaGod`, `ArenaGodNotice`, `ArenaGodExplainButton`, `ArenaGodExplanation`); `ArenaGodBar` la usa y se pinta igual.
+- `GodTrophy` (`GodTrophyProps = ArenaGodProps & { className? }`): sin envoltorio de tarjeta; raíz `@container/god` (necesita ancho de su contenedor). Bajo 420 px propios: anillo 88 px y cifra 48 px.
+- Porcentaje del centro: 100 solo con la meta cumplida (59/60 → 99 %). Hito de 60 en oro hasta que el arco lo cubre; después, muesca del color del fondo.
+- Con meta 60 el componente no conoce el catálogo: los hitos dicen "Deidad · 60" y "después, Dios" (sin 173). "faltan 0" con la meta cumplida.
 
 ## Evidencias <!-- MUST -->
+
+- `god-ring.test.ts`: 17 tests (manuales, desborde, oficial nulo y por encima, meta 60 y catálogo, cero verificados, porcentaje, hitos).
+- `npm run lint && npm run typecheck && npm test` en verde (73 archivos, 1485 tests).
 

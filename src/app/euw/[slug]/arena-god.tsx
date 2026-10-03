@@ -1,129 +1,40 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useId, useMemo, useState } from "react";
-import { Btn } from "@/components/hy/btn";
-import { Notice } from "@/components/hy/notice";
-import { ToastRegion, useToast } from "@/components/hy/toast";
+import { useId, useState } from "react";
 import {
-  ARENA_GOD_EXPLANATION,
-  type ArenaGodAction,
   type ArenaGodState,
-  arenaGodActions,
   arenaGodHeading,
   arenaGodLabel,
-  arenaGodMessage,
-  arenaGodState,
   manualPhrase,
   officialPhrase,
   verifiedPhrase,
 } from "@/domain/arena-god";
-import { type LocalState, profileData } from "@/lib/local-store";
-import { normalizeRiotId } from "@/lib/riot-id";
-import { useLocalReady, useLocalStore } from "@/lib/use-local-store";
-import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
-import { REFRESH_BUTTON_ID } from "./use-refresh";
-import { markByHandHref, whenPhrase } from "./view-model";
+import {
+  ArenaGodExplainButton,
+  ArenaGodExplanation,
+  ArenaGodNotice,
+  type ArenaGodProps,
+  useArenaGod,
+} from "./arena-god-notice";
 
 // Barra Arena God de tres capas y aviso de descuadre (brief §4.2 y §4.3, `.god` de la maqueta):
 // verificados (oro sólido), marcas manuales (azul acero rayado y discontinuo) y el contador
-// oficial de 602002 (marca vertical), con la meta y la escala. La lógica es `domain/arena-god.ts`;
-// aquí solo se pinta. Es cliente porque los manuales viven en el navegador y solo cuentan en «mi
-// perfil» (D12). Las transiciones de anchura las apaga el `prefers-reduced-motion` global.
+// oficial de 602002 (marca vertical), con la meta y la escala. La lógica es `domain/arena-god.ts`
+// y el estado, el aviso y la explicación los comparte con el trofeo (`arena-god-notice.tsx`); aquí
+// solo se pinta la barra. Las transiciones de anchura las apaga el `prefers-reduced-motion` global.
 
-export interface ArenaGodBarProps {
-  /** Forma canónica de Riot: con ella se decide si el perfil es «mi perfil». */
-  gameName: string;
-  tagLine: string;
-  /** `championId` con algún 1º (lista verificada). */
-  verifiedIds: number[];
-  /** Contador oficial de 602002; `null` si no se pudo leer. */
-  official: number | null;
-  /** Instante (ms) en que se consultó el contador; `null` si nunca. */
-  checkedAt: number | null;
-  /** Meta de la barra: 60 o, con el badge conseguido, el catálogo (`arenaGodGoal`). */
-  goal: number;
-  /** Nombre de esa meta: «Deidad de Arena» o «Dios de Arena» (`arenaGodGoal`). */
-  goalName: string;
-  /** Hora del servidor (ms): el primer render coincide con el HTML del servidor. */
-  nowMs: number;
-}
-
-const selectMyProfile = (state: LocalState) => state.myProfile;
-/** Sin marcas: la misma referencia siempre, para que el `useMemo` del estado no se invalide. */
-const NO_IDS: readonly number[] = [];
+export type ArenaGodBarProps = ArenaGodProps;
 
 export function ArenaGodBar({
-  gameName,
-  tagLine,
-  verifiedIds,
-  official,
   checkedAt,
-  goal,
   goalName,
   nowMs,
+  ...input
 }: ArenaGodBarProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { toast, show } = useToast();
   const explanationId = useId();
   const [explaining, setExplaining] = useState(false);
-  const now = useNow(nowMs);
-
-  // «Mi perfil» se decide igual que en el header. Hasta que el cliente lee `localStorage`
-  // (`ready`) el estado es el vacío del servidor, así que ahí no se cuenta ningún manual.
-  const norm = normalizeRiotId(gameName, tagLine);
-  const ready = useLocalReady();
-  const myProfile = useLocalStore(selectMyProfile);
-  const mine =
-    ready &&
-    myProfile !== null &&
-    normalizeRiotId(myProfile.gameName, myProfile.tagLine) === norm;
-  const selectManual = useCallback(
-    (state: LocalState) => profileData(state, norm).manual,
-    [norm],
-  );
-  const localManual = useLocalStore(selectManual);
-  const manualIds = mine ? localManual : NO_IDS;
-
-  const state = useMemo(
-    () => arenaGodState({ verifiedIds, manualIds, official, goal }),
-    [verifiedIds, manualIds, official, goal],
-  );
-
-  /** [Sincronizar] y [Reintentar]: pulsan Actualizar del header, con su progreso y su toast. */
-  function refresh() {
-    const button = document.getElementById(REFRESH_BUTTON_ID);
-    if (!(button instanceof HTMLButtonElement)) return;
-    // Un botón deshabilitado ignora `.click()`: se avisa en lugar de no hacer nada.
-    if (button.disabled) show("Ya se está actualizando");
-    else button.click();
-  }
-
-  /**
-   * [Marcar a mano]: lleva al álbum filtrado por «sin ganar» y guía hasta la marca. Vale desde
-   * cualquier pestaña: `markByHandHref` vuelve a Campeones, donde vive el filtro.
-   */
-  function markByHand() {
-    router.replace(markByHandHref(pathname, searchParams.toString()), {
-      scroll: false,
-    });
-    show("Abre el menú ⋯ de un campeón y usa «Marcar como ganado a mano»");
-  }
-
-  const actions: Record<ArenaGodAction, { label: string; run: () => void }> = {
-    sync: { label: "Sincronizar", run: refresh },
-    manual: { label: "Marcar a mano", run: markByHand },
-    why: { label: "Qué significa", run: () => setExplaining(true) },
-    retry: { label: "Reintentar", run: refresh },
-  };
-  const noticeActions = arenaGodActions(state.status, mine);
-  const parts = arenaGodMessage(
-    state,
-    checkedAt === null ? null : whenPhrase(checkedAt, now),
-  );
+  const { state, mine } = useArenaGod(input);
 
   return (
     <>
@@ -132,16 +43,12 @@ export function ArenaGodBar({
           <h2 className="font-display text-[15px] font-bold tracking-[0.12em] text-muted-foreground uppercase">
             {arenaGodHeading(goalName)}
           </h2>
-          <button
-            type="button"
-            aria-label="¿Qué muestra esta barra?"
-            aria-expanded={explaining}
-            aria-controls={explanationId}
-            onClick={() => setExplaining((open) => !open)}
-            className="grid size-5 flex-none cursor-pointer place-items-center rounded-full border border-line text-xs text-muted-foreground hover:border-faint hover:text-foreground"
-          >
-            ?
-          </button>
+          <ArenaGodExplainButton
+            label="¿Qué muestra esta barra?"
+            controls={explanationId}
+            open={explaining}
+            onToggle={() => setExplaining((open) => !open)}
+          />
         </div>
         <p className="num text-sm text-muted-foreground">
           <b className="mr-0.5 font-display text-[30px] font-extrabold tracking-[0.01em] text-place-1">
@@ -154,42 +61,14 @@ export function ArenaGodBar({
 
       <Bar state={state} goalName={goalName} />
 
-      <Notice
-        role="status"
-        variant={state.status === "match" ? "okay" : "trust"}
-        actions={
-          noticeActions.length > 0
-            ? noticeActions.map((name) => (
-                <Btn
-                  key={name}
-                  size="small"
-                  variant="trust"
-                  onClick={actions[name].run}
-                >
-                  {actions[name].label}
-                </Btn>
-              ))
-            : undefined
-        }
-      >
-        {parts.map((part, i) =>
-          typeof part === "string" ? (
-            part
-          ) : (
-            // biome-ignore lint/suspicious/noArrayIndexKey: trozos de un mensaje fijo, sin identidad propia.
-            <b key={i}>{part.strong}</b>
-          ),
-        )}
-      </Notice>
-
-      <p
-        id={explanationId}
-        hidden={!explaining}
-        className="rounded-lg border border-line bg-surface-1 px-3 py-2 text-sm text-muted-foreground"
-      >
-        {ARENA_GOD_EXPLANATION}
-      </p>
-      <ToastRegion>{toast}</ToastRegion>
+      <ArenaGodNotice
+        state={state}
+        mine={mine}
+        checkedAt={checkedAt}
+        nowMs={nowMs}
+        onWhy={() => setExplaining(true)}
+      />
+      <ArenaGodExplanation id={explanationId} open={explaining} />
     </>
   );
 }
