@@ -13,7 +13,7 @@ La cabecera del perfil pasa a ser la **vitrina C2**: banner con splash del últi
 
 - spec.md: **Alcance completo** e inferencias I1–I10; AC1–AC10.
 - think.md: ORGANIZED "Cabecera del perfil: vitrina" (decisiones 1–6).
-- **Maqueta de referencia**: `.dev/research/cabecera/propuestas.html` (v3; pesa ~850 KB por los splash en base64: no la leas entera; lee el `<style>` y el `<script>` final con `grep -n`/`sed -n`). Interesa la propuesta **C2**: CSS de `.hero`, `.hero .bgimg`, `[data-fx="oscuro"]` (tratamiento elegido), `.actions`, `.idblk`, `.av`/`.seal`, `.c2-top`, `.twins`/`.tw`/`.tw.e`, `.c2-body`, `.tlist`/`.trw`/`.pips`, `.ladder`/`.lad`, y las container queries de 980/700/640 px; JS de `renderC2`, `heroOpen`, `ladder`, `eloSub`, `eloFacts`. Tono de honor **turquesa** (`honor-teal`).
+- **Maqueta de referencia**: `.dev/research/cabecera/propuestas.html` (v3; los splash se cargan de Data Dragon). Interesa la propuesta **C2**: CSS de `.hero`, `.hero .bgimg`, `[data-fx="oscuro"]` (tratamiento elegido), `.actions`, `.idblk`, `.av`/`.seal`, `.c2-top`, `.twins`/`.tw`/`.tw.e`, `.c2-body`, `.tlist`/`.trw`/`.pips`, `.ladder`/`.lad`, y las container queries de 980/700/640 px; JS de `renderC2`, `heroOpen`, `ladder`, `eloSub`, `eloFacts`. Tono de honor **turquesa** (`honor-teal`).
 - Piezas de T01 (`src/app/euw/[slug]/vitrina-view.ts`): `titleRows`, `titleCounts`, `ladderRows`, `eloFacts`, `splashChampion`, `TITLES_LINK`.
 - Pieza de T02 (`src/app/euw/[slug]/god-trophy.tsx`): `GodTrophy` (mismas props que `ArenaGodBarProps`).
 - Código a sustituir o tocar:
