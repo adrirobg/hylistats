@@ -548,20 +548,22 @@ describe("splashChampion", () => {
 // --- Textos de la vitrina ---------------------------------------------------------------------
 
 describe("titleLineText", () => {
-  it("individual: periodo y «por qué»", () => {
-    expect(titleLineText("day", { why: "3,2 de media", partners: [] })).toBe(
-      "Hoy: 3,2 de media",
-    );
-    expect(titleLineText("week", { why: "x", partners: [] })).toBe("Semana: x");
+  it("individual: el «por qué» tal cual (ya trae el periodo)", () => {
+    expect(
+      titleLineText({
+        why: "Peor puesto medio del día: 3,20 en 4 partidas",
+        partners: [],
+      }),
+    ).toBe("Peor puesto medio del día: 3,20 en 4 partidas");
   });
 
   it("dúo y trío: «con X» y «con X y Y»", () => {
-    expect(titleLineText("day", { why: "x", partners: ["Azpekaa"] })).toBe(
-      "Hoy: x · con Azpekaa",
+    expect(titleLineText({ why: "x", partners: ["Azpekaa"] })).toBe(
+      "x · con Azpekaa",
     );
-    expect(
-      titleLineText("week", { why: "x", partners: ["Azpekaa", "zapas14"] }),
-    ).toBe("Semana: x · con Azpekaa y zapas14");
+    expect(titleLineText({ why: "x", partners: ["Azpekaa", "zapas14"] })).toBe(
+      "x · con Azpekaa y zapas14",
+    );
   });
 });
 

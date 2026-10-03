@@ -42,7 +42,7 @@
     {
       "id": "T04",
       "title": "Verificación visual y verify-report",
-      "status": "in_progress",
+      "status": "done",
       "owner": "orchestrator",
       "branch": "feat/27-cabecera-vitrina",
       "worktree": "/Users/adri/dev/hylistats/.claude/worktrees/feat-27",
@@ -51,7 +51,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T04_verificacion.md",
       "created_at": "2026-10-03T01:28:52Z",
-      "updated_at": "2026-10-03T01:52:27Z"
+      "updated_at": "2026-10-03T01:55:26Z"
     }
   ]
 }

@@ -103,8 +103,8 @@ function TitleItem({ row }: { row: TitleRow }) {
   const tone = TONE[row.tone];
   const Icon = ICONS[row.id];
   const lines = [
-    ...row.day.map((line) => titleLineText("day", line)),
-    ...row.week.map((line) => titleLineText("week", line)),
+    ...row.day.map((line) => titleLineText(line)),
+    ...row.week.map((line) => titleLineText(line)),
   ];
   return (
     <li

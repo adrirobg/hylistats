@@ -1,7 +1,7 @@
 # Task T04 — Verificación visual y verify-report
 
 **Owner**: orchestrator
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -25,7 +25,13 @@
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `verify-report.md` con veredicto explícito por AC y evidencias.
+- [x] `verify-report.md` con veredicto explícito por AC y evidencias.
+
+## Notas de implementacion <!-- MAY -->
+
+- Corregido el prefijo de periodo del «por qué» (`titleLineText(line)`), que duplicaba "del día"/"de la semana".
 
 ## Evidencias <!-- MUST -->
+
+- `.dev/verify-report.md`: PASS (AC1–AC12; AC13 abierta). Lint, tipos, 1498 tests y build en verde.
 

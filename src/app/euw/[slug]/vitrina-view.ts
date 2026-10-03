@@ -7,7 +7,6 @@
 
 import { type EloStanding, formatEloChange, type GroupElo } from "@/domain/elo";
 import {
-  type PeriodKind,
   type PlayerTitle,
   TITLE_DEFINITIONS,
   type TitleId,
@@ -102,13 +101,14 @@ const PARTNERS = new Intl.ListFormat("es", {
   style: "long",
   type: "conjunction",
 });
-const PERIOD_LEAD: Record<PeriodKind, string> = { day: "Hoy", week: "Semana" };
-
-/** Una línea del «por qué»: "Hoy: 3,2 de puesto medio en 4 partidas · con Azpekaa y zapas14". */
-export function titleLineText(kind: PeriodKind, line: TitlePeriodLine): string {
+/**
+ * Una línea del «por qué»: "Peor puesto medio juntos del día: 4,25 en 4 partidas · con Azpekaa y
+ * zapas14". Sin prefijo de periodo: el `why` del dominio ya lo dice ("del día", "de la semana").
+ */
+export function titleLineText(line: TitlePeriodLine): string {
   const partners =
     line.partners.length > 0 ? ` · con ${PARTNERS.format(line.partners)}` : "";
-  return `${PERIOD_LEAD[kind]}: ${line.why}${partners}`;
+  return `${line.why}${partners}`;
 }
 
 /**
