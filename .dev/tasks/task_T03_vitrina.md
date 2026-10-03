@@ -1,7 +1,7 @@
 # Task T03 — Vitrina: banner, títulos, escalera y barra fija
 
 **Owner**: worker:opus
-**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -52,11 +52,23 @@ Reglas comunes (todas las tasks de código):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] AC1–AC10 de la spec cumplidos en código.
-- [ ] Un solo `#REFRESH_BUTTON_ID`; Actualizar, Sincronizar y Reintentar funcionan.
-- [ ] Sin `GroupView` entera en el payload del cliente.
-- [ ] Comprobación en navegador a 1280 y 375 px descrita en el informe.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] AC1–AC10 de la spec cumplidos en código.
+- [x] Un solo `#REFRESH_BUTTON_ID`; Actualizar, Sincronizar y Reintentar funcionan.
+- [x] Sin `GroupView` entera en el payload del cliente.
+- [x] Comprobación en navegador a 1280 y 375 px descrita en el informe.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+
+## Notas de implementacion <!-- MAY -->
+
+- Componentes nuevos: `vitrina.tsx` (cliente: barra fija, banner, identidad, avisos y toast), `league-trophy.tsx`, `title-list.tsx`, `group-ladder.tsx` (servidor), `league-shield.tsx`, `vitrina-ui.tsx`, `vitrina-bar.ts` (+ test). Borrados `header.tsx`, `arena-god.tsx`, `title-badges*`.
+- `ProfileView.titles` → `vitrina: { splash, group: { titles, ladder, facts } | null }` (`profileVitrina`); nada de `GroupView` al cliente. `Cabin`: el slot `god` pasa a `group` (Títulos + Escalera).
+- **Barra fija (desvío de I6)**: una sola cabecera `sticky` de alto 0 sobre el banner; el `IntersectionObserver` mira la fila de identidad (no el banner entero) para compactar en cuanto se va el nombre grande; si no, frescura y botones transparentes quedaban encima de los trofeos 300–600 px.
+- **Velo**: además del 0,92 → 0,72 → 0,55, sombra bajo la barra (0,7 hasta 52 px) y `text-shadow` en la frescura, por contraste con splashes claros (Galio).
+- No miembros: degradado teñido con `--place-1`; el trofeo ocupa una columna. Token `--cabin` añadido para el fundido inferior.
+- Empate en cabeza: "empatado en cabeza"; escalera: cambio `null` vacío, 0 en gris, provisional atenuado.
 
 ## Evidencias <!-- MUST -->
+
+- `npm run lint && npm run typecheck && npm test && npm run build`: EXIT 0 (73 archivos, 1498 tests).
+- Navegador (`next dev -p 3005`, BD local): Hylimichi, BEJITO MAMBO, zapas14, Krill1nt, TheCIutch a 1280, 720 y 375 px; sin scroll horizontal a 375; miembro sin títulos simulado (revertido); no miembro elruffles#6485 (splash de Galio, solo Dios de Arena); splash roto simulado → degradado; un solo `#REFRESH_BUTTON_ID`; Sincronizar pulsa Actualizar. Reintentar sin probar (ningún perfil en error).
 

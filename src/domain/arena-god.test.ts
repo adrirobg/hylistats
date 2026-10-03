@@ -433,8 +433,9 @@ describe("renombrado: ningún texto visible dice «Arena God» (AC6)", () => {
 
   it("los componentes no pintan «Arena God» (solo puede quedar en comentarios)", () => {
     const files = [
-      "src/app/euw/[slug]/arena-god.tsx",
-      "src/app/euw/[slug]/header.tsx",
+      "src/app/euw/[slug]/god-trophy.tsx",
+      "src/app/euw/[slug]/arena-god-notice.tsx",
+      "src/app/euw/[slug]/vitrina.tsx",
       "src/app/euw/[slug]/won-curve-chart.tsx",
       "src/app/euw/[slug]/won-curve-view.ts",
       "src/app/euw/[slug]/summary-panel.tsx",

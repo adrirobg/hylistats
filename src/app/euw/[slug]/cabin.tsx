@@ -5,24 +5,25 @@ import type { ReactNode } from "react";
 // exactamente la forma final.
 //
 // Rangos: se miden sobre el ancho de `.app` (container queries), no sobre el de la ventana.
-//   < 1100 px   una columna: la franja de cifras (`strip`) bajo la barra Arena God y el main; el
+//   < 1100 px   una columna: la franja de cifras (`strip`) bajo la vitrina y el main; el
 //               raíl cae debajo del main y ahí solo se deja lo que no esté ya en la franja (la
 //               forma: el marcador del raíl se oculta con `@max-[1100px]:hidden`).
 //   ≥ 1100 px   main + raíl de 340 px, con borde entre ambos.
 //   ≥ 1500 px   raíl de 380 px. (El contenedor raíz mide como mucho 1448 px útiles, así que hoy
 //               este último rango solo se alcanzaría si se ensancha el layout raíz.)
-// Por debajo de 640 px el header se reduce (`header.tsx`).
+// La cabecera es la vitrina (`vitrina.tsx`, iter-11): barra fija, banner y trofeos en `header`, y
+// Títulos + Escalera del grupo en `group` (solo miembros). Sus rangos van en cada pieza.
 
 interface CabinProps {
-  /** `<ProfileHeader>` (pegajoso) y, si hay, su aviso. */
+  /** La vitrina (`<Vitrina>`): barra fija, banner con identidad y trofeos, y sus avisos. */
   header: ReactNode;
-  /** Banda de sincronización (§4.10), bajo el header. */
+  /** Banda de sincronización (§4.10), bajo el banner. */
   band?: ReactNode;
-  /** Barra Arena God de tres capas y su aviso (T07). */
-  god?: ReactNode;
+  /** Títulos y escalera del grupo bajo el banner (solo miembros; sin él no ocupa nada). */
+  group?: ReactNode;
   /**
-   * Franja compacta de cifras (T10), bajo la barra Arena God. Solo se ve por debajo de 1100 px:
-   * a partir de ahí el marcador vive en el raíl.
+   * Franja compacta de cifras (T10), bajo la vitrina. Solo se ve por debajo de 1100 px: a partir
+   * de ahí el marcador vive en el raíl.
    */
   strip?: ReactNode;
   /** Barra de pestañas. */
@@ -39,24 +40,21 @@ interface CabinProps {
 export function Cabin({
   header,
   band,
-  god,
+  group,
   strip,
   tabs,
   main,
   rail,
 }: CabinProps) {
   return (
-    <div className="@container overflow-clip rounded-[10px] border border-line bg-[color-mix(in_srgb,var(--bg)_92%,black)]">
+    <div className="@container overflow-clip rounded-[10px] border border-line bg-(--cabin)">
       {header}
       {band}
-      {/* Vacío = sin altura: la franja solo ocupa espacio cuando T07 le pone contenido. */}
-      <div
-        data-slot="arena-god"
-        className="grid gap-2.5 border-b border-line px-5 pt-4 pb-3.5 empty:hidden @max-[640px]:px-3.5"
-      >
-        {/* T07: barra Arena God de tres capas y aviso de descuadre (llegan por `god`). */}
-        {god}
-      </div>
+      {group && (
+        <div data-slot="group" className="border-t border-b border-line">
+          {group}
+        </div>
+      )}
       {strip && (
         <div
           data-slot="strip"

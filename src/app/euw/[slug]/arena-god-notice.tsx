@@ -20,9 +20,9 @@ import { useNow } from "@/lib/use-now";
 import { REFRESH_BUTTON_ID } from "./use-refresh";
 import { markByHandHref, whenPhrase } from "./view-model";
 
-// Piezas comunes de Arena God que comparten la barra (`ArenaGodBar`) y el trofeo de la vitrina
-// (`GodTrophy`): el estado de las tres capas con los manuales de «mi perfil», el aviso de descuadre
-// con sus acciones, el botón «?» y la explicación. Así los dos se comportan igual sin duplicar nada.
+// Piezas de Arena God del trofeo de la vitrina (`GodTrophy`): el estado de las tres capas con los
+// manuales de «mi perfil», el aviso de descuadre con sus acciones, el botón «?» y la explicación.
+// Las compartía con la barra Arena God, que la vitrina sustituyó (iter-11).
 
 export interface ArenaGodProps {
   /** Forma canónica de Riot: con ella se decide si el perfil es «mi perfil». */
@@ -104,7 +104,7 @@ export function ArenaGodNotice({
   const { toast, show } = useToast();
   const now = useNow(nowMs);
 
-  /** [Sincronizar] y [Reintentar]: pulsan Actualizar del header, con su progreso y su toast. */
+  /** [Sincronizar] y [Reintentar]: pulsan Actualizar de la barra fija, con su progreso y su toast. */
   function refresh() {
     const button = document.getElementById(REFRESH_BUTTON_ID);
     if (!(button instanceof HTMLButtonElement)) return;

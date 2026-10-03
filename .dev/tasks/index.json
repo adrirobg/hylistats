@@ -27,7 +27,7 @@
     {
       "id": "T03",
       "title": "Vitrina: banner, títulos, escalera y barra fija",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:opus",
       "branch": "feat/27-cabecera-vitrina",
       "worktree": "/Users/adri/dev/hylistats/.claude/worktrees/feat-27",
@@ -37,12 +37,12 @@
       ],
       "artifact_path": ".dev/tasks/task_T03_vitrina.md",
       "created_at": "2026-10-03T01:28:52Z",
-      "updated_at": "2026-10-03T01:35:54Z"
+      "updated_at": "2026-10-03T01:52:27Z"
     },
     {
       "id": "T04",
       "title": "Verificación visual y verify-report",
-      "status": "pending",
+      "status": "in_progress",
       "owner": "orchestrator",
       "branch": "feat/27-cabecera-vitrina",
       "worktree": "/Users/adri/dev/hylistats/.claude/worktrees/feat-27",
@@ -51,7 +51,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T04_verificacion.md",
       "created_at": "2026-10-03T01:28:52Z",
-      "updated_at": "2026-10-03T01:28:52Z"
+      "updated_at": "2026-10-03T01:52:27Z"
     }
   ]
 }

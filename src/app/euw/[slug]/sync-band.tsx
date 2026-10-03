@@ -11,9 +11,9 @@ import {
   syncBandModel,
 } from "./view-model";
 
-// Banda de progreso de la sincronización bajo el header (brief §4.10, `.sync-band` de la
-// maqueta). Solo la pinta el backfill (el incremental va dentro del botón Actualizar y en el
-// header, `header.tsx`), la pausa por key caducada y el límite de peticiones, ambas en azul
+// Banda de progreso de la sincronización bajo la vitrina (brief §4.10, `.sync-band` de la
+// maqueta). Solo la pinta el backfill (el incremental va dentro del botón Actualizar y en los
+// avisos de la vitrina, `vitrina.tsx`), la pausa por key caducada y el límite de peticiones, ambas en azul
 // acero: no son un error del usuario (§4.3). La cola compartida usa el tono neutro del progreso:
 // esperar turno no avisa de nada. Es cliente porque se pinta desde el estado que consulta
 // `StatusProvider`, sin repintar la página.

@@ -1308,6 +1308,22 @@ describe("loadProfilePage", () => {
         expect(data).not.toHaveProperty("group");
       });
 
+      it("vitrina: el miembro trae su escalera y distancias, sin la vista del grupo; el no miembro, nada del grupo", async () => {
+        const profile = await insertProfile();
+        expect((await loadProfile("campeones")).vitrina.group).toBeNull();
+        await db.insert(groupMembers).values({ profileId: profile.id });
+        const data = await loadProfile("campeones");
+        expect(
+          data.vitrina.group?.ladder.map((r) => [r.me, r.position]),
+        ).toEqual([[true, 1]]);
+        expect(data.vitrina.group?.facts).toMatchObject({
+          position: 1,
+          total: 1,
+        });
+        expect(data).not.toHaveProperty("group");
+        expect(JSON.stringify(data.vitrina)).not.toContain(SELF_PUUID);
+      });
+
       it("la vista del grupo solo se carga con la pestaña Grupo activa", async () => {
         const profile = await insertProfile();
         await db.insert(groupMembers).values({ profileId: profile.id });

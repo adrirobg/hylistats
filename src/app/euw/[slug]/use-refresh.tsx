@@ -13,8 +13,8 @@ import {
 } from "./refresh-outcome";
 
 /**
- * `id` del botón Actualizar del header. La barra Arena God lo pulsa (`.click()`) desde
- * [Sincronizar] y [Reintentar]: así comparte la barra de progreso, el toast y la vigilancia.
+ * `id` del botón Actualizar de la vitrina (barra fija, uno solo en la página). El trofeo Dios
+ * de Arena lo pulsa (`.click()`) desde [Sincronizar] y [Reintentar]: así comparte la barra de progreso, el toast y la vigilancia.
  */
 export const REFRESH_BUTTON_ID = "refresh-profile";
 

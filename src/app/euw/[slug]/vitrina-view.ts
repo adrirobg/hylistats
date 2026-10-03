@@ -1,16 +1,18 @@
 // Vista-modelo de la vitrina de la cabecera del perfil (iter-11, T01): convierte lo que ya existe
 // (títulos vigentes de un miembro, ELO del grupo, campeones verificados) en lo que pinta la
 // cabecera, como funciones puras, sin React, BD ni navegador. Las reglas salen del dominio
-// (`group-titles.ts`, `elo.ts`); aquí solo se agrupa, se ordena y se redacta. Sustituye a
-// `title-badges.ts`, que pintaba un badge por título y periodo.
+// (`group-titles.ts`, `elo.ts`); aquí solo se agrupa, se ordena y se redacta. Sustituyó a
+// `title-badges.ts`, que pintaba un badge por título y periodo. Importa `ddragon.ts`
+// (`server-only`): se usa desde componentes de servidor y la carga, nunca desde cliente.
 
 import { type EloStanding, formatEloChange, type GroupElo } from "@/domain/elo";
 import {
+  type PeriodKind,
   type PlayerTitle,
   TITLE_DEFINITIONS,
   type TitleId,
 } from "@/domain/group-titles";
-import type { GroupViewMember } from "@/domain/group-view";
+import type { GroupView, GroupViewMember } from "@/domain/group-view";
 import type { VerifiedChampion } from "@/domain/stats";
 import { ELO_LEAGUES } from "@/lib/config";
 import { type ChampionCatalog, championSplashUrl } from "@/lib/ddragon";
@@ -94,6 +96,29 @@ export function titleRows(
     rows.push(row);
   }
   return rows;
+}
+
+const PARTNERS = new Intl.ListFormat("es", {
+  style: "long",
+  type: "conjunction",
+});
+const PERIOD_LEAD: Record<PeriodKind, string> = { day: "Hoy", week: "Semana" };
+
+/** Una línea del «por qué»: "Hoy: 3,2 de puesto medio en 4 partidas · con Azpekaa y zapas14". */
+export function titleLineText(kind: PeriodKind, line: TitlePeriodLine): string {
+  const partners =
+    line.partners.length > 0 ? ` · con ${PARTNERS.format(line.partners)}` : "";
+  return `${PERIOD_LEAD[kind]}: ${line.why}${partners}`;
+}
+
+/**
+ * Los mínimos para optar a un título, para el estado vacío del bloque (I5): los de los títulos
+ * individuales y los de dúo y trío, tal como los escribe el dominio.
+ */
+export function titlesMinimumText(): string {
+  const player = TITLE_DEFINITIONS.find((d) => d.subject === "player");
+  const team = TITLE_DEFINITIONS.find((d) => d.subject !== "player");
+  return `Los individuales piden ${player?.minimumText}; los de dúo y trío, ${team?.minimumText}.`;
 }
 
 export interface TitleCounts {
@@ -212,6 +237,29 @@ export function deltaText(n: number): string {
   return formatEloChange(n).replace("-", "−");
 }
 
+/** Color del cambio, según el valor mostrado (redondeado): sube, baja o se queda igual. */
+export function deltaTone(n: number): "up" | "down" | "zero" {
+  const text = formatEloChange(n);
+  return text.startsWith("+") ? "up" : text.startsWith("-") ? "down" : "zero";
+}
+
+/**
+ * La distancia con el de arriba ("a 3 de Azpekaa") o, sin nadie por encima, la ventaja ("líder
+ * por 12"; "empatado en cabeza" si el siguiente tiene el mismo rating). `null` si es el único.
+ */
+export function aboveText(facts: EloFacts): string | null {
+  if (facts.above) return `a ${facts.above.diff} de ${facts.above.name}`;
+  if (facts.leadBy === null) return null;
+  return facts.leadBy > 0 ? `líder por ${facts.leadBy}` : "empatado en cabeza";
+}
+
+/** Lo que falta para la siguiente liga ("a 18 de Oro"); `null` en Diamante. */
+export function nextLeagueText(facts: EloFacts): string | null {
+  return facts.nextLeague
+    ? `a ${facts.nextLeague.diff} de ${facts.nextLeague.name}`
+    : null;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Fondo
 // ---------------------------------------------------------------------------------------------
@@ -246,4 +294,49 @@ export function splashChampion(
   );
   if (!champion) return null;
   return { name: champion.name, splashUrl: championSplashUrl(champion.ddId) };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Lo que viaja a la página
+// ---------------------------------------------------------------------------------------------
+
+/** Títulos, escalera y distancias del ELO de un miembro: lo que pinta la vitrina, ya derivado. */
+export interface VitrinaGroup {
+  titles: TitleRow[];
+  ladder: LadderRow[];
+  facts: EloFacts;
+}
+
+export interface ProfileVitrina {
+  /** Campeón del fondo (todos los perfiles); `null`: degradado. */
+  splash: SplashChampion | null;
+  /** Solo miembros con fila en la Clasificación; `null` en el resto (I1: solo Dios de Arena). */
+  group: VitrinaGroup | null;
+}
+
+/**
+ * La vitrina de un perfil a partir de lo que la carga ya tiene: sus verificados, el catálogo, sus
+ * títulos y la vista del grupo (`null` en no miembros). De la vista solo se leen la Clasificación
+ * y los miembros, y solo sale lo que se pinta: la `GroupView` no viaja.
+ */
+export function profileVitrina(input: {
+  verified: readonly VerifiedChampion[];
+  catalog: ChampionCatalog;
+  titles: readonly PlayerTitle[];
+  view: Pick<GroupView, "elo" | "members"> | null;
+  ownerKey: string;
+}): ProfileVitrina {
+  const { view, ownerKey } = input;
+  const facts = view && eloFacts(view.elo.standings, view.members, ownerKey);
+  return {
+    splash: splashChampion(input.verified, input.catalog),
+    group:
+      view && facts
+        ? {
+            titles: titleRows(input.titles, ownerKey, view.members),
+            ladder: ladderRows(view.elo, view.members, ownerKey),
+            facts,
+          }
+        : null,
+  };
 }

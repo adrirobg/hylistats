@@ -14,13 +14,20 @@ import type { GroupViewMember } from "@/domain/group-view";
 import type { VerifiedChampion } from "@/domain/stats";
 import type { Champion, ChampionCatalog } from "@/lib/ddragon";
 import {
+  aboveText,
   deltaText,
+  deltaTone,
+  type EloFacts,
   eloFacts,
   ladderRows,
+  nextLeagueText,
+  profileVitrina,
   splashChampion,
   TITLES_LINK,
   titleCounts,
+  titleLineText,
   titleRows,
+  titlesMinimumText,
 } from "./vitrina-view";
 
 // --- Fixtures ---------------------------------------------------------------------------------
@@ -534,6 +541,130 @@ describe("splashChampion", () => {
   it("catálogo vacío: null", () => {
     expect(
       splashChampion([verified(56, 1)], { version: null, champions: [] }),
+    ).toBeNull();
+  });
+});
+
+// --- Textos de la vitrina ---------------------------------------------------------------------
+
+describe("titleLineText", () => {
+  it("individual: periodo y «por qué»", () => {
+    expect(titleLineText("day", { why: "3,2 de media", partners: [] })).toBe(
+      "Hoy: 3,2 de media",
+    );
+    expect(titleLineText("week", { why: "x", partners: [] })).toBe("Semana: x");
+  });
+
+  it("dúo y trío: «con X» y «con X y Y»", () => {
+    expect(titleLineText("day", { why: "x", partners: ["Azpekaa"] })).toBe(
+      "Hoy: x · con Azpekaa",
+    );
+    expect(
+      titleLineText("week", { why: "x", partners: ["Azpekaa", "zapas14"] }),
+    ).toBe("Semana: x · con Azpekaa y zapas14");
+  });
+});
+
+describe("titlesMinimumText", () => {
+  it("los mínimos individuales y de equipo del dominio", () => {
+    const player = TITLE_DEFINITIONS.find((d) => d.id === "troll");
+    const team = TITLE_DEFINITIONS.find((d) => d.id === "boomDuo");
+    expect(titlesMinimumText()).toBe(
+      `Los individuales piden ${player?.minimumText}; los de dúo y trío, ${team?.minimumText}.`,
+    );
+  });
+});
+
+describe("deltaTone", () => {
+  it("según el valor redondeado", () => {
+    expect(deltaTone(12)).toBe("up");
+    expect(deltaTone(-7)).toBe("down");
+    expect(deltaTone(0)).toBe("zero");
+    expect(deltaTone(0.4)).toBe("zero");
+    expect(deltaTone(-0.4)).toBe("zero");
+    expect(deltaTone(-0.5)).toBe("down");
+  });
+});
+
+describe("aboveText y nextLeagueText", () => {
+  const facts = (extra: Partial<EloFacts>): EloFacts => ({
+    position: 1,
+    total: 4,
+    above: null,
+    leadBy: null,
+    nextLeague: null,
+    ...extra,
+  });
+
+  it("con alguien encima: la distancia y su nombre", () => {
+    expect(aboveText(facts({ above: { name: "Azpekaa", diff: 3 } }))).toBe(
+      "a 3 de Azpekaa",
+    );
+  });
+
+  it("líder: la ventaja; empatado: «empatado en cabeza»; único: nada", () => {
+    expect(aboveText(facts({ leadBy: 12 }))).toBe("líder por 12");
+    expect(aboveText(facts({ leadBy: 0 }))).toBe("empatado en cabeza");
+    expect(aboveText(facts({}))).toBeNull();
+  });
+
+  it("siguiente liga; en Diamante, nada", () => {
+    expect(
+      nextLeagueText(facts({ nextLeague: { name: "Oro", diff: 18 } })),
+    ).toBe("a 18 de Oro");
+    expect(nextLeagueText(facts({}))).toBeNull();
+  });
+});
+
+describe("profileVitrina", () => {
+  const view = {
+    elo: elo([standing("b", 1, 1517), standing("a", 2, 1492)]),
+    members: MEMBERS,
+  };
+
+  it("no miembro (sin vista): solo el splash", () => {
+    expect(
+      profileVitrina({
+        verified: [verified(56, 1)],
+        catalog: CATALOG,
+        titles: [],
+        view: null,
+        ownerKey: "a",
+      }),
+    ).toEqual({
+      splash: splashChampion([verified(56, 1)], CATALOG),
+      group: null,
+    });
+  });
+
+  it("miembro: títulos, escalera y distancias de las funciones de la vitrina", () => {
+    const titles = owned([award("troll", "day", [holder(["a"], "Hoy peor")])]);
+    const vitrina = profileVitrina({
+      verified: [],
+      catalog: CATALOG,
+      titles,
+      view,
+      ownerKey: "a",
+    });
+    expect(vitrina).toEqual({
+      splash: null,
+      group: {
+        titles: titleRows(titles, "a", MEMBERS),
+        ladder: ladderRows(view.elo, MEMBERS, "a"),
+        facts: eloFacts(view.elo.standings, MEMBERS, "a"),
+      },
+    });
+  });
+
+  it("miembro sin fila en la Clasificación: sin bloque del grupo", () => {
+    expect(
+      profileVitrina({
+        verified: [],
+        catalog: CATALOG,
+        titles: [],
+        view,
+        ownerKey: "zzz",
+      }).group,
     ).toBeNull();
   });
 });

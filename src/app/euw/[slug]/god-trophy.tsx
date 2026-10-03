@@ -15,7 +15,7 @@ import { godMilestones, godRemaining, godRing } from "./god-ring";
 
 // Trofeo Dios de Arena de la vitrina (propuesta C2 de `.dev/research/cabecera`, tarjeta `.tw.g`):
 // las tres capas de la barra en un anillo (verificados en oro, manuales en azul rayado y la marca
-// del oficial), la cifra, «faltan N», los hitos y el mismo aviso con sus acciones que `ArenaGodBar`.
+// del oficial), la cifra, «faltan N», los hitos y el aviso con sus acciones de la antigua barra.
 // Sin envoltorio de tarjeta: fondo, borde y radio los pone la vitrina. La geometría es
 // `god-ring.ts`; las transiciones del arco las apaga el `prefers-reduced-motion` global.
 
