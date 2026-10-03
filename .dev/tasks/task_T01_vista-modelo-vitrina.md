@@ -1,7 +1,7 @@
 # Task T01 — Vista-modelo de la vitrina (títulos, escalera, liga, splash)
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -48,10 +48,22 @@ Reglas comunes (todas las tasks de código):
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `vitrina-view.ts` con `titleRows`, `titleCounts`, `ladderRows`, `eloFacts`, `splashChampion` (+ helper de URL) y tipos exportados.
-- [ ] Tests de todos los casos listados; Hylimichi → 4 filas (2 honor, 2 vergüenza).
-- [ ] `title-badges.ts` retirado o justificado en el informe.
-- [ ] `npm run lint && npm run typecheck && npm test` en verde.
+- [x] `vitrina-view.ts` con `titleRows`, `titleCounts`, `ladderRows`, `eloFacts`, `splashChampion` (+ helper de URL) y tipos exportados.
+- [x] Tests de todos los casos listados; Hylimichi → 4 filas (2 honor, 2 vergüenza).
+- [x] `title-badges.ts` retirado o justificado en el informe.
+- [x] `npm run lint && npm run typecheck && npm test` en verde.
+
+## Notas de implementacion <!-- MAY -->
+
+- Empates: `TitleRow.day`/`week` son `TitlePeriodLine[]` (vacío = no lo lleva; una línea por poseedor con empate).
+- `eloFacts(standings, members, ownerKey)`: necesita `members` para el nombre del de arriba; devuelve `null` si el dueño no está en la Clasificación (no miembro).
+- `deltaText` reutiliza `formatEloChange` con el menos tipográfico.
+- `splashChampion`: el más reciente fuera del catálogo da `null` (no cae al siguiente); empate de `lastWinAt` → mayor `championId`.
+- `vitrina-view.ts` importa `championSplashUrl` de `ddragon.ts` (`server-only`): solo se usa desde servidor.
+- `title-badges.ts` se queda hasta T03 (lo usan `header.tsx` y `page.tsx`); `TITLES_LINK` ya vive en `vitrina-view.ts`.
 
 ## Evidencias <!-- MUST -->
+
+- `npm run lint && npm run typecheck && npm test` en verde (73 archivos, 1485 tests, con los de T02 presentes en el árbol).
+- Caso Hylimichi 2026-10-03 → 4 filas (2 honor, 2 vergüenza) en `vitrina-view.test.ts`.
 
