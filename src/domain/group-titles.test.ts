@@ -447,7 +447,7 @@ describe("títulos individuales", () => {
     expect(holdersOf(titles, "pacifist")).toEqual([["A"]]);
   });
 
-  it("empate: el título se comparte", () => {
+  it("empate en la métrica y en partidas: el título se comparte", () => {
     const rows = [
       ...solo("A", [6, 4, 5], { damage: 9_000 }),
       ...solo("B", [5, 5, 5], { damage: 9_000 }),
@@ -457,6 +457,21 @@ describe("títulos individuales", () => {
     expect(holdersOf(titles, "troll")).toEqual([["A"], ["B"]]);
     expect(holdersOf(titles, "pacifist")).toEqual([["A"], ["B"]]);
     expect(find(titles, "troll")?.holders.map((h) => h.value)).toEqual([5, 5]);
+  });
+
+  it("empate en la métrica: desempata quien jugó más partidas", () => {
+    const rows = [
+      ...solo("A", [5, 5, 5, 5], { damage: 9_000 }), // 4 partidas
+      ...solo("B", [5, 5, 5], { damage: 9_000 }), // 3 partidas, mismas medias
+      ...solo("C", [1, 1, 1], { damage: 20_000 }),
+    ];
+    const { titles } = day(rows);
+    expect(holdersOf(titles, "troll")).toEqual([["A"]]);
+    expect(holdersOf(titles, "pacifist")).toEqual([["A"]]);
+    expect(find(titles, "troll")?.holders[0]).toMatchObject({
+      value: 5,
+      games: 4,
+    });
   });
 
   it("un solo clasificado: no se otorga ningún título individual", () => {
@@ -564,22 +579,43 @@ describe("títulos de trío", () => {
     ]);
   });
 
-  it("regla literal: si ningún trío tiene 1º, Equipo roto lo decide el puesto medio", () => {
+  it("Equipo roto: a igual nº de 1º y puesto medio desempatan las partidas juntos", () => {
+    const rows = [
+      ...team(["A", "B", "C"], [1, 4, 4, 3]), // 1 primero, 3,00 en 4 partidas
+      ...team(["D", "E", "F"], [1, 4, 4]), // 1 primero, 3,00 en 3 partidas
+    ];
+    const { titles } = day(rows);
+    expect(holdersOf(titles, "brokenTrio")).toEqual([["A", "B", "C"]]);
+    // Mental boom: mismo puesto medio, también gana el de más partidas.
+    expect(holdersOf(titles, "boomTrio")).toEqual([["A", "B", "C"]]);
+  });
+
+  it("Equipo roto exige al menos un 1º: si ningún trío tiene 1º, no se otorga", () => {
     const rows = [
       ...team(["A", "B", "C"], [2, 2, 3]),
       ...team(["D", "E", "F"], [5, 5, 6]),
     ];
-    const roto = find(day(rows).titles, "brokenTrio");
-    expect(roto?.holders).toEqual([
+    const { titles } = day(rows);
+    expect(find(titles, "brokenTrio")).toBeUndefined();
+    // El resto de títulos de trío no cambia.
+    expect(holdersOf(titles, "boomTrio")).toEqual([["D", "E", "F"]]);
+  });
+
+  it("Equipo roto con un solo 1º del mejor trío: se otorga", () => {
+    const rows = [
+      ...team(["A", "B", "C"], [1, 5, 5]),
+      ...team(["D", "E", "F"], [2, 2, 2]),
+    ];
+    expect(find(day(rows).titles, "brokenTrio")?.holders).toEqual([
       expect.objectContaining({
         puuids: ["A", "B", "C"],
-        value: 0,
-        why: "Más 1º juntos del día: 0 en 3 partidas (puesto medio 2,33)",
+        value: 1,
+        why: "Más 1º juntos del día: 1 en 3 partidas (puesto medio 3,67)",
       }),
     ]);
   });
 
-  it("regla literal: el mismo trío puede ser roto y mental boom a la vez", () => {
+  it("el mismo trío puede ser roto y mental boom a la vez", () => {
     const rows = [
       ...team(["A", "B", "C"], [1, 6, 6]), // más 1º y peor puesto medio (4,33)
       ...team(["D", "E", "F"], [2, 2, 2]),
@@ -683,7 +719,31 @@ describe("títulos de dúo", () => {
     expect(holdersOf(day(rows).titles, "brokenDuo")).toEqual([["C", "D"]]);
   });
 
-  it("empate: los tres dúos de un trío comparten el título", () => {
+  it("Pareja rota: a igual nº de 1º y puesto medio desempatan las partidas juntos", () => {
+    const rows = [
+      ...team(["A", "B"], [1, 4, 4, 3]), // 1 primero, 3,00 en 4 partidas
+      ...team(["C", "D"], [1, 4, 4]), // 1 primero, 3,00 en 3 partidas
+    ];
+    const { titles } = day(rows);
+    expect(holdersOf(titles, "brokenDuo")).toEqual([["A", "B"]]);
+    expect(holdersOf(titles, "boomDuo")).toEqual([["A", "B"]]);
+  });
+
+  it("Pareja rota exige al menos un 1º: sin ninguno no se otorga; con uno sí", () => {
+    const none = [
+      ...team(["A", "B"], [2, 2, 2]),
+      ...team(["C", "D"], [4, 4, 4]),
+    ];
+    expect(find(day(none).titles, "brokenDuo")).toBeUndefined();
+    expect(holdersOf(day(none).titles, "boomDuo")).toEqual([["C", "D"]]);
+    const one = [
+      ...team(["A", "B"], [2, 2, 2]),
+      ...team(["C", "D"], [1, 4, 4]),
+    ];
+    expect(holdersOf(day(one).titles, "brokenDuo")).toEqual([["C", "D"]]);
+  });
+
+  it("empate (mismas partidas): los tres dúos de un trío comparten el título", () => {
     const rows = [
       ...team(["A", "B", "C"], [5, 5, 5]),
       ...team(["D", "E"], [1, 1, 1]),
@@ -762,7 +822,10 @@ describe("definiciones y reglas", () => {
       "3 partidas juntos en el periodo",
     );
     expect(TITLE_RULES.join(" ")).toMatch(/al menos 2 clasificados/);
-    expect(TITLE_RULES.join(" ")).toMatch(/empates comparten/);
+    expect(TITLE_RULES.join(" ")).toMatch(/más partidas/);
+    expect(TITLE_RULES.join(" ")).toMatch(/empatados comparten el título/);
+    expect(TITLE_DEFINITIONS[3].description).toMatch(/al menos uno/);
+    expect(TITLE_DEFINITIONS[5].description).toMatch(/al menos uno/);
   });
 
   it("awardTitles sin clasificados no otorga nada", () => {
