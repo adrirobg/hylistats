@@ -7,13 +7,13 @@ import {
   deltaText,
   deltaTone,
   type EloFacts,
-  type LadderRow,
+  type GroupTodayRow,
 } from "./vitrina-view";
 
 // Escalera del grupo de la vitrina (propuesta C2, `.ladder`/`.lad`): la Clasificación del ELO
 // entera, como en la pestaña Grupo (posiciones compartidas en empate): posición, escudo de liga,
 // nombre enlazado a su perfil (I7), rating y cambio del día. La fila del dueño va destacada y el
-// pie dice la distancia al de arriba. Es de servidor: las filas llegan hechas (`ladderRows`).
+// pie dice la distancia al de arriba. Es de servidor: las filas llegan hechas (`groupTodayRows`; aquí solo se lee la Clasificación).
 
 const DELTA_TONE = {
   up: "text-ok",
@@ -25,7 +25,7 @@ export function GroupLadder({
   rows,
   facts,
 }: {
-  rows: readonly LadderRow[];
+  rows: readonly GroupTodayRow[];
   facts: EloFacts;
 }) {
   const above = aboveText(facts);

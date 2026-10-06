@@ -12,13 +12,7 @@ import Link from "next/link";
 import type { TitleId } from "@/domain/group-titles";
 import { cn } from "@/lib/utils";
 import { VitrinaLabel } from "./vitrina-ui";
-import {
-  TITLES_LINK,
-  type TitleRow,
-  titleCounts,
-  titleLineText,
-  titlesMinimumText,
-} from "./vitrina-view";
+import { TITLES_LINK, type TitleRow, titlesMinimumText } from "./vitrina-view";
 
 // Bloque Títulos de la vitrina (propuesta C2, `.tlist`/`.trw`): una fila por título que lleva el
 // miembro, en el orden de `TITLE_DEFINITIONS` (I8), con su icono (I9) en un círculo del tono
@@ -57,7 +51,6 @@ const TONE = {
 } as const;
 
 export function TitleList({ rows }: { rows: readonly TitleRow[] }) {
-  const counts = titleCounts(rows);
   return (
     <section
       aria-labelledby="vitrina-titulos"
@@ -68,11 +61,7 @@ export function TitleList({ rows }: { rows: readonly TitleRow[] }) {
           <span id="vitrina-titulos">Títulos</span>
         </VitrinaLabel>
         <span className="flex flex-wrap items-baseline gap-x-3 text-xs text-faint">
-          <span>
-            {rows.length > 0
-              ? `${counts.honor} de honor · ${counts.shame} de vergüenza`
-              : "hoy y esta semana"}
-          </span>
+          <span>hoy y esta semana</span>
           <Link
             href={TITLES_LINK.href}
             className="text-foreground underline decoration-line underline-offset-2 hover:decoration-foreground"
@@ -102,10 +91,15 @@ export function TitleList({ rows }: { rows: readonly TitleRow[] }) {
 function TitleItem({ row }: { row: TitleRow }) {
   const tone = TONE[row.tone];
   const Icon = ICONS[row.id];
-  const lines = [
-    ...row.day.map((line) => titleLineText(line)),
-    ...row.week.map((line) => titleLineText(line)),
-  ];
+  // Puente hasta T06 (cabecera v4): el «por qué» de cada periodo con «con X y Y» en dúos y tríos.
+  const lines = row.lines.flatMap((line) => {
+    const mates = line.mates.map((m) => m.name).join(" y ");
+    return line.periods.map(
+      (period) => `${period.why}${mates ? ` · con ${mates}` : ""}`,
+    );
+  });
+  const has = (kind: "day" | "week") =>
+    row.lines.some((line) => line.periods.some((p) => p.kind === kind));
   return (
     <li
       className={cn(
@@ -132,10 +126,10 @@ function TitleItem({ row }: { row: TitleRow }) {
       </span>
       {/* Las marcas repiten lo que dicen las líneas ("Hoy: …"): el lector de pantalla las salta. */}
       <span aria-hidden="true" className="inline-flex gap-[3px]">
-        <Pip on={row.day.length > 0} tone={row.tone}>
+        <Pip on={has("day")} tone={row.tone}>
           HOY
         </Pip>
-        <Pip on={row.week.length > 0} tone={row.tone}>
+        <Pip on={has("week")} tone={row.tone}>
           SEM
         </Pip>
       </span>

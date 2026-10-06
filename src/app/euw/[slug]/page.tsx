@@ -237,7 +237,7 @@ function VitrinaGroupBlock({ group }: { group: VitrinaGroup }) {
     <div className="grid grid-cols-[minmax(0,1fr)_300px] @max-[980px]:grid-cols-1">
       <TitleList rows={group.titles} />
       <div className="border-l border-line @max-[980px]:border-t @max-[980px]:border-l-0">
-        <GroupLadder rows={group.ladder} facts={group.facts} />
+        <GroupLadder rows={group.today} facts={group.facts} />
       </div>
     </div>
   );

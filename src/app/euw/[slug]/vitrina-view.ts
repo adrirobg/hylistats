@@ -5,16 +5,22 @@
 // `title-badges.ts`, que pintaba un badge por título y periodo. Importa `ddragon.ts`
 // (`server-only`): se usa desde componentes de servidor y la carga, nunca desde cliente.
 
-import { type EloStanding, formatEloChange, type GroupElo } from "@/domain/elo";
+import { type EloStanding, formatEloChange } from "@/domain/elo";
 import {
+  formatAvgDamage,
+  formatAvgPlacement,
+  type PeriodKind,
   type PlayerTitle,
   TITLE_DEFINITIONS,
+  type TitleHolder,
   type TitleId,
+  type TitleMetric,
 } from "@/domain/group-titles";
 import type { GroupView, GroupViewMember } from "@/domain/group-view";
 import type { VerifiedChampion } from "@/domain/stats";
 import { ELO_LEAGUES } from "@/lib/config";
 import { type ChampionCatalog, championSplashUrl } from "@/lib/ddragon";
+import { formatCount } from "@/lib/format";
 import { TITLES_ANCHOR, TITLES_LINK_LABEL } from "../../grupo/group-view-model";
 
 /**
@@ -43,12 +49,42 @@ const TONES: Record<TitleId, TitleTone> = {
   boomDuo: "shame",
 };
 
-/** Un título en un periodo: el «por qué» y, en dúos y tríos, los compañeros del dueño. */
-export interface TitlePeriodLine {
-  /** El `why` del poseedor: métrica, valor y partidas. */
+/** Texto corto de la métrica de cada título, junto a su nombre: "más 1º juntos". */
+const METRICS: Record<TitleId, string> = {
+  devil: "más daño medio",
+  pacifist: "menos daño medio",
+  troll: "peor puesto medio",
+  brokenTrio: "más 1º juntos",
+  brokenDuo: "más 1º juntos",
+  boomTrio: "peor puesto medio juntos",
+  boomDuo: "peor puesto medio juntos",
+};
+
+/** Un compañero del dueño en un título de dúo o trío: chip con su icono, enlazado a su perfil. */
+export interface TitleMate {
+  name: string;
+  /** Slug del perfil del compañero (`/euw/<slug>`). */
+  slug: string;
+  /** Icono de invocador; `null` sin icono guardado o sin catálogo. */
+  iconUrl: string | null;
+}
+
+/** Lo que lleva el dueño en un periodo, ya redactado. */
+export interface TitleMatePeriod {
+  kind: PeriodKind;
+  /** Texto corto con los números del poseedor: "2 primeros en 6 · 2,33", "media 4,70 en 10". */
+  text: string;
+  /** El `why` completo del dominio, para el `title` del elemento. */
   why: string;
-  /** `gameName` de los otros miembros del dúo o trío, en el orden de `members`. Vacío en individuales. */
-  partners: string[];
+}
+
+/**
+ * Una línea de un título: los mismos compañeros (ninguno en los individuales) con los periodos en
+ * que comparten el título con el dueño, el día antes que la semana.
+ */
+export interface TitleMateLine {
+  mates: TitleMate[];
+  periods: TitleMatePeriod[];
 }
 
 export interface TitleRow {
@@ -56,19 +92,33 @@ export interface TitleRow {
   /** Nombre de la definición, sin periodo: "Equipo mental boom". */
   name: string;
   tone: TitleTone;
+  /** Qué mide, corto y en minúscula: "más 1º juntos", "peor puesto medio", "menos daño medio". */
+  metric: string;
   /**
-   * Lo que lleva en cada periodo. Vacío = no lo lleva (marca apagada). Casi siempre una línea;
-   * con empate (el mismo título y periodo con dos poseedores del dueño, p. ej. dos dúos) una por
-   * poseedor, en el orden recibido.
+   * Una línea por conjunto de compañeros, en el orden de aparición (día primero): el mismo dúo hoy
+   * y en la semana es una sola línea con dos periodos. Con empate (dos poseedores del dueño en el
+   * mismo periodo, p. ej. dos dúos) salen líneas distintas.
    */
-  day: TitlePeriodLine[];
-  week: TitlePeriodLine[];
+  lines: TitleMateLine[];
+}
+
+/** El texto corto de un periodo según lo que mide el título: "2 primeros en 6 · 2,33". */
+function periodText(metric: TitleMetric, holder: TitleHolder): string {
+  const games = formatCount(holder.games);
+  if (metric === "firsts") {
+    const word = holder.firsts === 1 ? "primero" : "primeros";
+    return `${formatCount(holder.firsts)} ${word} en ${games} · ${formatAvgPlacement(holder.avgPlacement)}`;
+  }
+  if (metric === "avgDamage") {
+    return `${formatAvgDamage(holder.avgDamage ?? holder.value)} de daño en ${games}`;
+  }
+  return `media ${formatAvgPlacement(holder.value)} en ${games}`;
 }
 
 /**
  * Una fila por título que lleva `ownerKey`, en el orden de `TITLE_DEFINITIONS` (no se separa por
  * tono). `titles` son los `PlayerTitle` del dueño (`titlesOf`); los títulos que no lleva no
- * generan fila.
+ * generan fila. Dentro de cada fila se agrupa por compañeros (`TitleMateLine`).
  */
 export function titleRows(
   titles: readonly PlayerTitle[],
@@ -77,38 +127,47 @@ export function titleRows(
 ): TitleRow[] {
   const rows: TitleRow[] = [];
   for (const def of TITLE_DEFINITIONS) {
-    const mine = titles.filter(({ title }) => title.id === def.id);
+    // El día antes que la semana (sort estable: el resto conserva el orden recibido).
+    const mine = titles
+      .filter(({ title }) => title.id === def.id)
+      .sort(
+        (a, b) =>
+          Number(a.title.kind === "week") - Number(b.title.kind === "week"),
+      );
     if (mine.length === 0) continue;
-    const row: TitleRow = {
+    const lines = new Map<string, TitleMateLine>();
+    for (const { title, holder } of mine) {
+      const mates = members.filter(
+        (m) => m.key !== ownerKey && holder.puuids.includes(m.key),
+      );
+      const id = mates.map((m) => m.key).join("|");
+      let line = lines.get(id);
+      if (!line) {
+        line = {
+          mates: mates.map((m) => ({
+            name: m.gameName,
+            slug: m.slug,
+            iconUrl: m.profileIconUrl,
+          })),
+          periods: [],
+        };
+        lines.set(id, line);
+      }
+      line.periods.push({
+        kind: title.kind,
+        text: periodText(def.metric, holder),
+        why: holder.why,
+      });
+    }
+    rows.push({
       id: def.id,
       name: def.name,
       tone: TONES[def.id],
-      day: [],
-      week: [],
-    };
-    for (const { title, holder } of mine) {
-      const partners = members
-        .filter((m) => m.key !== ownerKey && holder.puuids.includes(m.key))
-        .map((m) => m.gameName);
-      row[title.kind].push({ why: holder.why, partners });
-    }
-    rows.push(row);
+      metric: METRICS[def.id],
+      lines: [...lines.values()],
+    });
   }
   return rows;
-}
-
-const PARTNERS = new Intl.ListFormat("es", {
-  style: "long",
-  type: "conjunction",
-});
-/**
- * Una línea del «por qué»: "Peor puesto medio juntos del día: 4,25 en 4 partidas · con Azpekaa y
- * zapas14". Sin prefijo de periodo: el `why` del dominio ya lo dice ("del día", "de la semana").
- */
-export function titleLineText(line: TitlePeriodLine): string {
-  const partners =
-    line.partners.length > 0 ? ` · con ${PARTNERS.format(line.partners)}` : "";
-  return `${line.why}${partners}`;
 }
 
 /**
@@ -121,23 +180,22 @@ export function titlesMinimumText(): string {
   return `Los individuales piden ${player?.minimumText}; los de dúo y trío, ${team?.minimumText}.`;
 }
 
-export interface TitleCounts {
-  honor: number;
-  shame: number;
-}
-
-/** Recuento por tono de las filas, para la cabecera del bloque ("2 de honor · 2 de vergüenza"). */
-export function titleCounts(rows: readonly TitleRow[]): TitleCounts {
-  const counts: TitleCounts = { honor: 0, shame: 0 };
-  for (const row of rows) counts[row.tone] += 1;
-  return counts;
-}
-
 // ---------------------------------------------------------------------------------------------
-// Escalera y trofeo de Liga
+// El grupo hoy y distancias del ELO
 // ---------------------------------------------------------------------------------------------
 
-export interface LadderRow {
+/** Una partida reciente de hoy de un miembro: el retrato con su puesto. */
+export interface TodayLast {
+  /** Para la `key` del elemento: un mismo campeón puede repetirse. */
+  matchId: string;
+  /** Nombre de visualización (`es_ES`) del catálogo; sin él, el `championName` de la partida. */
+  championName: string;
+  /** Retrato de Data Dragon; `null` si el campeón no está en el catálogo. */
+  portraitUrl: string | null;
+  placement: number;
+}
+
+export interface GroupTodayRow {
   position: number;
   name: string;
   /** Slug del perfil del miembro (`/euw/<slug>`). */
@@ -145,36 +203,60 @@ export interface LadderRow {
   leagueId: EloStanding["league"]["id"];
   /** Rating redondeado. */
   rating: number;
-  /** Cambio del día; `null` si no jugó en él. */
-  dayChange: number | null;
   provisional: boolean;
+  /** Cambio del día mostrado en la Clasificación; `null` si no jugó en él. */
+  dayChange: number | null;
   /** La fila del dueño del perfil. */
   me: boolean;
+  /** De HOY (estricto): partidas, 1º, puesto medio (`"3,17"`, `null` sin partidas) y campeones. */
+  games: number;
+  firsts: number;
+  avgPlacement: string | null;
+  /** Hasta 5, la más reciente primero. */
+  last: TodayLast[];
 }
 
 /**
- * La Clasificación completa en su orden (posiciones compartidas en empate de rating redondeado,
- * como en la pestaña Grupo). Una posición sin miembro en `members` (no debería ocurrir) se omite.
+ * Las filas de «El grupo hoy»: todos los miembros en el orden de la Clasificación (posiciones
+ * compartidas en empate de rating redondeado, como en la pestaña Grupo) con su actividad de hoy.
+ * Una posición sin miembro en `view.members` (no debería ocurrir) se omite.
  */
-export function ladderRows(
-  elo: GroupElo,
-  members: readonly GroupViewMember[],
+export function groupTodayRows(
+  view: Pick<GroupView, "elo" | "members" | "today">,
   ownerKey: string,
-): LadderRow[] {
-  const byKey = new Map(members.map((m) => [m.key, m]));
-  const rows: LadderRow[] = [];
-  for (const s of elo.standings) {
+  catalog: ChampionCatalog,
+): GroupTodayRow[] {
+  const byKey = new Map(view.members.map((m) => [m.key, m]));
+  const champions = new Map(catalog.champions.map((c) => [c.championId, c]));
+  const rows: GroupTodayRow[] = [];
+  for (const s of view.elo.standings) {
     const member = byKey.get(s.key);
     if (!member) continue;
+    const today = view.today.members[s.key];
     rows.push({
       position: s.position,
       name: member.gameName,
       slug: member.slug,
       leagueId: s.league.id,
       rating: s.roundedRating,
-      dayChange: s.dayChange,
       provisional: s.provisional,
+      dayChange: s.dayChange,
       me: s.key === ownerKey,
+      games: today?.games ?? 0,
+      firsts: today?.firsts ?? 0,
+      avgPlacement:
+        today?.avgPlacement == null
+          ? null
+          : formatAvgPlacement(today.avgPlacement),
+      last: (today?.last ?? []).map((g) => {
+        const champion = champions.get(g.championId);
+        return {
+          matchId: g.matchId,
+          championName: champion?.name ?? g.championName,
+          portraitUrl: champion?.portraitUrl ?? null,
+          placement: g.placement,
+        };
+      }),
     });
   }
   return rows;
@@ -192,7 +274,7 @@ export interface EloFacts {
 }
 
 /**
- * Distancias del dueño en la Clasificación, para el trofeo de Liga y el pie de la escalera.
+ * Distancias del dueño en la Clasificación, para la línea de liga de la identidad y el pie de la escalera.
  * `null` si `ownerKey` no está en ella (no miembro): quien llama no debe pintar el trofeo.
  * Con varios miembros igualados encima, `above` es el primero en `standings`.
  */
@@ -300,10 +382,13 @@ export function splashChampion(
 // Lo que viaja a la página
 // ---------------------------------------------------------------------------------------------
 
-/** Títulos, escalera y distancias del ELO de un miembro: lo que pinta la vitrina, ya derivado. */
+/** Títulos, el grupo hoy y distancias del ELO de un miembro: lo que pinta la vitrina, ya derivado. */
 export interface VitrinaGroup {
   titles: TitleRow[];
-  ladder: LadderRow[];
+  /** Todos los miembros en el orden de la Clasificación, con su actividad de hoy. */
+  today: GroupTodayRow[];
+  /** Partidas distintas del día (para la cabecera de «El grupo hoy»). */
+  todayGames: number;
   facts: EloFacts;
 }
 
@@ -316,14 +401,14 @@ export interface ProfileVitrina {
 
 /**
  * La vitrina de un perfil a partir de lo que la carga ya tiene: sus verificados, el catálogo, sus
- * títulos y la vista del grupo (`null` en no miembros). De la vista solo se leen la Clasificación
- * y los miembros, y solo sale lo que se pinta: la `GroupView` no viaja.
+ * títulos y la vista del grupo (`null` en no miembros). De la vista solo se leen la Clasificación,
+ * los miembros y lo de hoy, y solo sale lo que se pinta: la `GroupView` no viaja.
  */
 export function profileVitrina(input: {
   verified: readonly VerifiedChampion[];
   catalog: ChampionCatalog;
   titles: readonly PlayerTitle[];
-  view: Pick<GroupView, "elo" | "members"> | null;
+  view: Pick<GroupView, "elo" | "members" | "today"> | null;
   ownerKey: string;
 }): ProfileVitrina {
   const { view, ownerKey } = input;
@@ -334,7 +419,8 @@ export function profileVitrina(input: {
       view && facts
         ? {
             titles: titleRows(input.titles, ownerKey, view.members),
-            ladder: ladderRows(view.elo, view.members, ownerKey),
+            today: groupTodayRows(view, ownerKey, input.catalog),
+            todayGames: view.today.games,
             facts,
           }
         : null,

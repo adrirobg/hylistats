@@ -10,6 +10,7 @@ import {
   titleName,
   titlesOf,
 } from "@/domain/group-titles";
+import type { GroupToday, MemberToday } from "@/domain/group-today";
 import type { GroupViewMember } from "@/domain/group-view";
 import type { VerifiedChampion } from "@/domain/stats";
 import type { Champion, ChampionCatalog } from "@/lib/ddragon";
@@ -19,13 +20,12 @@ import {
   deltaTone,
   type EloFacts,
   eloFacts,
-  ladderRows,
+  type GroupTodayRow,
+  groupTodayRows,
   nextLeagueText,
   profileVitrina,
   splashChampion,
   TITLES_LINK,
-  titleCounts,
-  titleLineText,
   titleRows,
   titlesMinimumText,
 } from "./vitrina-view";
@@ -38,7 +38,7 @@ const member = (key: string, gameName: string): GroupViewMember => ({
   gameName,
   tagLine: "EUW",
   slug: gameName.toLowerCase(),
-  profileIconUrl: null,
+  profileIconUrl: `https://icons.test/${gameName}.png`,
   lastSyncedAt: null,
   official: null,
   resolved: true,
@@ -51,7 +51,11 @@ const MEMBERS = [
   member("d", "Krill1nt"),
 ];
 
-const holder = (puuids: string[], why: string): TitleHolder => ({
+const holder = (
+  puuids: string[],
+  why: string,
+  extra: Partial<TitleHolder> = {},
+): TitleHolder => ({
   puuids,
   value: 0,
   games: 4,
@@ -59,6 +63,7 @@ const holder = (puuids: string[], why: string): TitleHolder => ({
   avgPlacement: 3,
   avgDamage: null,
   why,
+  ...extra,
 });
 
 const SUBJECT = {
@@ -94,13 +99,23 @@ const owned = (titles: AwardedTitle[], key = "a"): PlayerTitle[] =>
 // --- titleRows --------------------------------------------------------------------------------
 
 describe("titleRows", () => {
+  const icon = (name: string) => `https://icons.test/${name}.png`;
+
   it("sin títulos: ninguna fila", () => {
     expect(titleRows([], "a", MEMBERS)).toEqual([]);
   });
 
-  it("título solo de día: semana vacía", () => {
+  it("individual: sin chips, un periodo", () => {
     const rows = titleRows(
-      owned([award("troll", "day", [holder(["a"], "Hoy peor")])]),
+      owned([
+        award("troll", "day", [
+          holder(["a"], "Hoy peor", {
+            value: 4.7,
+            games: 10,
+            avgPlacement: 4.7,
+          }),
+        ]),
+      ]),
       "a",
       MEMBERS,
     );
@@ -109,50 +124,158 @@ describe("titleRows", () => {
         id: "troll",
         name: "El trol",
         tone: "shame",
-        day: [{ why: "Hoy peor", partners: [] }],
-        week: [],
+        metric: "peor puesto medio",
+        lines: [
+          {
+            mates: [],
+            periods: [
+              { kind: "day", text: "media 4,70 en 10", why: "Hoy peor" },
+            ],
+          },
+        ],
       },
     ]);
   });
 
-  it("título solo de semana: día vacío", () => {
+  it("título solo de semana: un solo periodo, el de la semana", () => {
     const [row] = titleRows(
-      owned([award("devil", "week", [holder(["a"], "Semana daño")])]),
+      owned([
+        award("devil", "week", [
+          holder(["a"], "Semana daño", {
+            value: 12345.6,
+            avgDamage: 12345.6,
+            games: 5,
+          }),
+        ]),
+      ]),
       "a",
       MEMBERS,
     );
-    expect(row.day).toEqual([]);
-    expect(row.week).toEqual([{ why: "Semana daño", partners: [] }]);
     expect(row.tone).toBe("honor");
+    expect(row.metric).toBe("más daño medio");
+    expect(row.lines).toEqual([
+      {
+        mates: [],
+        periods: [
+          { kind: "week", text: "12.346 de daño en 5", why: "Semana daño" },
+        ],
+      },
+    ]);
   });
 
-  it("título de día y semana: una sola fila con ambos periodos", () => {
+  it("menos daño medio: usa el daño del poseedor", () => {
+    const [row] = titleRows(
+      owned([
+        award("pacifist", "day", [
+          holder(["a"], "x", { value: 800, avgDamage: 800, games: 1_200 }),
+        ]),
+      ]),
+      "a",
+      MEMBERS,
+    );
+    expect(row.metric).toBe("menos daño medio");
+    expect(row.lines[0].periods[0].text).toBe("800 de daño en 1.200");
+  });
+
+  it("el mismo dúo hoy y en la semana: una línea con dos periodos, día primero", () => {
     const rows = titleRows(
       owned([
-        award("troll", "day", [holder(["a"], "d")]),
-        award("troll", "week", [holder(["a"], "s")]),
+        // La semana llega antes que el día: la línea sale igual con el día primero.
+        award("brokenDuo", "week", [
+          holder(["a", "b"], "sem", {
+            firsts: 5,
+            games: 27,
+            avgPlacement: 3.41,
+          }),
+        ]),
+        award("brokenDuo", "day", [
+          holder(["a", "b"], "dia", {
+            firsts: 2,
+            games: 6,
+            avgPlacement: 2.33,
+          }),
+        ]),
       ]),
       "a",
       MEMBERS,
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].day[0].why).toBe("d");
-    expect(rows[0].week[0].why).toBe("s");
+    expect(rows[0].metric).toBe("más 1º juntos");
+    expect(rows[0].lines).toEqual([
+      {
+        mates: [{ name: "Azpekaa", slug: "azpekaa", iconUrl: icon("Azpekaa") }],
+        periods: [
+          { kind: "day", text: "2 primeros en 6 · 2,33", why: "dia" },
+          { kind: "week", text: "5 primeros en 27 · 3,41", why: "sem" },
+        ],
+      },
+    ]);
   });
 
-  it("dúo y trío: compañeros sin el dueño, en el orden de members", () => {
-    const rows = titleRows(
+  it("singular: «1 primero»", () => {
+    const [row] = titleRows(
       owned([
-        award("brokenDuo", "day", [holder(["a", "c"], "duo")]),
-        // Los puuids llegan ordenados por clave; los compañeros salen en el orden de members.
-        award("boomTrio", "week", [holder(["a", "b", "d"], "trio")]),
+        award("brokenDuo", "day", [
+          holder(["a", "b"], "x", { firsts: 1, games: 4, avgPlacement: 3 }),
+        ]),
       ]),
       "a",
       MEMBERS,
     );
-    const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
-    expect(byId.brokenDuo.day[0].partners).toEqual(["zapas14"]);
-    expect(byId.boomTrio.week[0].partners).toEqual(["Azpekaa", "Krill1nt"]);
+    expect(row.lines[0].periods[0].text).toBe("1 primero en 4 · 3,00");
+  });
+
+  it("empate con dos dúos del dueño: dos líneas, una por compañero", () => {
+    const [row] = titleRows(
+      owned([
+        award("boomDuo", "day", [
+          holder(["a", "b"], "con b", { value: 3.33, games: 6 }),
+          holder(["a", "c"], "con c", { value: 3.33, games: 6 }),
+        ]),
+        award("boomDuo", "week", [
+          holder(["a", "b"], "sem b", { value: 4.07, games: 15 }),
+        ]),
+      ]),
+      "a",
+      MEMBERS,
+    );
+    expect(row.metric).toBe("peor puesto medio juntos");
+    expect(
+      row.lines.map((l) => [
+        l.mates.map((m) => m.name),
+        l.periods.map((p) => [p.kind, p.text]),
+      ]),
+    ).toEqual([
+      [
+        ["Azpekaa"],
+        [
+          ["day", "media 3,33 en 6"],
+          ["week", "media 4,07 en 15"],
+        ],
+      ],
+      [["zapas14"], [["day", "media 3,33 en 6"]]],
+    ]);
+  });
+
+  it("trío: dos chips sin el dueño, en el orden de members", () => {
+    const [row] = titleRows(
+      owned([
+        // Los puuids llegan ordenados por clave; los compañeros salen en el orden de members.
+        award("boomTrio", "week", [
+          holder(["a", "b", "d"], "trio", { value: 4.54, games: 13 }),
+        ]),
+      ]),
+      "a",
+      MEMBERS,
+    );
+    expect(row.lines).toHaveLength(1);
+    expect(row.lines[0].mates.map((m) => m.name)).toEqual([
+      "Azpekaa",
+      "Krill1nt",
+    ]);
+    expect(row.lines[0].periods).toEqual([
+      { kind: "week", text: "media 4,54 en 13", why: "trio" },
+    ]);
   });
 
   it("dueño que no es el primero de la lista: se excluye igual", () => {
@@ -161,26 +284,7 @@ describe("titleRows", () => {
       "b",
       MEMBERS,
     );
-    expect(row.day[0].partners).toEqual(["Hylimichi"]);
-  });
-
-  it("empate con dos dúos del dueño: una fila, una línea por poseedor", () => {
-    const rows = titleRows(
-      owned([
-        award("boomDuo", "day", [
-          holder(["a", "b"], "con b"),
-          holder(["a", "c"], "con c"),
-        ]),
-      ]),
-      "a",
-      MEMBERS,
-    );
-    expect(rows).toHaveLength(1);
-    expect(rows[0].day).toEqual([
-      { why: "con b", partners: ["Azpekaa"] },
-      { why: "con c", partners: ["zapas14"] },
-    ]);
-    expect(rows[0].week).toEqual([]);
+    expect(row.lines[0].mates.map((m) => m.name)).toEqual(["Hylimichi"]);
   });
 
   it("sigue el orden de TITLE_DEFINITIONS, no el de entrada", () => {
@@ -225,72 +329,85 @@ describe("titleRows", () => {
     });
   });
 
-  it("Hylimichi 2026-10-03: 4 títulos × día y semana -> 4 filas (2 honor, 2 vergüenza)", () => {
-    const trio = ["a", "b", "c"];
-    const duo = ["a", "b"];
+  it("Hylimichi (maqueta v4): cuatro títulos agrupados por compañero", () => {
+    const members = [
+      member("a", "Hylimichi"),
+      member("b", "Azpekaa"),
+      member("c", "zapas14"),
+      member("e", "TheCIutch"),
+      member("f", "BEJITO MAMBO"),
+    ];
     const titles = [
-      award("brokenTrio", "day", [
-        holder(
-          trio,
-          "Más 1º juntos del día: 0 en 4 partidas (puesto medio 3,00)",
-        ),
-      ]),
       award("brokenTrio", "week", [
-        holder(
-          trio,
-          "Más 1º juntos de la semana: 2 en 17 partidas (puesto medio 3,59)",
-        ),
-      ]),
-      award("boomTrio", "day", [
-        holder(trio, "Peor puesto medio juntos del día: 4,25 en 4 partidas"),
+        holder(["a", "c", "e"], "w", {
+          firsts: 2,
+          games: 17,
+          avgPlacement: 3.59,
+        }),
       ]),
       award("boomTrio", "week", [
-        holder(
-          trio,
-          "Peor puesto medio juntos de la semana: 4,54 en 13 partidas",
-        ),
+        holder(["a", "b", "f"], "w", { value: 4.7, games: 10 }),
       ]),
       award("brokenDuo", "day", [
-        holder(
-          duo,
-          "Más 1º juntos del día: 2 en 6 partidas (puesto medio 2,33)",
-        ),
+        holder(["a", "e"], "d", { firsts: 2, games: 6, avgPlacement: 2.33 }),
       ]),
       award("brokenDuo", "week", [
-        holder(
-          duo,
-          "Más 1º juntos de la semana: 5 en 27 partidas (puesto medio 3,41)",
-        ),
+        holder(["a", "e"], "w", { firsts: 5, games: 27, avgPlacement: 3.41 }),
       ]),
       award("boomDuo", "day", [
-        holder(duo, "Peor puesto medio juntos del día: 4,25 en 4 partidas"),
+        holder(["a", "c"], "d", { value: 3.33, games: 6 }),
+        holder(["a", "f"], "d", { value: 3.33, games: 6 }),
       ]),
       award("boomDuo", "week", [
-        holder(
-          duo,
-          "Peor puesto medio juntos de la semana: 4,06 en 18 partidas",
-        ),
+        holder(["a", "b"], "w", { value: 4.07, games: 15 }),
       ]),
     ];
-    const rows = titleRows(owned(titles), "a", MEMBERS);
-    expect(rows.map((r) => r.name)).toEqual([
-      "Equipo roto",
-      "Equipo mental boom",
-      "Pareja rota",
-      "Pareja mental boom",
+    const rows = titleRows(owned(titles), "a", members).map((r) => ({
+      name: r.name,
+      metric: r.metric,
+      lines: r.lines.map((l) => ({
+        who: l.mates.map((m) => m.name),
+        per: l.periods.map((p) => `${p.kind} ${p.text}`),
+      })),
+    }));
+    expect(rows).toEqual([
+      {
+        name: "Equipo roto",
+        metric: "más 1º juntos",
+        lines: [
+          {
+            who: ["zapas14", "TheCIutch"],
+            per: ["week 2 primeros en 17 · 3,59"],
+          },
+        ],
+      },
+      {
+        name: "Equipo mental boom",
+        metric: "peor puesto medio juntos",
+        lines: [
+          { who: ["Azpekaa", "BEJITO MAMBO"], per: ["week media 4,70 en 10"] },
+        ],
+      },
+      {
+        name: "Pareja rota",
+        metric: "más 1º juntos",
+        lines: [
+          {
+            who: ["TheCIutch"],
+            per: ["day 2 primeros en 6 · 2,33", "week 5 primeros en 27 · 3,41"],
+          },
+        ],
+      },
+      {
+        name: "Pareja mental boom",
+        metric: "peor puesto medio juntos",
+        lines: [
+          { who: ["zapas14"], per: ["day media 3,33 en 6"] },
+          { who: ["BEJITO MAMBO"], per: ["day media 3,33 en 6"] },
+          { who: ["Azpekaa"], per: ["week media 4,07 en 15"] },
+        ],
+      },
     ]);
-    expect(rows.every((r) => r.day.length === 1 && r.week.length === 1)).toBe(
-      true,
-    );
-    expect(rows[0].day[0].partners).toEqual(["Azpekaa", "zapas14"]);
-    expect(rows[2].week[0].partners).toEqual(["Azpekaa"]);
-    expect(titleCounts(rows)).toEqual({ honor: 2, shame: 2 });
-  });
-});
-
-describe("titleCounts", () => {
-  it("sin filas: ceros", () => {
-    expect(titleCounts([])).toEqual({ honor: 0, shame: 0 });
   });
 });
 
@@ -301,7 +418,7 @@ describe("TITLES_LINK", () => {
   });
 });
 
-// --- Escalera y trofeo de Liga ----------------------------------------------------------------
+// --- El grupo hoy y distancias del ELO --------------------------------------------------------------
 
 const standing = (
   key: string,
@@ -328,35 +445,122 @@ const elo = (standings: EloStanding[]): GroupElo => ({
   week: { kind: "week", key: "w", label: "w" } as GroupElo["week"],
 });
 
-describe("ladderRows", () => {
+const todayOf = (extra: Partial<MemberToday> = {}): MemberToday => ({
+  games: 0,
+  firsts: 0,
+  avgPlacement: null,
+  last: [],
+  ...extra,
+});
+
+describe("groupTodayRows", () => {
   const standings = [
     standing("d", 1, 1578, { dayChange: 52 }),
     standing("b", 2, 1517, { dayChange: 64 }),
     standing("c", 2, 1517, { dayChange: -15 }),
     standing("a", 4, 1492, { dayChange: null, provisional: true }),
   ];
+  const game = (matchId: string, championId: number, placement: number) => ({
+    matchId,
+    championId,
+    championName: `Raw${championId}`,
+    placement,
+  });
+  const today: GroupToday = {
+    dayKey: "2026-10-06",
+    games: 12,
+    members: {
+      d: todayOf({
+        games: 2,
+        firsts: 2,
+        avgPlacement: 1,
+        last: [game("m2", 1, 1), game("m1", 99, 1)],
+      }),
+      b: todayOf({ games: 7, firsts: 2, avgPlacement: 2.5714 }),
+      // c y a no han jugado hoy.
+    },
+  };
+  const view = { elo: elo(standings), members: MEMBERS, today };
+  // El campeón 1 está en el catálogo (con retrato y nombre de visualización); el 99, no.
+  const catalog: ChampionCatalog = {
+    version: "16.19.1",
+    champions: [
+      {
+        championId: 1,
+        ddId: "Annie",
+        name: "Annie",
+        portraitUrl: "https://ddragon.test/Annie.png",
+      },
+    ],
+  };
+  const rows = (owner = "a") => groupTodayRows(view, owner, catalog);
 
-  it("todos en su orden, con posiciones compartidas y la fila propia", () => {
-    const rows = ladderRows(elo(standings), MEMBERS, "a");
-    expect(rows.map((r) => [r.name, r.position, r.me])).toEqual([
+  it("todos en el orden de la Clasificación, con posiciones compartidas y la fila propia", () => {
+    expect(rows().map((r) => [r.name, r.position, r.me])).toEqual([
       ["Krill1nt", 1, false],
       ["Azpekaa", 2, false],
       ["zapas14", 2, false],
       ["Hylimichi", 4, true],
     ]);
-    expect(rows[0]).toEqual({
+    expect(rows("c").map((r) => r.me)).toEqual([false, false, true, false]);
+  });
+
+  it("lo de la Clasificación y lo de hoy en cada fila", () => {
+    const [krill, azp] = rows();
+    expect(krill).toEqual({
       position: 1,
       name: "Krill1nt",
       slug: "krill1nt",
       leagueId: "diamante",
       rating: 1578,
-      dayChange: 52,
       provisional: false,
+      dayChange: 52,
       me: false,
+      games: 2,
+      firsts: 2,
+      avgPlacement: "1,00",
+      last: [
+        {
+          matchId: "m2",
+          championName: "Annie",
+          portraitUrl: "https://ddragon.test/Annie.png",
+          placement: 1,
+        },
+        // Campeón fuera del catálogo: el nombre de la partida y sin retrato.
+        {
+          matchId: "m1",
+          championName: "Raw99",
+          portraitUrl: null,
+          placement: 1,
+        },
+      ],
     });
-    expect(rows[3].dayChange).toBeNull();
-    expect(rows[3].provisional).toBe(true);
-    expect(rows[3].leagueId).toBe("plata");
+    expect(azp.avgPlacement).toBe("2,57");
+  });
+
+  it("sin partidas hoy: ceros, puesto medio null y sin campeones; sin cambio de ELO, null", () => {
+    const [, , zapas, me]: GroupTodayRow[] = rows();
+    expect(zapas).toMatchObject({
+      games: 0,
+      firsts: 0,
+      avgPlacement: null,
+      last: [],
+    });
+    expect(me).toMatchObject({
+      games: 0,
+      avgPlacement: null,
+      dayChange: null,
+      provisional: true,
+    });
+  });
+
+  it("un miembro sin entrada en today se trata como sin partidas", () => {
+    const empty = groupTodayRows(
+      { ...view, today: { dayKey: "x", games: 0, members: {} } },
+      "a",
+      catalog,
+    );
+    expect(empty.every((r) => r.games === 0 && r.last.length === 0)).toBe(true);
   });
 });
 
@@ -547,26 +751,6 @@ describe("splashChampion", () => {
 
 // --- Textos de la vitrina ---------------------------------------------------------------------
 
-describe("titleLineText", () => {
-  it("individual: el «por qué» tal cual (ya trae el periodo)", () => {
-    expect(
-      titleLineText({
-        why: "Peor puesto medio del día: 3,20 en 4 partidas",
-        partners: [],
-      }),
-    ).toBe("Peor puesto medio del día: 3,20 en 4 partidas");
-  });
-
-  it("dúo y trío: «con X» y «con X y Y»", () => {
-    expect(titleLineText({ why: "x", partners: ["Azpekaa"] })).toBe(
-      "x · con Azpekaa",
-    );
-    expect(titleLineText({ why: "x", partners: ["Azpekaa", "zapas14"] })).toBe(
-      "x · con Azpekaa y zapas14",
-    );
-  });
-});
-
 describe("titlesMinimumText", () => {
   it("los mínimos individuales y de equipo del dominio", () => {
     const player = TITLE_DEFINITIONS.find((d) => d.id === "troll");
@@ -622,6 +806,11 @@ describe("profileVitrina", () => {
   const view = {
     elo: elo([standing("b", 1, 1517), standing("a", 2, 1492)]),
     members: MEMBERS,
+    today: {
+      dayKey: "2026-10-06",
+      games: 3,
+      members: { b: todayOf({ games: 3, firsts: 1, avgPlacement: 2 }) },
+    } satisfies GroupToday,
   };
 
   it("no miembro (sin vista): solo el splash", () => {
@@ -639,7 +828,7 @@ describe("profileVitrina", () => {
     });
   });
 
-  it("miembro: títulos, escalera y distancias de las funciones de la vitrina", () => {
+  it("miembro: títulos, el grupo hoy y distancias de las funciones de la vitrina", () => {
     const titles = owned([award("troll", "day", [holder(["a"], "Hoy peor")])]);
     const vitrina = profileVitrina({
       verified: [],
@@ -652,7 +841,8 @@ describe("profileVitrina", () => {
       splash: null,
       group: {
         titles: titleRows(titles, "a", MEMBERS),
-        ladder: ladderRows(view.elo, MEMBERS, "a"),
+        today: groupTodayRows(view, "a", CATALOG),
+        todayGames: 3,
         facts: eloFacts(view.elo.standings, MEMBERS, "a"),
       },
     });

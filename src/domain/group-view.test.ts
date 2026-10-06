@@ -272,6 +272,38 @@ describe("loadGroupView", () => {
     expect(week.boomDuo).toEqual([`${ka}+${kd}`, `${kb}+${kd}`]);
   });
 
+  it("hoy: solo el día de juego de now (estricto) y de los miembros", async () => {
+    const { a, b, c, d, e } = await seed();
+    const [ka, kb, kc, kd, ke] = [a, b, c, d, e].map((p) => memberKey(p.id));
+    const view = await loadGroupView(db, now, seasonStart);
+
+    expect(view.today.dayKey).toBe("2026-10-01");
+    // 3 partidas hoy (las del lunes 28 no cuentan); X comparte partida con D pero no cuenta.
+    expect(view.today.games).toBe(3);
+    expect(Object.keys(view.today.members)).toEqual([ka, kb, kc, kd, ke]);
+    expect(view.today.members[ka]).toMatchObject({
+      games: 3,
+      firsts: 2,
+      avgPlacement: 4 / 3,
+    });
+    expect(view.today.members[ka].last.map((g) => g.placement)).toEqual([
+      2, 1, 1,
+    ]);
+    expect(view.today.members[kd]).toMatchObject({ games: 3, firsts: 0 });
+    expect(view.today.members[ke]).toEqual({
+      games: 0,
+      firsts: 0,
+      avgPlacement: null,
+      last: [],
+    });
+
+    // Al día siguiente nadie ha jugado hoy, aunque el bloque Hoy siga mostrando el 1 de octubre.
+    const tomorrow = await loadGroupView(db, now + 24 * 3_600_000, seasonStart);
+    expect(tomorrow.day.period.key).toBe("2026-10-01");
+    expect(tomorrow.today.games).toBe(0);
+    expect(tomorrow.today.members[ka].games).toBe(0);
+  });
+
   it("un no miembro (elruffles) no aparece en ninguna cifra", async () => {
     const { a, b, c, d, e, x } = await seed();
     const view = await loadGroupView(db, now, seasonStart);

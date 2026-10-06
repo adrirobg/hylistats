@@ -82,3 +82,26 @@ Que la cabecera del perfil enseñe con su peso real lo que más se mira: el **EL
 2. **T03** monta la vitrina con ambos: banner, bloque Títulos + Escalera, barra fija, tokens y cableado en `Cabin`, `page.tsx` y `loading.tsx`. El ELO y la escalera salen de `loadProfileGroupData` (la vista del grupo ya está memoizada: no se calcula de nuevo).
 3. **T04**: verificación en navegador (orquestador) y `verify-report.md`.
 Workers por subagente; commits del orquestador al cerrar cada task.
+
+## Revisión v4 (2026-10-06) <!-- SHOULD -->
+
+**Origen**: revisión del supervisor sobre el servidor local (captura anotada): la cabecera ocupa demasiado (a 1440×860 las pestañas empezaban en 858 px y no se veía ningún campeón; en 375 px, en 1732). Maqueta `.dev/research/cabecera/propuestas-v4.html`; el supervisor eligió la **B · con el grupo hoy** y respondió a sus preguntas ("Vamos con la B, ordenada por rating", 2026-10-06). Sustituye a lo que contradiga del Alcance de arriba.
+
+**Decisiones**:
+- **D1 — Identidad en una línea**: nombre, `#tag`, ★, chip de identidad y chip Deidad en la misma línea (antes, los chips debajo).
+- **D2 — Liga en la identidad**: el trofeo Liga desaparece; su información pasa a una segunda línea bajo el nombre: escudo, liga, rating ("provisional" si toca), chips de hoy y semana, "Nº de N" y la distancia al de arriba (o "líder por N"). Fuera del grupo no hay línea.
+- **D3 — El grupo hoy** (solo miembros) sustituye a la Liga en la fila de trofeos y a la Escalera: una tabla con todos los miembros **en el orden de la Clasificación** (rating), con posición, escudo, nombre (enlace a su perfil), rating, cambio de hoy, partidas de hoy, 1º de hoy, puesto medio de hoy y los **últimos 5 campeones de hoy** (retrato con su puesto, el 1º en oro; más reciente primero). La fila propia destacada. **"Hoy" es estricto**: el día de juego actual, sin caer al último día con partidas; quien no ha jugado hoy sale atenuado con «—», y si no ha jugado nadie, la tabla entera en «—». Cabecera: "El grupo hoy" y el total de partidas del día.
+- **D4 — Fila de trofeos**: `El grupo hoy | Dios de Arena` (≈ 1,75 : 1); por debajo de 1000 px de contenedor se apilan (la tabla necesita el ancho); en móvil la tabla oculta rating y últimas. Dios de Arena compacto: "Cuadra con el contador oficial" pasa al ✓ de "oficial N" (el aviso de descuadre y sus acciones siguen como hoy).
+- **D5 — Títulos a todo el ancho** bajo el banner, en dos columnas (una por debajo de 1000 px). **Manda el compañero**: cada título agrupa sus líneas por compañero (o equipo); cada línea empieza por los compañeros como chips (icono de invocador + nombre en negrita, **enlace a su perfil**) y sigue con las marcas de periodo y un texto corto por periodo ("HOY 2 primeros en 6 · 2,33", "SEM media 4,70 en 10"). La métrica va una vez junto al nombre del título ("más 1º juntos", "peor puesto medio juntos"). Los individuales no llevan chips. Fuera el recuento "2 de honor · 2 de vergüenza"; se queda el enlace "Cómo funcionan los títulos". En móvil, solo nombre, compañeros y marcas (sin el texto del periodo).
+- **D6 — Avisos flotantes**: los avisos de la banda (key caducada en pausa y límite de peticiones) salen como aviso flotante que **se puede cerrar** (abajo a la derecha; a lo ancho en móvil), no como banda en el flujo. La banda de progreso del backfill se queda como está.
+
+**Criterios de aceptación de la revisión**:
+- [ ] **AC14 — Altura**: a 1440×860 las pestañas empiezan a ≤ 700 px en el perfil de Hylimichi (BD local); en 375 px, a ≤ 1000 px.
+- [ ] **AC15 — El grupo hoy**: filas en el orden de la Clasificación con los valores de la pestaña Grupo (rating, cambio de hoy) y, de hoy, partidas, 1º, puesto medio y hasta 5 campeones con su puesto; nombres enlazados; «—» y atenuado sin partidas hoy; sin desborde horizontal a ningún ancho (380–1440).
+- [ ] **AC16 — Liga en la identidad**: misma información que AC3 menos la distancia a la siguiente liga; nada en no miembros.
+- [ ] **AC17 — Títulos por compañero**: líneas agrupadas por compañero con chips enlazados; un compañero con el mismo título hoy y en la semana sale una vez con las dos marcas; sin recuento.
+- [ ] **AC18 — Aviso flotante**: con la key caducada el aviso sale flotante, se cierra con su botón y no empuja el contenido.
+- [ ] **AC19 — Calidad**: tests de lo nuevo puro (hoy estricto con y sin partidas, últimos 5 en orden, agrupado de títulos por compañero con día y semana, textos cortos por métrica). `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [ ] **AC20 — Verificación visual** a 1440, ~700 y 375 px: Hylimichi, otro miembro, no miembro (elruffles). Capturas en `verify-report.md`.
+
+**Estrategia**: **T05** (datos y vista-modelo, puro con tests) → **T06** (UI y cableado) → **T07** (verificación, orquestador).
