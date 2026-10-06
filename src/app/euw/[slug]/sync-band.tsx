@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { FloatingNotice } from "@/components/hy/toast";
 import { syncProgressFromJson } from "@/lib/status-payload";
 import { cn } from "@/lib/utils";
 import { usePageStatus } from "./status-provider";
@@ -13,9 +14,11 @@ import {
 
 // Banda de progreso de la sincronización bajo la vitrina (brief §4.10, `.sync-band` de la
 // maqueta). Solo la pinta el backfill (el incremental va dentro del botón Actualizar y en los
-// avisos de la vitrina, `vitrina.tsx`), la pausa por key caducada y el límite de peticiones, ambas en azul
-// acero: no son un error del usuario (§4.3). La cola compartida usa el tono neutro del progreso:
-// esperar turno no avisa de nada. Es cliente porque se pinta desde el estado que consulta
+// avisos de la vitrina, `vitrina.tsx`), la pausa por key caducada y el límite de peticiones. El
+// progreso y la cola van en el flujo, con el tono neutro (esperar turno no avisa de nada); la pausa
+// y el límite de peticiones (en azul acero: no son un error del usuario, §4.3) salen desde la
+// revisión v4 como aviso flotante que se puede cerrar (`FloatingNotice`, D6): cerrado, no vuelve
+// hasta que cambia el tipo de aviso. Es cliente porque se pinta desde el estado que consulta
 // `StatusProvider`, sin repintar la página.
 
 /** Barra `.track`; sin `value` es indeterminada (pulsa). */
@@ -56,7 +59,14 @@ function Track({
   );
 }
 
-/** La banda según el estado de la página; nada si no toca (`syncBandModel`). */
+/** Los modelos que salen como aviso flotante y no en el flujo. */
+type FloatingModel = Extract<SyncBandModel, { kind: "paused" | "rate_limit" }>;
+
+function isFloating(model: SyncBandModel): model is FloatingModel {
+  return model.kind === "paused" || model.kind === "rate_limit";
+}
+
+/** La banda (o el aviso flotante) según el estado de la página; nada si no toca (`syncBandModel`). */
 export function SyncBand() {
   const { status } = usePageStatus();
   const syncJson = status.profile?.sync ?? null;
@@ -71,19 +81,35 @@ export function SyncBand() {
       ),
     [syncJson, paused, status.now],
   );
-  return model && <Band model={model} />;
+  const floating = model && isFloating(model) ? model : null;
+
+  // Cerrado vale para ese tipo de aviso: si cambia (o desaparece), el siguiente vuelve a salir.
+  const floatingKind = floating?.kind ?? null;
+  const [dismissed, setDismissed] = useState(false);
+  const [shownKind, setShownKind] = useState(floatingKind);
+  if (floatingKind !== shownKind) {
+    setShownKind(floatingKind);
+    setDismissed(false);
+  }
+
+  return (
+    <>
+      {model && !floating && <Band model={model} />}
+      <FloatingNotice onClose={() => setDismissed(true)}>
+        {floating && !dismissed && (
+          <div className="grid gap-1.5 [&_b]:font-medium [&_small]:text-xs">
+            <Body model={floating} />
+          </div>
+        )}
+      </FloatingNotice>
+    </>
+  );
 }
 
 function Band({ model }: { model: SyncBandModel }) {
-  const warning = model.kind === "paused" || model.kind === "rate_limit";
   return (
     <div className="px-5 pt-3 @max-[640px]:px-3.5">
-      <output
-        className={cn(
-          "grid gap-2 rounded-md border p-3 text-sm",
-          warning ? "border-trust/35 bg-trust-bg" : "border-line bg-background",
-        )}
-      >
+      <output className="grid gap-2 rounded-md border border-line bg-background p-3 text-sm">
         <Body model={model} />
       </output>
     </div>

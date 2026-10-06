@@ -13,11 +13,15 @@ import {
 } from "./arena-god-notice";
 import { godMilestones, godRemaining, godRing } from "./god-ring";
 
-// Trofeo Dios de Arena de la vitrina (propuesta C2 de `.dev/research/cabecera`, tarjeta `.tw.g`):
-// las tres capas de la barra en un anillo (verificados en oro, manuales en azul rayado y la marca
-// del oficial), la cifra, «faltan N», los hitos y el aviso con sus acciones de la antigua barra.
-// Sin envoltorio de tarjeta: fondo, borde y radio los pone la vitrina. La geometría es
+// Trofeo Dios de Arena de la vitrina (tarjeta `.tw.g`, compacta desde la revisión v4): las tres
+// capas de la barra en un anillo (verificados en oro, manuales en azul rayado y la marca del
+// oficial), la cifra, «faltan N», el ✓ de «oficial N» cuando cuadra (sustituye al «Cuadra con el
+// contador oficial» del aviso), los hitos y, si no cuadra, el aviso con sus acciones de la antigua
+// barra. Sin envoltorio de tarjeta: fondo, borde y radio los pone la vitrina. La geometría es
 // `god-ring.ts`; las transiciones del arco las apaga el `prefers-reduced-motion` global.
+//
+// Rangos (container query de la propia tarjeta, `/god`): por debajo de 420 px anillo de 44 px,
+// cifra de 30 y sin hitos.
 
 export interface GodTrophyProps extends ArenaGodProps {
   className?: string;
@@ -35,7 +39,7 @@ export function GodTrophy({
   const { state, mine } = useArenaGod(input);
 
   return (
-    <div className={cn("@container/god grid content-start gap-3", className)}>
+    <div className={cn("@container/god grid content-start gap-2.5", className)}>
       <div className="flex items-baseline justify-between gap-2">
         <div className="flex items-center gap-2">
           <h2 className="font-display text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
@@ -51,17 +55,17 @@ export function GodTrophy({
         <span className="text-xs text-faint">temporada</span>
       </div>
 
-      <div className="flex items-center gap-[18px] @max-[420px]/god:gap-3.5">
+      <div className="flex items-center gap-3.5 @max-[420px]/god:gap-3">
         <Ring state={state} />
         <div className="min-w-0">
-          <p className="num font-display text-[66px] leading-none font-extrabold text-place-1 @max-[420px]/god:text-[48px]">
+          <p className="num font-display text-[50px] leading-none font-extrabold text-place-1 @max-[420px]/god:text-[30px]">
             {state.total}
-            <small className="text-[26px] font-bold text-muted-foreground">
+            <small className="text-[22px] font-bold text-muted-foreground @max-[420px]/god:text-base">
               {" "}
               / {state.goal}
             </small>
           </p>
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px] text-muted-foreground">
+          <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
             <span>
               faltan{" "}
               <b className="num font-medium text-foreground">
@@ -70,7 +74,7 @@ export function GodTrophy({
             </span>
             {state.status === "match" && (
               <span className="inline-flex items-center gap-1">
-                <Check aria-hidden="true" size={14} className="text-ok" />
+                <Check aria-hidden="true" size={13} className="text-ok" />
                 oficial {state.official}
               </span>
             )}
@@ -78,7 +82,7 @@ export function GodTrophy({
         </div>
       </div>
 
-      <ul className="flex flex-wrap gap-x-3.5 gap-y-1 text-[13px] text-muted-foreground">
+      <ul className="flex flex-wrap gap-x-2.5 gap-y-1 text-xs text-muted-foreground @max-[420px]/god:hidden">
         {godMilestones(state).map((milestone) => (
           <li
             key={milestone.label}
@@ -88,20 +92,23 @@ export function GodTrophy({
               milestone.later && "text-faint",
             )}
           >
-            {milestone.done && <Crown aria-hidden="true" size={14} />}
+            {milestone.done && <Crown aria-hidden="true" size={13} />}
             {milestone.label}
             {milestone.done && <span className="sr-only"> (conseguida)</span>}
           </li>
         ))}
       </ul>
 
-      <ArenaGodNotice
-        state={state}
-        mine={mine}
-        checkedAt={checkedAt}
-        nowMs={nowMs}
-        onWhy={() => setExplaining(true)}
-      />
+      {/* Cuando cuadra, el ✓ de «oficial N» ya lo dice: el aviso solo sale con descuadre. */}
+      {state.status !== "match" && (
+        <ArenaGodNotice
+          state={state}
+          mine={mine}
+          checkedAt={checkedAt}
+          nowMs={nowMs}
+          onWhy={() => setExplaining(true)}
+        />
+      )}
       <ArenaGodExplanation id={explanationId} open={explaining} />
     </div>
   );
@@ -134,7 +141,7 @@ function Ring({ state }: { state: ArenaGodState }) {
       viewBox="0 0 120 120"
       role="img"
       aria-label={arenaGodLabel(state)}
-      className="size-[118px] flex-none @max-[420px]/god:size-[88px]"
+      className="size-[78px] flex-none @max-[420px]/god:size-[44px]"
     >
       <defs>
         <pattern

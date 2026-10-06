@@ -43,27 +43,31 @@ import {
 } from "./view-model";
 import { barCompact, barRootMargin } from "./vitrina-bar";
 
-// Vitrina: la cabecera del perfil (iter-11, propuesta C2 de `.dev/research/cabecera`). Sustituye
-// al header y a la barra Arena God: banner con el splash del último 1º (tratamiento oscuro),
-// identidad grande (avatar con el sello de la Deidad, nombre, ★, «mi perfil», chip Deidad, aviso
-// de Arena fuera de rotación) y los trofeos, que llegan hechos por `children` (servidor y cliente).
+// Vitrina: la cabecera del perfil (iter-11, propuesta C2 de `.dev/research/cabecera`, compactada
+// en la revisión v4 con la propuesta B de `propuestas-v4.html`). Sustituye al header y a la barra
+// Arena God: banner con el splash del último 1º (tratamiento oscuro), identidad (avatar con el sello
+// de la Deidad; en una línea, nombre, `#tag`, ★, «mi perfil» y chip Deidad; debajo, en miembros, la
+// línea de liga, que llega hecha por `leagueLine`; y el aviso de Arena fuera de rotación) y los
+// trofeos (El grupo hoy y Dios de Arena), que llegan hechos por `children` (servidor y cliente).
 //
 // Una sola cabecera pegajosa (I6), así hay un solo botón Actualizar (`REFRESH_BUTTON_ID`, al que
 // llaman Sincronizar y Reintentar del trofeo): un `sticky` de alto 0 al principio de la cabina,
-// con la barra en absoluto encima del banner. Con la identidad grande a la vista la barra es
-// transparente y solo lleva frescura, Actualizar y ⋯ (arriba a la derecha); cuando la identidad
-// empieza a pasar bajo ella (`IntersectionObserver`, decisión en `vitrina-bar.ts`) gana fondo,
-// borde y la identidad compacta (avatar, nombre, liga · rating). Debajo del banner, los avisos de
-// límite de peticiones y de error de la actualización y el toast, como en el header de antes. Es cliente
-// porque lee el navegador («mi perfil», favoritos), el reloj de la frescura corre en cliente y la
-// sincronización sale del estado de `StatusProvider`; el resto llega por props del servidor.
+// con la barra en absoluto encima del banner, a la altura de la identidad. Con la identidad a la
+// vista la barra es transparente y solo lleva frescura, Actualizar y ⋯ (arriba a la derecha);
+// cuando la identidad empieza a pasar bajo ella (`IntersectionObserver`, decisión en
+// `vitrina-bar.ts`) gana fondo, borde y la identidad compacta (avatar, nombre, liga · rating).
+// Debajo del banner, los avisos de límite de peticiones (del incremental) y de error de la
+// actualización y el toast, como en el header de antes; los de la banda (pausa por key caducada y
+// límite del backfill) son flotantes (`SyncBand`). Es cliente porque lee el navegador («mi
+// perfil», favoritos), el reloj de la frescura corre en cliente y la sincronización sale del estado
+// de `StatusProvider`; el resto llega por props del servidor.
 //
 // Rangos (container queries sobre `.app`):
 //   ≥ 900 px   identidad a la izquierda con hueco a la derecha para la barra (frescura y botones).
-//   < 900 px   el banner deja arriba una franja de 68 px para la barra: la identidad usa el ancho.
+//   < 900 px   el banner deja arriba una franja de 64 px para la barra: la identidad usa el ancho.
 //   < 640 px   franja de 54 px (frescura a la izquierda, botones a la derecha; compacta, la
-//              identidad sustituye a la frescura), avatar de 60 px, nombre de 30 px y velo de
-//              arriba abajo. Los trofeos se apilan por debajo de 700 px (`TrophyGrid`).
+//              identidad sustituye a la frescura), avatar de 52 px, nombre de 28 px y velo de
+//              arriba abajo. Los trofeos se apilan por debajo de 1000 px (`TrophyGrid`).
 
 /** Liga del ELO del miembro: color del fondo y «liga · rating» de la barra compacta. */
 export interface VitrinaLeague {
@@ -95,6 +99,8 @@ export interface VitrinaProps {
   splashUrl: string | null;
   games: number;
   champions: RefreshSnapshot["champions"];
+  /** Línea de liga bajo el nombre (`LeagueLine`, solo miembros). */
+  leagueLine?: ReactNode;
   /** Los trofeos (`TrophyGrid`), bajo la identidad. */
   children: ReactNode;
 }
@@ -122,6 +128,7 @@ export function Vitrina({
   splashUrl,
   games,
   champions,
+  leagueLine,
   children,
 }: VitrinaProps) {
   const now = useNow(nowMs);
@@ -314,7 +321,7 @@ export function Vitrina({
       </div>
 
       <div
-        className="relative isolate overflow-hidden px-6 pt-6 @max-[900px]:pt-[68px] @max-[640px]:px-3.5 @max-[640px]:pt-[54px]"
+        className="relative isolate overflow-hidden px-5 pt-[18px] pb-4 @max-[900px]:pt-16 @max-[640px]:px-3 @max-[640px]:pt-[54px] @max-[640px]:pb-3"
         style={
           {
             "--lg": league ? leagueColor(league.id) : "var(--place-1)",
@@ -363,7 +370,7 @@ export function Vitrina({
 
         <div
           ref={identityRef}
-          className="flex min-w-0 items-center gap-5 @min-[900px]:pr-[380px] @max-[640px]:gap-3.5"
+          className="flex min-w-0 items-center gap-4 @min-[900px]:pr-[380px] @max-[640px]:gap-3"
         >
           <Avatar
             gameName={gameName}
@@ -371,11 +378,11 @@ export function Vitrina({
             size="hero"
             deity={arenaDeity}
           />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h1 className="min-w-0 font-display text-[48px] leading-none font-extrabold tracking-[0.02em] uppercase [overflow-wrap:anywhere] @max-[640px]:text-[30px]">
+          <div className="grid min-w-0 gap-1.5">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+              <h1 className="min-w-0 font-display text-[44px] leading-none font-extrabold tracking-[0.02em] uppercase [overflow-wrap:anywhere] @max-[640px]:text-[28px]">
                 {gameName}
-                <span className="ml-1 font-body text-xl font-medium tracking-normal whitespace-nowrap text-faint normal-case @max-[640px]:text-sm">
+                <span className="ml-0.5 font-body text-lg font-medium tracking-normal whitespace-nowrap text-faint normal-case @max-[640px]:text-[13px]">
                   #{tagLine}
                 </span>
               </h1>
@@ -385,7 +392,7 @@ export function Vitrina({
                 aria-pressed={favorite}
                 aria-label={`Favorito: ${label}`}
                 className={cn(
-                  "grid size-8 flex-none cursor-pointer place-items-center rounded-md hover:bg-surface-2",
+                  "grid size-7 flex-none cursor-pointer place-items-center rounded-md hover:bg-surface-2",
                   favorite
                     ? "text-place-1"
                     : "text-faint hover:text-foreground",
@@ -397,8 +404,6 @@ export function Vitrina({
                   fill={favorite ? "currentColor" : "none"}
                 />
               </button>
-            </div>
-            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               {ready && (
                 <IdentityChip
                   mine={mine}
@@ -415,9 +420,10 @@ export function Vitrina({
                 />
               )}
             </div>
+            {leagueLine}
             {/* `<output>` es una región viva (`role="status"`). Va siempre presente y vacía si no
                 hay nada: el lector de pantalla solo anuncia el texto cuando aparece o cambia. */}
-            <output className="mt-1.5 block max-w-[420px] text-[13px] text-muted-foreground empty:hidden">
+            <output className="block max-w-[420px] text-[13px] text-muted-foreground empty:hidden">
               {arenaQuietSince !== null &&
                 arenaQuietPhrase(arenaQuietSince, now)}
             </output>
@@ -487,13 +493,13 @@ function Avatar({
       aria-hidden="true"
       className={cn(
         "relative flex-none",
-        hero ? "size-[72px] @max-[640px]:size-[60px]" : "size-8",
+        hero ? "size-16 @max-[640px]:size-[52px]" : "size-8",
       )}
     >
       <div
         className={cn(
           "relative grid size-full place-items-center overflow-hidden rounded-full border border-won-deep bg-[radial-gradient(circle_at_30%_30%,#6b5a3a,#2a2418)] font-display font-extrabold text-place-1",
-          hero ? "text-[26px] @max-[640px]:text-[22px]" : "text-[13px]",
+          hero ? "text-[24px] @max-[640px]:text-[20px]" : "text-[13px]",
           hero &&
             deity &&
             "shadow-[0_0_0_3px_#201b28,0_0_0_5px_var(--place-1)]",
@@ -505,8 +511,8 @@ function Avatar({
           <Image
             src={iconUrl}
             alt=""
-            width={hero ? 144 : 64}
-            height={hero ? 144 : 64}
+            width={hero ? 128 : 64}
+            height={hero ? 128 : 64}
             draggable={false}
             onError={(event) => {
               event.currentTarget.hidden = true;
@@ -516,8 +522,8 @@ function Avatar({
         )}
       </div>
       {hero && deity && (
-        <span className="absolute -right-1 -bottom-1 grid size-[34px] place-items-center rounded-full border-[3px] border-[#201b28] bg-place-1 text-background @max-[640px]:size-[26px]">
-          <Crown className="size-[18px] @max-[640px]:size-[13px]" />
+        <span className="absolute -right-[5px] -bottom-[5px] grid size-[26px] place-items-center rounded-full border-[3px] border-[#201b28] bg-place-1 text-background @max-[640px]:size-[22px]">
+          <Crown className="size-[13px] @max-[640px]:size-[11px]" />
         </span>
       )}
     </div>

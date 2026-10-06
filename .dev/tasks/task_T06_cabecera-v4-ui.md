@@ -1,7 +1,7 @@
 # Task T06 — Cabecera v4: identidad con liga, El grupo hoy, títulos por compañero y aviso flotante
 
 **Owner**: worker:opus
-**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: instancia derivada de `spec.md` (sección "Revisión v4"). Depende de T05 (tipos `GroupTodayRow`, `TitleRow` por compañero, `VitrinaGroup.today`).
 

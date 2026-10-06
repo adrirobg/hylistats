@@ -20,8 +20,8 @@ import { CHAMPION_PARAM } from "./champion-panel-view";
 import { loadProfilePage, type ProfileView } from "./data";
 import { FormStrip } from "./form-strip";
 import { GodTrophy } from "./god-trophy";
-import { GroupLadder } from "./group-ladder";
-import { LeagueTrophy } from "./league-trophy";
+import { GroupToday } from "./group-today";
+import { LeagueLine } from "./league-line";
 import { pickEloMatches, visibleMatchIds } from "./matches-elo";
 import { MatchesPanel } from "./matches-panel";
 import { parseMatchParams } from "./matches-view";
@@ -43,7 +43,6 @@ import { TopBar } from "./top-bar";
 import { parseProfileTab, queryParams, visibleTabs } from "./view-model";
 import { Vitrina } from "./vitrina";
 import { TrophyCard, TrophyGrid } from "./vitrina-ui";
-import type { VitrinaGroup } from "./vitrina-view";
 
 // Depende de la BD y cambia con el worker: nunca se prerenderiza.
 export const dynamic = "force-dynamic";
@@ -196,11 +195,14 @@ function ProfileCabin({
             championId: c.championId,
             championName: c.championName,
           }))}
+          leagueLine={
+            elo && group && <LeagueLine elo={elo} facts={group.facts} />
+          }
         >
-          <TrophyGrid>
-            {elo && group && (
+          <TrophyGrid single={!group}>
+            {group && (
               <TrophyCard>
-                <LeagueTrophy elo={elo} facts={group.facts} />
+                <GroupToday rows={group.today} games={group.todayGames} />
               </TrophyCard>
             )}
             <TrophyCard>
@@ -219,27 +221,12 @@ function ProfileCabin({
         </Vitrina>
       }
       band={<SyncBand />}
-      group={group && <VitrinaGroupBlock group={group} />}
+      group={group && <TitleList rows={group.titles} />}
       strip={<Scoreboard summary={data.summary} variant="strip" />}
       tabs={<Tabs active={data.tab} tabs={visibleTabs(data.isMember)} />}
       main={<ActivePanel data={data} slug={slug} periodo={periodo} />}
       rail={<RailBoxes data={data} slug={slug} />}
     />
-  );
-}
-
-/**
- * Títulos y escalera del grupo bajo el banner (propuesta C2, `.c2-body`): dos columnas, la escalera
- * de 300 px a la derecha; por debajo de 980 px de contenedor, una sola, con la escalera debajo.
- */
-function VitrinaGroupBlock({ group }: { group: VitrinaGroup }) {
-  return (
-    <div className="grid grid-cols-[minmax(0,1fr)_300px] @max-[980px]:grid-cols-1">
-      <TitleList rows={group.titles} />
-      <div className="border-l border-line @max-[980px]:border-t @max-[980px]:border-l-0">
-        <GroupLadder rows={group.today} facts={group.facts} />
-      </div>
-    </div>
   );
 }
 

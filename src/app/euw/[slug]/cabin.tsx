@@ -11,15 +11,16 @@ import type { ReactNode } from "react";
 //   ≥ 1100 px   main + raíl de 340 px, con borde entre ambos.
 //   ≥ 1500 px   raíl de 380 px. (El contenedor raíz mide como mucho 1448 px útiles, así que hoy
 //               este último rango solo se alcanzaría si se ensancha el layout raíz.)
-// La cabecera es la vitrina (`vitrina.tsx`, iter-11): barra fija, banner y trofeos en `header`, y
-// Títulos + Escalera del grupo en `group` (solo miembros). Sus rangos van en cada pieza.
+// La cabecera es la vitrina (`vitrina.tsx`, iter-11; revisión v4): barra fija, banner con la línea
+// de liga y los trofeos (El grupo hoy y Dios de Arena) en `header`, y los Títulos a todo el ancho en
+// `group` (solo miembros). Sus rangos van en cada pieza.
 
 interface CabinProps {
   /** La vitrina (`<Vitrina>`): barra fija, banner con identidad y trofeos, y sus avisos. */
   header: ReactNode;
-  /** Banda de sincronización (§4.10), bajo el banner. */
+  /** Banda de sincronización (§4.10), bajo el banner; sus avisos de pausa y límite son flotantes. */
   band?: ReactNode;
-  /** Títulos y escalera del grupo bajo el banner (solo miembros; sin él no ocupa nada). */
+  /** Títulos bajo el banner, a todo el ancho (solo miembros; sin él no ocupa nada). */
   group?: ReactNode;
   /**
    * Franja compacta de cifras (T10), bajo la vitrina. Solo se ve por debajo de 1100 px: a partir
