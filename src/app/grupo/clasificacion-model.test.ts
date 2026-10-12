@@ -7,9 +7,12 @@ import {
   changeHeader,
   clasificacionNote,
   clasificacionRows,
+  leagueMarginText,
   leaguesText,
   placementPointsText,
   strangerMultipliersText,
+  streakBadge,
+  streakMultipliersText,
 } from "./clasificacion-model";
 import { type MemberRef, memberMap } from "./group-view-model";
 
@@ -56,7 +59,8 @@ describe("changeCell", () => {
 
 describe("clasificacionRows", () => {
   it("respeta el orden y las posiciones compartidas del dominio, y marca el provisional", () => {
-    // Ana y Beto empatan a 1525 (un 1º cada uno, con desconocidos iguales); Cris no tiene partidas.
+    // Ana y Beto empatan a 1515 (un 1º cada uno, con desconocidos iguales); Cris no tiene partidas.
+    // Con el margen de F28, 1515 no llega a 1520: siguen en Plata.
     const rows = [...game(1, ["1"]), ...game(1, ["2"])];
     const elo = computeGroupElo(rows, ["1", "2", "3"], NOW);
     const model = clasificacionRows(
@@ -70,7 +74,7 @@ describe("clasificacionRows", () => {
     ]);
     expect(model.map((r) => r.position)).toEqual([1, 1, 3]);
     expect(model[0]).toMatchObject({
-      leagueName: "Oro",
+      leagueName: "Plata",
       rating: String(elo.standings[0].roundedRating),
       games: "1",
       provisional: true,
@@ -101,6 +105,38 @@ describe("clasificacionRows", () => {
   it("deja el miembro en null si la clave no está en el mapa", () => {
     const elo = computeGroupElo(game(1, ["9"]), ["9"], NOW);
     expect(clasificacionRows(elo.standings, MEMBERS)[0].member).toBeNull();
+  });
+});
+
+describe("streakBadge", () => {
+  it("nada con 0 o 1 seguidos", () => {
+    expect(streakBadge(0)).toBeNull();
+    expect(streakBadge(1)).toBeNull();
+  });
+
+  it("con 2 o más, 🔥 con el número y el texto en el title", () => {
+    expect(streakBadge(2)).toEqual({
+      text: "🔥2",
+      title: "2 primeros seguidos",
+    });
+    expect(streakBadge(4)).toEqual({
+      text: "🔥4",
+      title: "4 primeros seguidos",
+    });
+  });
+
+  it("las filas de la Clasificación llevan la racha en curso del dominio", () => {
+    // Ana: dos 1º seguidos; Beto: 1º y luego un 4º, que la corta.
+    const rows = [...game(1, ["1", "2"]), ...game(1, ["1"]), ...game(4, ["2"])];
+    const elo = computeGroupElo(rows, ["1", "2"], NOW);
+    const model = clasificacionRows(elo.standings, MEMBERS);
+    const byName = Object.fromEntries(
+      model.map((r) => [r.member?.gameName, r.streak]),
+    );
+    expect(byName).toEqual({
+      Ana: { text: "🔥2", title: "2 primeros seguidos" },
+      Beto: null,
+    });
   });
 });
 
@@ -136,13 +172,13 @@ describe("changeHeader", () => {
 describe("nota de la regla", () => {
   it("saca los puntos por puesto de config.ts", () => {
     expect(placementPointsText()).toBe(
-      "1º +25 · 2º +12 · 3º +2 · 4º −5 · 5º −15 · 6º −19",
+      "1º +12,5 · 2º +6 · 3º +1 · 4º −2,5 · 5º −7,5 · 6º −9,5",
     );
   });
 
   it("describe los multiplicadores por desconocidos", () => {
     expect(strangerMultipliersText()).toBe(
-      "1 desconocido: ×1,15 al ganar y ×0,75 al perder; 2 desconocidos: ×1,3 al ganar y ×0,5 al perder",
+      "1 desconocido: ×1,1 al ganar y ×0,85 al perder; 2 desconocidos: ×1,2 al ganar y ×0,8 al perder",
     );
   });
 
@@ -152,11 +188,27 @@ describe("nota de la regla", () => {
     );
   });
 
+  it("describe la racha de 1º seguidos (F28)", () => {
+    expect(streakMultipliersText()).toBe(
+      "2 primeros seguidos: ×1,5; 3 o más: ×2",
+    );
+  });
+
+  it("describe el margen de las ligas con el ejemplo de la de salida (F28)", () => {
+    expect(leagueMarginText()).toBe(
+      "se sube al llegar 10 por encima del corte de la liga de arriba y se baja al quedarse 10 por debajo del de la tuya (de Plata se pasa a Oro con 1520 y se vuelve con 1500)",
+    );
+  });
+
   it("junta todo en párrafos, con el mínimo provisional y la temporada", () => {
     const text = clasificacionNote().paragraphs.join(" ");
     expect(text).toContain("1500");
     expect(text).toContain("un poco menos ganas y un poco más pierdes");
     expect(text).toContain("menos de 10 partidas");
     expect(text).toContain("temporada actual");
+    expect(text).toContain(streakMultipliersText());
+    expect(text).toContain("solo en las partidas que suman");
+    expect(text).toContain("aunque cambie el día");
+    expect(text).toContain(leagueMarginText());
   });
 });

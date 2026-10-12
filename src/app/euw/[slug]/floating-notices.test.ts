@@ -12,9 +12,12 @@ import {
   GOD_PRIORITY,
   godNoticeSignature,
   godTrace,
+  STREAK_PRIORITY,
   SYNC_PRIORITY,
   type SyncNoticeInput,
   type SyncNoticeModel,
+  streakNoticeSignature,
+  streakNoticeText,
   syncNoticeId,
   syncNotices,
 } from "./floating-notices";
@@ -107,6 +110,12 @@ const GOD: FloatingEntry = {
   priority: GOD_PRIORITY,
   group: "dios",
 };
+const paused = (): SyncNoticeModel => ({ kind: "paused", progress: null });
+const STREAK: FloatingEntry = {
+  id: streakNoticeSignature(2),
+  priority: STREAK_PRIORITY,
+  group: "racha",
+};
 const ARENA: FloatingEntry = {
   id: "arena",
   priority: ARENA_QUIET_PRIORITY,
@@ -145,6 +154,77 @@ describe("prioridad en la pila", () => {
       folded: ["arena"],
       closed: [],
     });
+  });
+});
+
+describe("aviso de racha en la pila", () => {
+  it("sincronización > Dios de Arena > racha > Arena fuera de rotación", () => {
+    const entries = [ARENA, STREAK, GOD, ...syncEntries([paused()])];
+    expect(floatingLayout({ entries, closed: [], mobile: false })).toEqual({
+      visible: ["sync:paused", "dios"],
+      folded: ["racha:2", "arena"],
+      closed: [],
+    });
+  });
+
+  it("sin los de arriba, la racha va antes que Arena fuera de rotación", () => {
+    expect(
+      floatingLayout({ entries: [ARENA, STREAK], closed: [], mobile: true }),
+    ).toEqual({ visible: ["racha:2"], folded: ["arena"], closed: [] });
+  });
+
+  it("cerrado vale para esa longitud: otra racha es otro aviso", () => {
+    const closed = [streakNoticeSignature(2)];
+    const shown = (streak: number) =>
+      floatingLayout({
+        entries: [
+          {
+            id: streakNoticeSignature(streak),
+            priority: STREAK_PRIORITY,
+            group: "racha",
+          },
+        ],
+        closed,
+        mobile: false,
+      });
+    expect(shown(2).visible).toEqual([]);
+    expect(shown(2).closed).toEqual(["racha:2"]);
+    expect(shown(3).visible).toEqual(["racha:3"]);
+    expect(shown(1).visible).toEqual(["racha:1"]);
+  });
+});
+
+describe("streakNoticeText", () => {
+  it("sin racha en curso (0) no hay aviso", () => {
+    expect(streakNoticeText(0, true, "Hylimichi")).toBeNull();
+    expect(streakNoticeText(0, false, "Hylimichi")).toBeNull();
+  });
+
+  it("1 seguido: el próximo vale ×1,5", () => {
+    expect(streakNoticeText(1, true, "Hylimichi")).toBe(
+      "Llevas 1 primero seguido: tu próximo 1º vale ×1,5",
+    );
+    expect(streakNoticeText(1, false, "Krill1nt")).toBe(
+      "Krill1nt lleva 1 primero seguido: su próximo 1º vale ×1,5",
+    );
+  });
+
+  it("2 seguidos y más: el próximo vale ×2 (tope)", () => {
+    expect(streakNoticeText(2, true, "Hylimichi")).toBe(
+      "Llevas 2 primeros seguidos: tu próximo 1º vale ×2",
+    );
+    expect(streakNoticeText(3, false, "Krill1nt")).toBe(
+      "Krill1nt lleva 3 primeros seguidos: su próximo 1º vale ×2",
+    );
+    expect(streakNoticeText(7, true, "Hylimichi")).toContain("×2");
+  });
+
+  it("la firma y la clave van por longitud y por perfil", () => {
+    expect(streakNoticeSignature(2)).toBe("racha:2");
+    expect(streakNoticeSignature(3)).not.toBe(streakNoticeSignature(2));
+    expect(closedNoticeKey("hylimichi#euw", "racha")).toBe(
+      "hylistats:aviso-cerrado:racha:hylimichi#euw",
+    );
   });
 });
 

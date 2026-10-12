@@ -185,6 +185,7 @@ function ProfileCabin({
           nowMs={nowMs}
           lastGameAt={data.lastGameAt}
           arenaQuietSince={data.arenaQuiet?.lastArenaGameAt ?? null}
+          streak={elo?.streak ?? 0}
           arenaDeity={data.arenaGod.reached}
           league={
             elo && {

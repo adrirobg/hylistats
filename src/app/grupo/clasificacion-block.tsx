@@ -101,6 +101,15 @@ export function ClasificacionBlock({
                 <td className={cn(TD, "w-full max-w-0 text-left")}>
                   <span className="flex min-w-0 items-baseline gap-1.5">
                     <MemberName member={row.member} />
+                    {row.streak && (
+                      <span
+                        title={row.streak.title}
+                        className="num shrink-0 text-xs text-muted-foreground"
+                      >
+                        {row.streak.text}
+                        <span className="sr-only"> ({row.streak.title})</span>
+                      </span>
+                    )}
                     {row.provisional && (
                       <span
                         title="Provisional: pocas partidas en la temporada"

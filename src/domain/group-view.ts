@@ -300,6 +300,8 @@ export interface ProfileElo {
   provisional: boolean;
   /** Partidas de la temporada que cuentan para el rating. */
   games: number;
+  /** Racha en curso (F28): 1º seguidos al final de su historial; 0 si la última no fue 1º. */
+  streak: number;
   /** Desglose de cada partida que cuenta, por `matchId`. */
   matches: Record<string, EloMatch>;
   /** Una entrada por partida que cuenta, en orden cronológico (gráfica del rating). */
@@ -323,6 +325,7 @@ export function profileEloOf(elo: GroupElo, key: string): ProfileElo | null {
     league: standing.league,
     provisional: standing.provisional,
     games: standing.games,
+    streak: standing.streak,
     matches: Object.fromEntries(standing.history.map((m) => [m.matchId, m])),
     series: standing.history.map((m) => ({
       gameStartTimestamp: m.gameStartTimestamp,

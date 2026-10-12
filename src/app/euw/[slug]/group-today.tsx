@@ -135,6 +135,15 @@ function TodayRow({ row }: { row: GroupTodayRow }) {
           >
             {row.name}
           </Link>
+          {row.streak && (
+            <span
+              title={row.streak.title}
+              className="num shrink-0 font-mono text-[11px] text-muted-foreground"
+            >
+              {row.streak.text}
+              <span className="sr-only"> ({row.streak.title})</span>
+            </span>
+          )}
         </span>
       </td>
       <td

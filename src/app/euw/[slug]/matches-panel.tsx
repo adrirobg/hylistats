@@ -21,6 +21,7 @@ import {
   type EloRowChange,
   eloBreakdown,
   eloRowChange,
+  eloRowStreak,
   type FilterPatch,
   formatDuration,
   hasFilters,
@@ -332,6 +333,18 @@ function RatingChange({ change }: { change: EloRowChange }) {
   );
 }
 
+/** Racha que sumó a la partida («🔥×1,5»), junto al cambio; no se encoge. */
+function StreakChange({ text }: { text: string }) {
+  return (
+    <span
+      title="Racha de primeros: multiplica el cambio"
+      className="num flex-none font-mono text-xs whitespace-nowrap text-muted-foreground"
+    >
+      {text}
+    </span>
+  );
+}
+
 function MatchItem({
   row,
   open,
@@ -361,6 +374,7 @@ function MatchItem({
   const detailId = useId();
   const when = formatRelative(row.gameCreation, now);
   const change = eloRowChange(elo, row.matchId);
+  const streak = eloRowStreak(elo, row.matchId);
   return (
     <li
       data-scroll-target={open && inList ? "" : undefined}
@@ -416,6 +430,7 @@ function MatchItem({
               </Link>
             </b>
             {change && <RatingChange change={change} />}
+            {streak && <StreakChange text={streak} />}
             {row.newFirst && <NewFirst />}
           </span>
           <span className="block truncate text-[13px] text-muted-foreground">

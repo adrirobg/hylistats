@@ -23,6 +23,7 @@ import type { VerifiedChampion } from "@/domain/stats";
 import { ELO_LEAGUES } from "@/lib/config";
 import { type ChampionCatalog, championSplashUrl } from "@/lib/ddragon";
 import { formatCount, formatShortDate } from "@/lib/format";
+import { type StreakBadge, streakBadge } from "../../grupo/clasificacion-model";
 import { TITLES_ANCHOR, TITLES_LINK_LABEL } from "../../grupo/group-view-model";
 
 /**
@@ -208,6 +209,8 @@ export interface GroupTodayRow {
   provisional: boolean;
   /** Cambio del día mostrado en la Clasificación; `null` si no jugó en él. */
   dayChange: number | null;
+  /** Racha en curso de 2 o más 1º (🔥); `null` si no. */
+  streak: StreakBadge | null;
   /** La fila del dueño del perfil. */
   me: boolean;
   /** De HOY (estricto): partidas, 1º, puesto medio (`"3,17"`, `null` sin partidas) y campeones. */
@@ -243,6 +246,7 @@ export function groupTodayRows(
       rating: s.roundedRating,
       provisional: s.provisional,
       dayChange: s.dayChange,
+      streak: streakBadge(s.streak),
       me: s.key === ownerKey,
       games: today?.games ?? 0,
       firsts: today?.firsts ?? 0,

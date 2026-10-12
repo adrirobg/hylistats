@@ -1,8 +1,8 @@
 // Los avisos del perfil en la pila flotante global (`@/components/hy/floating`; T08 y revisión v5b),
 // sin React: cuáles de sincronización están activos y con qué prioridad, la prioridad de los avisos
-// del contenido (Dios de Arena y Arena fuera de rotación), sus firmas y claves de cierre, y el rastro
+// del contenido (Dios de Arena, racha y Arena fuera de rotación), sus firmas y claves de cierre, y el rastro
 // del aviso de Dios de Arena en la tarjeta. Prioridad (menor, antes): sincronización (0–3) > Dios de
-// Arena > Arena fuera de rotación.
+// Arena > racha > Arena fuera de rotación.
 //
 // Cerrar un aviso vale para su `id`. Los de sincronización llevan su `kind` (`syncNoticeId`) y se
 // cierran en memoria: no vuelven hasta que ese `kind` deja de estar activo (el progreso, hasta que
@@ -11,7 +11,9 @@
 // estado. Los pintan la vitrina (`vitrina.tsx`, con `sync-notice.tsx`) y el trofeo (`god-trophy.tsx`).
 
 import type { ArenaGodState } from "@/domain/arena-god";
+import { eloStreakMultiplier } from "@/domain/elo";
 import type { SyncProgress } from "./data";
+import { formatMultiplier } from "./matches-view";
 import {
   incrementalStatus,
   type SyncBandModel,
@@ -93,12 +95,16 @@ export const syncNoticeId = (kind: SyncNoticeKind) => `sync:${kind}`;
 
 /** Prioridad del aviso de Dios de Arena: tras los de sincronización. */
 export const GOD_PRIORITY = 10;
+/** Prioridad del aviso de racha: tras Dios de Arena y antes de Arena fuera de rotación. */
+export const STREAK_PRIORITY = 15;
 /** Prioridad del aviso de Arena fuera de rotación: el último. */
 export const ARENA_QUIET_PRIORITY = 20;
 
 /** Clave de `localStorage` del cierre de un aviso del contenido de un perfil (`normalizeRiotId`). */
-export const closedNoticeKey = (profile: string, notice: "dios" | "arena") =>
-  `hylistats:aviso-cerrado:${notice}:${profile}`;
+export const closedNoticeKey = (
+  profile: string,
+  notice: "dios" | "racha" | "arena",
+) => `hylistats:aviso-cerrado:${notice}:${profile}`;
 
 /**
  * Firma (y `id` en la pila) del aviso de Dios de Arena: el caso y las cifras que dice. Con
@@ -106,6 +112,30 @@ export const closedNoticeKey = (profile: string, notice: "dios" | "arena") =>
  */
 export const godNoticeSignature = (state: ArenaGodState) =>
   `dios:${state.status}:${state.verified}:${state.manual}:${state.official ?? "-"}`;
+
+/**
+ * Firma (y `id` en la pila) del aviso de racha: la longitud de la racha en curso. Cerrarlo vale para
+ * esa longitud; vuelve a salir cuando la racha crece o cuando empieza una nueva (I5).
+ */
+export const streakNoticeSignature = (streak: number) => `racha:${streak}`;
+
+/**
+ * Texto del aviso de racha (I3): cuántos 1º seguidos lleva el miembro y cuánto vale su próximo
+ * (`eloStreakMultiplier(streak + 1)`). `mine`: segunda persona; si no, con su nombre. `null` sin
+ * racha en curso (`streak < 1`).
+ */
+export function streakNoticeText(
+  streak: number,
+  mine: boolean,
+  gameName: string,
+): string | null {
+  if (streak < 1) return null;
+  const count = `${streak} ${streak === 1 ? "primero seguido" : "primeros seguidos"}`;
+  const next = formatMultiplier(eloStreakMultiplier(streak + 1));
+  return mine
+    ? `Llevas ${count}: tu próximo 1º vale ${next}`
+    : `${gameName} lleva ${count}: su próximo 1º vale ${next}`;
+}
 
 /** Firma del aviso de Arena fuera de rotación: vuelve a salir si llega otra partida de Arena. */
 export const arenaQuietSignature = (lastArenaGameAt: number) =>

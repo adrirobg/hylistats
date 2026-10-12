@@ -1,3 +1,59 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Dominio y reglas del ELO estable (F28)",
+      "status": "done",
+      "owner": "worker:opus",
+      "branch": "feat/29-elo-estabilidad",
+      "worktree": null,
+      "depends_on": [],
+      "artifact_path": ".dev/tasks/task_T01_dominio-elo-estable.md",
+      "created_at": "2026-10-12T13:34:05Z",
+      "updated_at": "2026-10-12T16:24:21Z"
+    },
+    {
+      "id": "T02",
+      "title": "Racha en la UI: historial, aviso y 🔥",
+      "status": "done",
+      "owner": "worker:sonnet",
+      "branch": "feat/29-elo-estabilidad",
+      "worktree": null,
+      "depends_on": [
+        "T01"
+      ],
+      "artifact_path": ".dev/tasks/task_T02_racha-ui.md",
+      "created_at": "2026-10-12T13:34:05Z",
+      "updated_at": "2026-10-12T16:28:14Z"
+    },
+    {
+      "id": "T03",
+      "title": "Recálculo independiente y métrica de estabilidad",
+      "status": "done",
+      "owner": "orchestrator",
+      "branch": "feat/29-elo-estabilidad",
+      "worktree": null,
+      "depends_on": [
+        "T01"
+      ],
+      "artifact_path": ".dev/tasks/task_T03_recalculo-independiente.md",
+      "created_at": "2026-10-12T13:34:05Z",
+      "updated_at": "2026-10-12T16:24:45Z"
+    },
+    {
+      "id": "T04",
+      "title": "Verificación visual y verify-report",
+      "status": "done",
+      "owner": "orchestrator",
+      "branch": "feat/29-elo-estabilidad",
+      "worktree": null,
+      "depends_on": [
+        "T02",
+        "T03"
+      ],
+      "artifact_path": ".dev/tasks/task_T04_verificacion.md",
+      "created_at": "2026-10-12T13:34:05Z",
+      "updated_at": "2026-10-12T16:31:19Z"
+    }
+  ]
 }

@@ -14,6 +14,7 @@ import {
   DEFAULT_MATCH_PARAMS,
   eloBreakdown,
   eloRowChange,
+  eloRowStreak,
   formatDuration,
   hasFilters,
   hasIcons,
@@ -677,8 +678,11 @@ function eloMatch(overrides: Partial<EloMatch> = {}): EloMatch {
     gameStartTimestamp: NOW,
     placement: 1,
     strangers: 0,
+    // 1º sin racha previa; los demás puestos, sin racha.
+    streak: (overrides.placement ?? 1) === 1 ? 1 : 0,
     base: 25,
     multiplier: 1,
+    streakMultiplier: 1,
     delta: 25,
     ratingBefore: 1500,
     ratingAfter: 1525,
@@ -733,6 +737,81 @@ describe("eloRowChange", () => {
     expect(eloRowChange(null, "EUW1_1")).toBeNull();
     expect(eloRowChange(ELO, "EUW1_99")).toBeNull();
     expect(eloRowChange(ELO, "constructor")).toBeNull();
+  });
+});
+
+describe("eloRowStreak", () => {
+  const STREAK_ELO: Record<string, EloMatch> = {
+    // 2 seguidos: ×1,5; 3 o más: ×2; 1º suelto o sin racha: ×1.
+    S2: eloMatch({ matchId: "S2", streak: 2, streakMultiplier: 1.5 }),
+    S3: eloMatch({ matchId: "S3", streak: 3, streakMultiplier: 2 }),
+    S4: eloMatch({ matchId: "S4", streak: 4, streakMultiplier: 2 }),
+    S1: eloMatch({ matchId: "S1", streak: 1 }),
+    P5: eloMatch({ matchId: "P5", placement: 5, base: -9.5, delta: -9.5 }),
+  };
+
+  it("🔥×1,5 con 2 seguidos y 🔥×2 con 3 o más", () => {
+    expect(eloRowStreak(STREAK_ELO, "S2")).toBe("🔥×1,5");
+    expect(eloRowStreak(STREAK_ELO, "S3")).toBe("🔥×2");
+    expect(eloRowStreak(STREAK_ELO, "S4")).toBe("🔥×2");
+  });
+
+  it("nada si el multiplicador es ×1 (1º suelto, otro puesto), sin historial o sin la partida", () => {
+    expect(eloRowStreak(STREAK_ELO, "S1")).toBeNull();
+    expect(eloRowStreak(STREAK_ELO, "P5")).toBeNull();
+    expect(eloRowStreak(null, "S2")).toBeNull();
+    expect(eloRowStreak(STREAK_ELO, "EUW1_99")).toBeNull();
+    expect(eloRowStreak(ELO, "EUW1_1")).toBeNull();
+  });
+});
+
+describe("eloBreakdown con racha", () => {
+  it("línea «Racha» tras el multiplicador, solo si la racha sumó", () => {
+    const matches = {
+      S3: eloMatch({
+        matchId: "S3",
+        streak: 3,
+        streakMultiplier: 2,
+        base: 12.5,
+        delta: 25,
+        ratingAfter: 1525,
+      }),
+    };
+    expect(eloBreakdown(matches, "S3")).toEqual([
+      { label: "Puesto", value: "1º" },
+      { label: "Cambio base", value: "+12,5" },
+      { label: "Multiplicador", value: "×1" },
+      { label: "Racha", value: "3 primeros seguidos · ×2" },
+      { label: "Cambio final", value: "+25", tone: "up" },
+      { label: "Rating tras la partida", value: "1525" },
+    ]);
+  });
+
+  it("con desconocidos y racha se ven los dos multiplicadores", () => {
+    const matches = {
+      S2: eloMatch({
+        matchId: "S2",
+        streak: 2,
+        strangers: 1,
+        multiplier: 1.1,
+        streakMultiplier: 1.5,
+        base: 12.5,
+        delta: 20.625,
+      }),
+    };
+    const items = eloBreakdown(matches, "S2") ?? [];
+    expect(items.find((i) => i.label === "Multiplicador")?.value).toBe(
+      "×1,1 · 1 desconocido",
+    );
+    expect(items.find((i) => i.label === "Racha")?.value).toBe(
+      "2 primeros seguidos · ×1,5",
+    );
+  });
+
+  it("sin racha no hay línea (como hoy)", () => {
+    expect(eloBreakdown(ELO, "EUW1_1")?.some((i) => i.label === "Racha")).toBe(
+      false,
+    );
   });
 });
 

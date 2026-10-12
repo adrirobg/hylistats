@@ -30,6 +30,9 @@ import {
   ARENA_QUIET_PRIORITY,
   arenaQuietSignature,
   closedNoticeKey,
+  STREAK_PRIORITY,
+  streakNoticeSignature,
+  streakNoticeText,
   syncNotices,
 } from "./floating-notices";
 import { type LeagueId, LeagueShield, leagueColor } from "./league-shield";
@@ -98,6 +101,8 @@ export interface VitrinaProps {
   lastGameAt: number | null;
   /** Última partida de Arena de la BD (ms) si Arena puede estar fuera de rotación; si no, `null`. */
   arenaQuietSince: number | null;
+  /** Racha de 1º en curso del miembro (`ProfileElo.streak`); 0 en no miembros. */
+  streak: number;
   /** «Deidad de Arena» conseguida (`ProfileView.arenaGod.reached`): sello y chip. */
   arenaDeity: boolean;
   /** `null` si el perfil no es miembro (el fondo usa entonces el oro de Arena God). */
@@ -130,6 +135,7 @@ export function Vitrina({
   nowMs,
   lastGameAt,
   arenaQuietSince,
+  streak,
   arenaDeity,
   league,
   splashUrl,
@@ -189,6 +195,9 @@ export function Vitrina({
 
   // Un incremental en cola: su posición va en el botón (el límite de peticiones, en la pila).
   const status = incrementalStatus(sync, paused, now);
+
+  // Aviso de racha: solo con `ready`, para que no salga en tercera persona y cambie a segunda.
+  const streakText = ready ? streakNoticeText(streak, mine, gameName) : null;
 
   // Pila flotante: los avisos de sincronización activos (cuál se ve y los cierres, en la pila).
   const notices = syncNotices({ sync, paused, errorAt: lastJobErrorAt, now });
@@ -485,6 +494,18 @@ export function Vitrina({
           }
         />
       ))}
+      {streakText !== null && (
+        <FloatingItem
+          id={streakNoticeSignature(streak)}
+          priority={STREAK_PRIORITY}
+          group="racha"
+          remember={closedNoticeKey(norm, "racha")}
+          title="Racha"
+          icon="🔥"
+        >
+          <p>{streakText}</p>
+        </FloatingItem>
+      )}
       {arenaQuietSince !== null && (
         <FloatingItem
           id={arenaQuietSignature(arenaQuietSince)}

@@ -1,9 +1,9 @@
 # Think: hylistats
 **Estado**: iter-11 cerrada — sin iteración activa
 **Ultima sesion**: 2026-10-12
-**Sesiones**: 2026-10-12 (revisión v4/v5 de la cabecera: el grupo hoy, Dios de Arena con barra y pila flotante de avisos); 2026-10-06 (análisis de la estabilidad del ELO con datos de PRO); 2026-10-03 (propuestas de diseño de la cabecera del perfil; cierre de los gates de la sesión conjunta F18 y ajustes de títulos y frío/calor, #25); 2026-10-02 (grill de iter-10: carga, refrescos y flujo de ramas); 2026-10-02 (análisis de los 502 de la sesión conjunta y semilla de iter-10); 2026-10-02 (grill del ELO del grupo, con el grupo presente); 2026-10-02 (grill de iter-09 sobre protección de la superficie pública y modo mantenimiento: `no-init`); 2026-10-01 (grill de iter-05 sobre la capa de grupo); 2026-09-30 (grill de iter-04 sobre las ideas del grupo); 2026-09-29 (Webapp de estadísticas de perfil de jugador para trackear progreso en el modo Arena de LoL usando la Riot API (inspiración: lolalytics.com/arena, op.gg/lol/modes/arena, metasrc.com/lol/arena, arenasweats.lol, arena.trott.dev))
-**Grill**: cerrado (2026-10-02) — §5 cerrada (F26–F27); gate confirmado, pasa a Spec
-**Grills anteriores**: cerrado (2026-09-29) — gate confirmado; §1 cerrada; I1–I4 entregadas. El supervisor da paso a desarrollo (2026-09-29). Grill de iter-04 (2026-09-30): §2 cerrada (F15–F17); gate confirmado, pasa a Spec. Grill de iter-05 (2026-10-01): §3 cerrada (F19–F21); gate confirmado, pasa a Spec. Grill de iter-09 (2026-10-02): `no-init` (F23); no abre Spec. Grill del ELO del grupo (2026-10-02, con el grupo): §4 cerrada (F24–F25); gate confirmado, pasa a Spec. Grill de iter-10 (2026-10-02): §5 cerrada (F26–F27); gate confirmado, pasa a Spec
+**Sesiones**: 2026-10-12 (grill de estabilidad del ELO: F28 y §6); 2026-10-12 (revisión v4/v5 de la cabecera: el grupo hoy, Dios de Arena con barra y pila flotante de avisos); 2026-10-06 (análisis de la estabilidad del ELO con datos de PRO); 2026-10-03 (propuestas de diseño de la cabecera del perfil; cierre de los gates de la sesión conjunta F18 y ajustes de títulos y frío/calor, #25); 2026-10-02 (grill de iter-10: carga, refrescos y flujo de ramas); 2026-10-02 (análisis de los 502 de la sesión conjunta y semilla de iter-10); 2026-10-02 (grill del ELO del grupo, con el grupo presente); 2026-10-02 (grill de iter-09 sobre protección de la superficie pública y modo mantenimiento: `no-init`); 2026-10-01 (grill de iter-05 sobre la capa de grupo); 2026-09-30 (grill de iter-04 sobre las ideas del grupo); 2026-09-29 (Webapp de estadísticas de perfil de jugador para trackear progreso en el modo Arena de LoL usando la Riot API (inspiración: lolalytics.com/arena, op.gg/lol/modes/arena, metasrc.com/lol/arena, arenasweats.lol, arena.trott.dev))
+**Grill**: cerrado (2026-10-12) — estabilidad del ELO: §6 cerrada (F28); gate confirmado, pasa a Spec
+**Grills anteriores**: cerrado (2026-09-29) — gate confirmado; §1 cerrada; I1–I4 entregadas. El supervisor da paso a desarrollo (2026-09-29). Grill de iter-04 (2026-09-30): §2 cerrada (F15–F17); gate confirmado, pasa a Spec. Grill de iter-05 (2026-10-01): §3 cerrada (F19–F21); gate confirmado, pasa a Spec. Grill de iter-09 (2026-10-02): `no-init` (F23); no abre Spec. Grill del ELO del grupo (2026-10-02, con el grupo): §4 cerrada (F24–F25); gate confirmado, pasa a Spec. Grill de iter-10 (2026-10-02): §5 cerrada (F26–F27); gate confirmado, pasa a Spec. Grill de estabilidad del ELO (2026-10-12): §6 cerrada (F28); gate confirmado, pasa a Spec
 
 *Contrato del template*: todo contenido `{...}` es placeholder pendiente — los consumidores deterministas (dev-context) lo ignoran como si la celda/campo no existiera; jamas se reporta como estado real. Los markers `<!-- MUST -->`/`<!-- SHOULD -->`/`<!-- MAY -->` marcan obligacion de seccion: un `{...}` dentro de una seccion MUST de un artefacto en uso es deuda visible; en SHOULD/MAY es omision legitima. El header (Estado/Ultima sesion) es MUST.
 
@@ -66,6 +66,21 @@ Propuesta del análisis, para el grill:
 - Racha de 1º: ×1,5 a la segunda victoria seguida y ×2 desde la tercera, solo sobre ganancias.
 
 Con todo junto, 1,1 cambios de liga al día y liga distinta de un día a otro el 36 % de los días (hoy 5,5 y 64 %). Las preguntas abiertas están en §6 del research.
+
+Grill (2026-10-12), **cerrado** → F28 y §6 (gate confirmado):
+- P1 K: **×0,5** (tabla y pendiente a la mitad: 1º +12,5, 6º −9,5). Descartado ×0,35 (cada partida apenas se nota) y ×0,7 (necesita más margen para el mismo efecto).
+- P2 Liga: **margen de ±10 al cambiar de liga**. Se sube cuando el rating supera el corte en 10 puntos y se baja cuando cae 10 por debajo. El rating que se muestra es el real. La liga depende de la anterior y se recalcula al leer, recorriendo el historial. Descartado: media móvil (el mismo efecto, pero no se explica sola) y ±15 (sensación de que no se sube nunca).
+- P3 Multiplicador por desconocidos: **×1,10/×0,85 con 1 desconocido y ×1,20/×0,80 con 2** (ganancias/pérdidas). Premio neto de unos +0,3 y +0,7 por partida frente a jugar sin desconocidos (hoy +1,2 y +3,3). Descartado: neutro (elimina el premio) y más generoso (sigue inflando con 2 desconocidos).
+- P4 Racha: **solo 1º seguidos**. Bonificación de **×1,5 al segundo seguido y ×2 desde el tercero**, solo sobre ganancias y multiplicada por la de desconocidos. Con ×2, un 1º vuelve a valer +25. Descartado: top 2 (cuatro veces más frecuente, deja de ser especial), top 3/`win` (racha en el 27 % de las partidas) y ×2/×3 (unas pocas rachas distorsionan el reparto).
+- P5 Racha entre días: **la racha cruza días**. Cuenta ganar seguido, aunque sea en dos días: eso es lo difícil y lo que se valora. Si cambia el día con la racha en curso, un aviso flotante en la UI lo recuerda. Descartado: cortarla con el día de juego (F17), que era la recomendación del agente; el supervisor la rechaza (2026-10-12).
+- P6 Visibilidad de la racha, en tres sitios:
+  1. En el historial, junto al cambio de cada partida (`🔥×2`), con los dos multiplicadores a la vista si hay desconocidos y racha.
+  2. Un aviso en la pila flotante de avisos (iter-11) mientras haya una racha en curso de 1 o más ("tu próximo 1º vale ×1,5/×2").
+  3. Un 🔥 en la Clasificación para quien tenga una racha en curso de 2 o más.
+  
+  Post-v1: récord de racha de la temporada y título de racha (F21).
+- P7 Rachas de 6º: **sin contrapartida**. Descartado; el supervisor no lo quiere, ni siquiera como hilo abierto. Los días malos ya tienen El trol y Mental boom (F21).
+- P8 Aplicación: **se recalcula toda la temporada** con las reglas nuevas, siguiendo F24 (no se guarda nada). La Clasificación cambia de golpe al publicar la release y desaparece la inflación pasada. Descartado: aplicar desde una fecha (dos juegos de reglas para siempre y la inflación actual se queda). El salto se cuenta en el grupo; sin aviso en la UI (confirmado en el gate).
 
 ---
 
@@ -221,6 +236,7 @@ Rediseño de la cabecera del perfil (identidad, ELO, títulos y Dios de Arena), 
 | F25 | Presentación del ELO | 6 ligas cada 30 puntos con nombres del LoL: Hierro (< 1450), Bronce, **Plata (1480–1509, salida)**, Oro, Platino y Diamante (≥ 1570). Solo para miembros (F19); provisional con menos de 10 partidas. Se ve en un bloque "Clasificación" de `/grupo` y la pestaña Grupo (rating, liga y cambio del día y de la semana), en la cabecera del perfil (texto, no badge), en el historial (cambio por partida y multiplicador) y en una gráfica de evolución en el perfil. Descartado: solo el número, divisiones con LP y MMR oculto, nombres propios vergonzantes y ELO para perfiles fuera del grupo | Cerrada (cortes revisables con uso) | Supervisor y grupo, grill del ELO 2026-10-02 P6, P7, P9 y P10 |
 | F26 | Refrescos y carga | Los clientes consultan un **estado barato con versión de datos** (cada 10 s; 5 s con sincronización en marcha; solo pestaña visible) y solo rehacen la página si cambia la versión, que sube **solo con datos visibles**. **Un poller por página** con la frescura dentro. **El grupo se calcula una vez por versión** y lo comparten todos los visores. Guardia de frescura de **2 min**; un incremental sin partidas nuevas no pide `602002` ni icono. Se quita `/grupo` (redirige a `/`) y el enlace "Grupo" de la barra. Descartado: seguir con `router.refresh()` por reloj (satura Render Free con 5 visores: 502 del 2026-10-02), WebSockets/SSE (complejidad sin ganancia visible), Render Starter (rompe el €0 de F22 y no quita el desperdicio) y quitar el health check | Cerrada (ritmos revisables con uso) | Supervisor, grill iter-10 2026-10-02 P1–P3 y P7 |
 | F27 | Flujo de ramas y releases | `develop` es la rama de trabajo y la rama por defecto de GitHub; las iteraciones salen de ella y vuelven por PR. `main` = producción (Render la despliega) y solo recibe **releases** (PR `develop → main` con merge commit, que decide y mergea el supervisor) y **hotfixes** (`fix/N-slug` desde `main`, después `main` se mergea en `develop`). **SemVer**: `v1.0.0` sobre el `main` de 2026-10-02 (`b955a82`), minor por release con funcionalidad, patch por hotfix, `package.json` con `npm version`. **Sin staging**: `develop` se prueba en local con build de producción. Runbook en `docs/deploy.md`; `dev-ship` ofrece la release. Descartado: release automática por iteración, versión atada al número de iteración o por fecha, staging en Render (segundo worker con la misma key) y skill `dev-release` | Cerrada | Supervisor, 2026-10-02 (rama `develop`) y grill iter-10 P4–P6 |
+| F28 | Estabilizar el ELO (revisa F24 y F25) | La Clasificación mide **la racha y la forma de los días**, no el nivel. Cambios:<br>**(1) K×0,5**: la tabla pasa a **+12,5 / +6 / +1 / −2,5 / −7,5 / −9,5** y la pendiente a `22·(E−0,5)`. Los equilibrios no cambian.<br>**(2) Margen de ±10 al cambiar de liga**: se sube al superar el corte en 10 y se baja al caer 10 por debajo. La liga depende de la anterior y se recalcula al leer. Se muestra el rating real.<br>**(3) Multiplicador por desconocidos**: con 1, ×1,10 al ganar y ×0,85 al perder; con 2, ×1,20 y ×0,80 (antes ×1,15/×0,75 y ×1,30/×0,50, que inflaban +35).<br>**(4) Racha de 1º seguidos**: ×1,5 al segundo y ×2 desde el tercero. Solo sobre ganancias y multiplicada por la de desconocidos. **Cruza días**. Se ve en el historial, en un aviso de la pila flotante mientras la racha esté en curso y con un 🔥 en la Clasificación (racha de 2 o más).<br>**(5) Se recalcula toda la temporada**.<br>**(6) Los cortes de liga de F25 no cambian**.<br>Simulado con PRO (hasta el 2026-10-06): 1,1 cambios de liga al día (antes 5,5) y liga distinta de un día a otro el 36 % de los días (antes 64 %).<br>Descartado: K×0,35 y K×0,7, media móvil de liga, margen ±15, multiplicador neutro o más generoso, rachas de top 2/top 3, racha cortada por día, contrapartida para rachas de 6º, aplicar desde una fecha, ligas de 20 o de 40 | Cerrada (constantes revisables con uso) | Supervisor, grill de estabilidad del ELO 2026-10-12 P1–P9; análisis en `research/elo-estabilidad.md` |
 | F11 | Investigación previa a Spec | Stack, backfill, Riot API y diseño UI/UX se resuelven con investigaciones dedicadas (I1–I4) antes de abrir Spec; la de Riot API produce además una skill de uso | Cerrada | Supervisor, gate |
 
 ---
@@ -351,6 +367,52 @@ Que el grupo (4–5 personas a la vez) use la web sin 502 ni esperas y que lo qu
 
 **Destino inmediato**: pasa a Spec (gate confirmado por el supervisor el 2026-10-02). `spec.md` consume esta §5. Preguntas de hecho para Spec: si `elo.standings` llega al cliente y si Spectator-V5 expone las partidas de Arena; memo en memoria o caché de Next 16 para C.
 
+### §6 — Estabilizar el ELO del grupo CERRADA
+
+Revisión de §4 (F24, F25) según F28. Que la liga y el rating no oscilen dentro de un mismo día y que ganar seguido se premie. La Clasificación mide la forma, no el nivel. Las reglas de §4 que no aparecen aquí no cambian: temporada, colas, miembros, *provisional*, partidas con miembros rivales y recálculo al leer.
+
+**Alcance**:
+1. **Constantes** (`src/lib/config.ts`):
+   - Puntos por puesto: **+12,5 / +6 / +1 / −2,5 / −7,5 / −9,5**.
+   - Pendiente: **22**.
+   - Multiplicador por desconocidos: **1 → ×1,10 al ganar y ×0,85 al perder; 2 → ×1,20 y ×0,80**.
+2. **Racha de 1º**:
+   - Cuenta los 1º seguidos del miembro en la temporada, incluida la partida actual, y **cruza días**. Cualquier otro puesto la corta.
+   - Sobre un cambio positivo: ×1,5 al segundo 1º seguido y ×2 desde el tercero. Se multiplica por el multiplicador de desconocidos. Ejemplo: `12,5 × 1,10 × 2`.
+   - Las constantes van en `config.ts`.
+3. **Liga con margen de ±10**:
+   - Se sube a una liga cuando el rating llega a su `min + 10`.
+   - Se baja de una liga cuando el rating llega a su `min − 10` o menos.
+   - La liga se calcula recorriendo el historial, sin guardar nada. Los cortes de F25 no cambian.
+   - El margen va en `config.ts`.
+4. **Recálculo de toda la temporada** con las reglas nuevas: sin migración y sin reglas por fecha.
+5. **Historial**: en cada partida del miembro se ve el cambio, el multiplicador de desconocidos si lo hay y `🔥×1,5` o `🔥×2` si aplicó la racha.
+6. **Aviso de racha** en la pila flotante de avisos (iter-11) mientras el miembro tenga una racha en curso de 1 o más. Indica cuántas victorias lleva y cuánto vale su próximo 1º.
+7. **Clasificación**: 🔥 junto a quien tenga una racha en curso de 2 o más.
+
+**Fuera**:
+- Contrapartida para las rachas de 6º (descartada).
+- Récord y título de racha (post-v1).
+- Cambios en los cortes o los nombres de las ligas.
+- Aviso de UI del recálculo: se cuenta en el grupo.
+- Ajuste por compañeros y el resto de "Mejoras del ELO tras usarlo".
+
+**Criterio de terminado**:
+- **Automático**:
+  - Tests del cálculo con los valores de F28:
+    - Tabla y pendiente con K×0,5.
+    - Multiplicadores con 0, 1 y 2 desconocidos.
+    - Racha: 1, 2, 3 y 4 victorias seguidas, corte con otro puesto, que cruce de día y que se combine con desconocidos.
+    - Margen de la liga: subir en `min + 10`, quedarse en `min + 9`, bajar en `min − 10`, quedarse en `min − 9`, y las ligas extremas.
+  - En Verify, los ratings y ligas de la app con datos reales de PRO coinciden con un recálculo independiente (`research/elo-estabilidad/elo.py` actualizado, sin reutilizar el TypeScript).
+  - Con los datos hasta la fecha de Verify, la mediana de cambios de liga en los días de 10 o más partidas es **≤ 1,5**.
+  - Historial, aviso y Clasificación se ven bien a 375 px y en escritorio.
+- **Aceptación**: el grupo, en las sesiones tras la release, deja de ver idas y venidas de liga dentro del día y entiende de dónde salen los puntos de una racha. Se mergea con este gate abierto (F18).
+
+**Datos**: sin esquema ni descargas nuevas. Todo sale de `participants` y `group_members`, como §4.
+
+**Destino inmediato**: pasa a Spec (gate confirmado por el supervisor el 2026-10-12, con las dos inferencias: recálculo contado en el grupo y mediana ≤ 1,5). `spec.md` consume esta §6.
+
 *Regla de handoff*: Spec consume `think.md` cuando el artefacto esta en estado `cerrado`. Cada §N de `EXPRESSED` debe dejar explicito si pasa a Spec o si queda cerrada/deferida.
 
 ---
@@ -380,7 +442,7 @@ Que el grupo (4–5 personas a la vez) use la web sin 502 ni esperas y que lo qu
 | Qué cuenta como "public consumption" con Personal key para web accesible por URL (I1 §11) | Supervisor | Revisar en Spec; F9 prevé código de acceso si hace falta |
 | Sync de datos personales entre dispositivos (token secreto de edición / verificación por icono) y, más adelante, una protección superior de los perfiles (quién puede registrar o tocar un perfil) | Supervisor | Post-v1, volver sobre ello. La protección de perfiles la apuntó el supervisor en el grill de iter-09 (2026-10-02): de momento, el modelo simple vale (F23) |
 | Evolución temporal del frío/calor por campeón (estado "descongelándose", peso de lo reciente) e indicador de forma del jugador (últimas 20 frente a la temporada) | Supervisor | Tras los primeros usos de F16, cuando haya campeones sin ganar con 20+ partidas; el indicador de forma del jugador quedó fuera de iter-05 (F21) |
-| Mejoras del ELO tras usarlo (F24, F25): títulos semanales de ELO (más ganado y más perdido), "Clásico" cara a cara entre miembros, ajustar constantes y cortes de liga, ajuste por compañeros si alguien se infla con un trío fijo | Supervisor | Estabilidad, constantes, multiplicador por desconocidos y racha: en marcha desde el 2026-10-06 (CAPTURED "Estabilizar el ELO del grupo"; falta el grill). El resto sigue pendiente |
+| Mejoras del ELO tras usarlo (F24, F25): títulos semanales de ELO (más ganado y más perdido), "Clásico" cara a cara entre miembros, ajustar constantes y cortes de liga, ajuste por compañeros si alguien se infla con un trío fijo | Supervisor | Estabilidad, constantes, multiplicador por desconocidos y racha: grill cerrado el 2026-10-12 (F28, §6), pasa a Spec. Contrapartida para rachas de 6º descartada. El resto sigue pendiente |
 | Sección de campeón con datos de terceros (OPGG.py o similares) post-v1 | Supervisor | Verificada como viable el 2026-10-05 con op.gg (aumentos y objetos con WR, sinergias de tríos): ver CAPTURED "Ficha de campeón con meta global de op.gg". Falta su propio grill; ingesta offline por parche para no cargar el servicio free |
 | AC10 y AC11 de #22 pendientes (iter-10): AC10, prueba de carga en producción tras la release `v1.1.0` (script `npm run sim:session` contra <https://hylistats.onrender.com>, 5 clientes, 15 min, "Actualizar grupo" a mitad; gates: 0 × 502, 0 `server_failed`, estado < 1 s); AC11, en la sesión conjunta (F18) sin 502 ni esperas, partidas ~2–3 min tras el final del lobby y lo de uno visible para los demás. La PR #23 se mergeó con ambos abiertos | Supervisor | AC10: tras la release, en un rato sin partidas y con el sí del supervisor; resultado a `archive/iter-10/verify-report.md`. AC11: próxima sesión conjunta, avisando de que en Arena la partida aparece al terminar el lobby, no al caer |
 | 602002 oficial 1 por encima del recuento propio en 2 de 7 perfiles (iter-10, T07; en ambos un campeón se repite en dos 1º) | Orquestador | Investigar cuando haya hueco: comparar la lista verificada con el contador y ver si el campeón repetido explica la diferencia (`archive/iter-10/learn.md` → Deuda y gaps) |

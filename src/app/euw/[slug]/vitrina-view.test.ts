@@ -435,6 +435,7 @@ const standing = (
   games: 20,
   provisional: false,
   league: eloLeague(roundedRating),
+  streak: 0,
   history: [],
   dayChange: null,
   weekChange: null,
@@ -517,6 +518,7 @@ describe("groupTodayRows", () => {
       rating: 1578,
       provisional: false,
       dayChange: 52,
+      streak: null,
       me: false,
       games: 2,
       firsts: 2,
@@ -538,6 +540,28 @@ describe("groupTodayRows", () => {
       ],
     });
     expect(azp.avgPlacement).toBe("2,57");
+  });
+
+  it("el 🔥 de la fila: nada con 0 o 1 seguidos; con 2 o más, el número y el texto", () => {
+    const withStreaks = groupTodayRows(
+      {
+        ...view,
+        elo: elo([
+          standing("d", 1, 1578, { streak: 4 }),
+          standing("b", 2, 1517, { streak: 2 }),
+          standing("c", 2, 1517, { streak: 1 }),
+          standing("a", 4, 1492, { streak: 0 }),
+        ]),
+      },
+      "a",
+      catalog,
+    );
+    expect(withStreaks.map((r) => r.streak)).toEqual([
+      { text: "🔥4", title: "4 primeros seguidos" },
+      { text: "🔥2", title: "2 primeros seguidos" },
+      null,
+      null,
+    ]);
   });
 
   it("sin partidas hoy: ceros, puesto medio null y sin campeones; sin cambio de ELO, null", () => {
