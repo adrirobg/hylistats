@@ -677,8 +677,11 @@ function eloMatch(overrides: Partial<EloMatch> = {}): EloMatch {
     gameStartTimestamp: NOW,
     placement: 1,
     strangers: 0,
+    // 1º sin racha previa; los demás puestos, sin racha.
+    streak: (overrides.placement ?? 1) === 1 ? 1 : 0,
     base: 25,
     multiplier: 1,
+    streakMultiplier: 1,
     delta: 25,
     ratingBefore: 1500,
     ratingAfter: 1525,

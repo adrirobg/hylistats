@@ -3,14 +3,14 @@
     {
       "id": "T01",
       "title": "Dominio y reglas del ELO estable (F28)",
-      "status": "pending",
+      "status": "done",
       "owner": "worker:opus",
       "branch": "feat/29-elo-estabilidad",
       "worktree": null,
       "depends_on": [],
       "artifact_path": ".dev/tasks/task_T01_dominio-elo-estable.md",
       "created_at": "2026-10-12T13:34:05Z",
-      "updated_at": "2026-10-12T13:34:05Z"
+      "updated_at": "2026-10-12T16:24:21Z"
     },
     {
       "id": "T02",

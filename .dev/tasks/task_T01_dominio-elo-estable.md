@@ -1,7 +1,7 @@
 # Task T01 — Dominio y reglas del ELO estable (F28)
 
 **Owner**: worker:opus
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -65,4 +65,37 @@
 
 ## Notas de implementacion <!-- MAY -->
 
+- **Constantes** (`config.ts`): `ELO_PLACEMENT_POINTS`, `ELO_SLOPE` y `ELO_STRANGER_MULTIPLIERS` con las cifras de F28; nuevas `ELO_STREAK_MULTIPLIERS = [1, 1, 1.5, 2]` (índice = racha, tope en el último) y `ELO_LEAGUE_MARGIN = 10`.
+- **Dominio** (`elo.ts`):
+  - `eloStreakMultiplier(streak)` (≤ 0 → 1).
+  - `eloMatchChange(placement, ratingBefore, strangers, streak = 0)` devuelve también `streakMultiplier`, que solo se aplica si `base × multiplier > 0`. El parámetro por defecto mantiene compatibles las llamadas de tres argumentos.
+  - `eloLeagueStep(current, rating)`: aplica el margen sobre el rating redondeado. Primero sube y después baja; Hierro y Diamante funcionan como extremos.
+  - `computeGroupElo` lleva por miembro la racha y la liga (desde `eloLeague(ELO_START_RATING)`). `EloMatch` gana `streak` y `streakMultiplier`; `EloMember` gana `streak`, y su `league` es ahora la liga con margen. `eloLeague` no cambia.
+- **Nota de la regla** (`clasificacion-model.ts`):
+  - `signed()` formatea decimales (`+12,5`, `−2,5`) con `numberText`; `multiplierText` es un alias.
+  - Funciones nuevas: `streakMultipliersText()` ("2 primeros seguidos: ×1,5; 3 o más: ×2") y `leagueMarginText()`, con un ejemplo derivado de la liga de salida ("de Plata se pasa a Oro con 1520 y se vuelve con 1500").
+  - Párrafo nuevo sobre la racha y frase nueva sobre el margen en el de las ligas. Todas las cifras salen de `config.ts`.
+- **Tests**:
+  - Los valores esperados se recalcularon aparte con un script Python independiente del módulo.
+  - En `elo.test.ts`, la temporada sintética termina ahora en 1517,56. Es Oro sin margen y Plata con margen, y se comprueban las dos cosas.
+  - El test de "comparte posición aunque los decimales difieran" cambia su secuencia a `[3, 4, 3]` (1500,401155) para conservar su intención: con la secuencia `[4, 3]` y las cifras nuevas, el rating redondeado quedaba en 1499.
+  - En `clasificacion-model.test.ts`, un 1º solo da 1515, así que la liga pasa de Oro a Plata.
+  - Las fixtures escritas a mano de `matches-elo`, `matches-view` y `vitrina-view` solo ganan los campos nuevos. Sus cifras no salen de `config.ts` y no se tocan.
+  - `group-view.test.ts` y `rating-view.test.ts` pasan sin cambios.
+- No se ha tocado ningún `.tsx`, ni `data.ts`, ni `scripts/simulate-session.ts`.
+
 ## Evidencias <!-- MUST -->
+
+- `npm run lint`: `Checked 252 files … No fixes applied.`
+- `npm run typecheck`: `next typegen && tsc --noEmit` sin errores.
+- `npm test`: `Test Files 76 passed (76) · Tests 1575 passed (1575)`.
+- Tests nuevos en `elo.test.ts`, en los bloques "cifras de F28 (AC1)", "racha de 1º seguidos (AC2)" y "liga con margen (AC3)". En `clasificacion-model.test.ts` hay tests nuevos de racha y margen en la nota (AC7).
+- Archivos tocados:
+  - `src/lib/config.ts`
+  - `src/domain/elo.ts`
+  - `src/domain/elo.test.ts`
+  - `src/app/grupo/clasificacion-model.ts`
+  - `src/app/grupo/clasificacion-model.test.ts`
+  - `src/app/euw/[slug]/matches-elo.test.ts`
+  - `src/app/euw/[slug]/matches-view.test.ts`
+  - `src/app/euw/[slug]/vitrina-view.test.ts`

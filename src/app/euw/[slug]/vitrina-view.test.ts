@@ -435,6 +435,7 @@ const standing = (
   games: 20,
   provisional: false,
   league: eloLeague(roundedRating),
+  streak: 0,
   history: [],
   dayChange: null,
   weekChange: null,

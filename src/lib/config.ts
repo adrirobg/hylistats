@@ -98,37 +98,46 @@ export function getSeasonStart(
 }
 
 // ---------------------------------------------------------------------------------------------
-// ELO del grupo (F24, F25). Todas revisables tras la sesión conjunta (F18).
+// ELO del grupo (F24, F25, F28). Todas revisables tras la sesión conjunta (F18).
 // ---------------------------------------------------------------------------------------------
 
 /** Rating con el que empieza la temporada cada miembro del grupo (F24). */
 export const ELO_START_RATING = 1500;
 
 /**
- * Puntos por puesto del cambio base (F24), con índice = puesto − 1: 1º +25, 2º +12, 3º +2,
- * 4º −5, 5º −15, 6º −19. Con un rating de 1500 el cambio base es exactamente este valor.
+ * Puntos por puesto del cambio base (F24, a la mitad desde F28), con índice = puesto − 1:
+ * 1º +12,5, 2º +6, 3º +1, 4º −2,5, 5º −7,5, 6º −9,5. Con un rating de 1500 el cambio base es
+ * exactamente este valor.
  */
-export const ELO_PLACEMENT_POINTS = [25, 12, 2, -5, -15, -19] as const;
+export const ELO_PLACEMENT_POINTS = [12.5, 6, 1, -2.5, -7.5, -9.5] as const;
 
 /**
- * Pendiente del cambio base (F24): `base = puntos[puesto] − ELO_SLOPE·(E − 0,5)`. Por encima de
- * 1500 se gana menos y se pierde más; por debajo, al revés.
+ * Pendiente del cambio base (F24, a la mitad desde F28): `base = puntos[puesto] −
+ * ELO_SLOPE·(E − 0,5)`. Por encima de 1500 se gana menos y se pierde más; por debajo, al revés.
  */
-export const ELO_SLOPE = 44;
+export const ELO_SLOPE = 22;
 
 /** Escala de la esperanza (F24): `E = 1 / (1 + 10^((ELO_START_RATING − R) / ELO_SCALE))`. */
 export const ELO_SCALE = 400;
 
 /**
- * Multiplicador del cambio base por desconocidos en el equipo (F24), con índice = número de
- * desconocidos (0..2). `gain` se aplica si el cambio base es positivo y `loss` si es negativo:
- * jugar con desconocidos premia más al ganar y castiga menos al perder.
+ * Multiplicador del cambio base por desconocidos en el equipo (F24, suavizado en F28), con
+ * índice = número de desconocidos (0..2). `gain` se aplica si el cambio base es positivo y `loss`
+ * si es negativo: jugar con desconocidos premia más al ganar y castiga menos al perder.
  */
 export const ELO_STRANGER_MULTIPLIERS = [
   { gain: 1, loss: 1 },
-  { gain: 1.15, loss: 0.75 },
-  { gain: 1.3, loss: 0.5 },
+  { gain: 1.1, loss: 0.85 },
+  { gain: 1.2, loss: 0.8 },
 ] as const;
+
+/**
+ * Multiplicador de racha (F28), con índice = 1º seguidos del miembro con la partida actual
+ * incluida (el 0 no se usa: sin 1º no hay racha). Una racha más larga que el último índice usa el
+ * último valor: 1 → ×1, 2 → ×1,5, 3 o más → ×2. Solo se aplica si el cambio tras los desconocidos
+ * es positivo, y la racha no se corta al cambiar de día.
+ */
+export const ELO_STREAK_MULTIPLIERS = [1, 1, 1.5, 2] as const;
 
 /**
  * Ligas del ELO (F25) por rating **redondeado**, de menor a mayor: cada una empieza en `min`
@@ -143,6 +152,13 @@ export const ELO_LEAGUES = [
   { id: "platino", name: "Platino", min: 1540 },
   { id: "diamante", name: "Diamante", min: 1570 },
 ] as const;
+
+/**
+ * Margen de las ligas (F28), en puntos de rating redondeado: se sube al llegar al `min` de la liga
+ * superior más el margen y se baja al quedarse en el `min` de la propia menos el margen o por
+ * debajo. Las bandas de la gráfica de evolución siguen en los cortes sin margen.
+ */
+export const ELO_LEAGUE_MARGIN = 10;
 
 /** Partidas de la temporada por debajo de las cuales un miembro está *provisional* (F25). */
 export const ELO_PROVISIONAL_GAMES = 10;
