@@ -471,6 +471,16 @@ export function eloRowChange(
   return { text, tone: eloTone(text) };
 }
 
+/** «🔥×1,5» / «🔥×2» de la fila si la racha sumó a la partida; `null` si no (multiplicador ×1). */
+export function eloRowStreak(
+  matches: EloMatches | null,
+  matchId: string,
+): string | null {
+  const match = eloMatchOf(matches, matchId);
+  if (match === null || match.streakMultiplier <= 1) return null;
+  return `🔥${formatMultiplier(match.streakMultiplier)}`;
+}
+
 /** Una línea del desglose del detalle. */
 export interface EloBreakdownItem {
   label: string;
@@ -480,7 +490,7 @@ export interface EloBreakdownItem {
 }
 
 /** Multiplicador sin ceros de relleno: `1`, `0,5`, `1,15`. */
-const formatMultiplier = (value: number) =>
+export const formatMultiplier = (value: number) =>
   `×${formatDecimal(value, Number.isInteger(value) ? 0 : Number.isInteger(value * 10) ? 1 : 2)}`;
 
 /** «1 desconocido» / «2 desconocidos»; `null` si no hay. */
@@ -491,8 +501,8 @@ const strangersText = (strangers: number) =>
 
 /**
  * Desglose de una partida que cuenta para el rating, con los valores del dominio: puesto, cambio
- * base, multiplicador (con los desconocidos si los hay), cambio final y rating tras la partida.
- * `null` si la partida no cuenta.
+ * base, multiplicador (con los desconocidos si los hay), racha (solo si sumó), cambio final y
+ * rating tras la partida. `null` si la partida no cuenta.
  */
 export function eloBreakdown(
   matches: EloMatches | null,
@@ -513,6 +523,14 @@ export function eloBreakdown(
         .filter((part) => part !== null)
         .join(" · "),
     },
+    ...(match.streakMultiplier > 1
+      ? [
+          {
+            label: "Racha",
+            value: `${match.streak} primeros seguidos · ${formatMultiplier(match.streakMultiplier)}`,
+          },
+        ]
+      : []),
     { label: "Cambio final", value: delta, tone: eloTone(delta) },
     {
       label: "Rating tras la partida",

@@ -6,7 +6,7 @@ import { getDb } from "@/db";
 import { loadStatus } from "@/domain/status";
 import { loadGroupSyncState } from "@/domain/sync-status";
 import { getSeasonStart } from "@/lib/config";
-import { getChampionCatalog } from "@/lib/ddragon";
+import { type ChampionCatalog, getChampionCatalog } from "@/lib/ddragon";
 import { formatDateTime } from "@/lib/format";
 import { getGameData } from "@/lib/game-data";
 import { parseProfileSlug, profileSlug } from "@/lib/riot-id";
@@ -14,13 +14,14 @@ import { GroupFreshness } from "../../grupo/group-freshness";
 import { GroupViewPanel } from "../../grupo/group-view";
 import { type Periodo, parsePeriodo } from "../../grupo/group-view-model";
 import { Album } from "./album";
-import { ArenaGodBar } from "./arena-god";
 import { Cabin } from "./cabin";
 import { ChampionPanel } from "./champion-panel";
 import { CHAMPION_PARAM } from "./champion-panel-view";
 import { loadProfilePage, type ProfileView } from "./data";
 import { FormStrip } from "./form-strip";
-import { ProfileHeader } from "./header";
+import { GodTrophy } from "./god-trophy";
+import { GroupToday } from "./group-today";
+import { LeagueLine } from "./league-line";
 import { pickEloMatches, visibleMatchIds } from "./matches-elo";
 import { MatchesPanel } from "./matches-panel";
 import { parseMatchParams } from "./matches-view";
@@ -30,16 +31,18 @@ import { Scoreboard } from "./scoreboard";
 import { StatsPanel } from "./stats-panel";
 import { StatusProvider } from "./status-provider";
 import { SummaryPanel } from "./summary-panel";
-import { SyncBand } from "./sync-band";
 import { SyncEmpty } from "./sync-empty";
 import { TabPanel, Titled } from "./tab-panel";
 import { Tabs } from "./tabs";
 import { TeammatesPanel } from "./teammates-panel";
 import { RailTeammates } from "./teammates-rail";
 import { parseTeammateParams } from "./teammates-view";
-import { titleBadges } from "./title-badges";
+import { TitleList } from "./title-list";
 import { TopBar } from "./top-bar";
 import { parseProfileTab, queryParams, visibleTabs } from "./view-model";
+import { Vitrina } from "./vitrina";
+import { TrophyCard, TrophyGrid } from "./vitrina-ui";
+import { newThisWeek, recentConquests } from "./vitrina-view";
 
 // Depende de la BD y cambia con el worker: nunca se prerenderiza.
 export const dynamic = "force-dynamic";
@@ -114,6 +117,7 @@ export default async function ProfilePage({
         >
           <ProfileCabin
             data={data}
+            catalog={await catalog}
             slug={actionSlug}
             periodo={parsePeriodo(query.periodo)}
           />
@@ -157,53 +161,78 @@ export default async function ProfilePage({
 
 function ProfileCabin({
   data,
+  catalog,
   slug,
   periodo,
 }: {
   data: ProfileView;
+  /** El catálogo que ya esperó la carga: retratos y nombres de los últimos conquistados. */
+  catalog: ChampionCatalog;
   slug: string;
   periodo: Periodo;
 }) {
+  const { elo } = data;
+  const { group } = data.vitrina;
+  const nowMs = Date.now();
   return (
     <Cabin
       header={
-        <ProfileHeader
+        <Vitrina
           slug={slug}
           gameName={data.gameName}
           tagLine={data.tagLine}
           iconUrl={data.profileIconUrl}
-          nowMs={Date.now()}
+          nowMs={nowMs}
           lastGameAt={data.lastGameAt}
           arenaQuietSince={data.arenaQuiet?.lastArenaGameAt ?? null}
+          streak={elo?.streak ?? 0}
           arenaDeity={data.arenaGod.reached}
-          titleBadges={titleBadges(data.titles)}
-          elo={
-            data.elo && {
-              leagueName: data.elo.league.name,
-              rating: String(data.elo.roundedRating),
-              provisional: data.elo.provisional,
+          league={
+            elo && {
+              id: elo.league.id,
+              name: elo.league.name,
+              rating: elo.roundedRating,
+              provisional: elo.provisional,
             }
           }
+          splashUrl={data.vitrina.splash?.splashUrl ?? null}
           games={data.summary.games}
           champions={data.verifiedChampions.map((c) => ({
             championId: c.championId,
             championName: c.championName,
           }))}
-        />
+          leagueLine={
+            elo && group && <LeagueLine elo={elo} facts={group.facts} />
+          }
+        >
+          <TrophyGrid single={!group}>
+            {group && (
+              <TrophyCard>
+                <GroupToday rows={group.today} games={group.todayGames} />
+              </TrophyCard>
+            )}
+            {/* Fuera del grupo, a su medida, con un mínimo para que la barra no quede corta. */}
+            <TrophyCard
+              className={group ? undefined : "min-w-[min(400px,100%)]"}
+            >
+              <GodTrophy
+                wide={!group}
+                recent={recentConquests(data.verifiedChampions, catalog, nowMs)}
+                weekNew={newThisWeek(data.verifiedChampions, nowMs)}
+                gameName={data.gameName}
+                tagLine={data.tagLine}
+                verifiedIds={data.verifiedChampions.map((c) => c.championId)}
+                official={data.challenge.value}
+                checkedAt={data.challenge.checkedAt?.getTime() ?? null}
+                goal={data.arenaGod.goal}
+                goalName={data.arenaGod.name}
+                nowMs={nowMs}
+              />
+            </TrophyCard>
+          </TrophyGrid>
+        </Vitrina>
       }
-      band={<SyncBand />}
-      god={
-        <ArenaGodBar
-          gameName={data.gameName}
-          tagLine={data.tagLine}
-          verifiedIds={data.verifiedChampions.map((c) => c.championId)}
-          official={data.challenge.value}
-          checkedAt={data.challenge.checkedAt?.getTime() ?? null}
-          goal={data.arenaGod.goal}
-          goalName={data.arenaGod.name}
-          nowMs={Date.now()}
-        />
-      }
+      group={group && <TitleList rows={group.titles} />}
       strip={<Scoreboard summary={data.summary} variant="strip" />}
       tabs={<Tabs active={data.tab} tabs={visibleTabs(data.isMember)} />}
       main={<ActivePanel data={data} slug={slug} periodo={periodo} />}
@@ -505,7 +534,7 @@ function GroupTab({ data, periodo }: { data: ProfileView; periodo: Periodo }) {
 
 /**
  * Bloques del raíl (D2). A partir de 1100 px de contenedor el marcador vive aquí; por debajo lo
- * sustituye la franja bajo la barra Arena God (`strip`) y solo queda la forma, que el `Cabin`
+ * sustituye la franja bajo la vitrina (`strip`) y solo queda la forma, que el `Cabin`
  * deja al final del main, seguida de los compañeros con más partidas. Todo sale de `data` en el
  * servidor: sube en vivo durante el backfill con los repintados de `StatusProvider`.
  */

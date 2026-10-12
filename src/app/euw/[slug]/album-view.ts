@@ -4,6 +4,7 @@
 
 import type { AlbumEntry } from "@/domain/album";
 import type { HeatState } from "@/domain/heat";
+import { HEAT_MIN_GAMES } from "@/lib/config";
 import { formatDateTime } from "@/lib/format";
 import { FILTER_PARAM } from "./view-model";
 
@@ -13,9 +14,11 @@ export const VISTAS = ["album", "lista"] as const;
 export type Vista = (typeof VISTAS)[number];
 
 // `sin-ganar` es el valor que pone «Marcar a mano» de la barra Arena God (`FILTER_UNWON`).
+// `frio-calor` (F16 revisada, #25): solo los campeones con marca 🔥 o ❄️.
 export const FILTROS = [
   "objetivos",
   "sin-ganar",
+  "frio-calor",
   "sin-jugar",
   "ganados",
   "todos",
@@ -28,7 +31,6 @@ export const ORDENES = [
   "intentos",
   "mejor",
   "reciente",
-  "calor",
 ] as const;
 export type Orden = (typeof ORDENES)[number];
 
@@ -62,7 +64,10 @@ function oneOf<T extends string>(
   return values.find((candidate) => candidate === value) ?? null;
 }
 
-/** Query -> parámetros del álbum. Lo inválido o ausente cae en el valor por defecto. */
+/**
+ * Query -> parámetros del álbum. Lo inválido o ausente cae en el valor por defecto (también el
+ * `?orden=calor` de los enlaces viejos: frío/calor ya no es un orden sino el filtro `frio-calor`).
+ */
 export function parseAlbumParams(source: ParamSource): AlbumParams {
   return {
     vista: oneOf(VISTAS, source.get(VISTA_PARAM)) ?? DEFAULT_VISTA,
@@ -213,34 +218,21 @@ export function effectiveHeat(
   return state === "manual" ? "neutral" : entry.heat;
 }
 
-/** 🔥 primero, después los neutrales y al final ❄️. */
-const HEAT_RANK: Record<HeatState, number> = { hot: 0, neutral: 1, cold: 2 };
+/** Nombre visible de la marca de frío/calor (F16); `null` si el cromo no la lleva. */
+export const HEAT_LABEL: Record<HeatState, string | null> = {
+  hot: "Modo diablo",
+  cold: "Nevera",
+  neutral: null,
+};
 
 /**
- * Orden «Frío/calor»: 🔥 (media ajustada menor, o sea mejor, primero), después los neutrales con
- * el criterio de `estado` (`neutralBand`: banda del cromo y, dentro de ella, por nombre) y al final
- * ❄️ (media ajustada menor primero, así la peor queda la última). Empates por nombre y `championId`.
- * `heatOf` es el frío/calor efectivo de cada entrada (un ganado a mano es neutral).
+ * Orden dentro de una banda del filtro «Frío/calor» (con `orden = estado`): media ajustada menor,
+ * o sea mejor, primero (en ❄️ la peor queda la última); empates por nombre y `championId`.
  */
-function byHeat(
-  heatOf: (entry: AlbumEntry) => HeatState,
-  neutralBand: (entry: AlbumEntry) => number,
-) {
-  return (a: AlbumEntry, b: AlbumEntry): number => {
-    const rank = HEAT_RANK[heatOf(a)] - HEAT_RANK[heatOf(b)];
-    if (rank !== 0) return rank;
-    if (heatOf(a) === "neutral")
-      return neutralBand(a) - neutralBand(b) || byName(a, b);
-    return (
-      compareNullable(a.heatAdjustedAvg, b.heatAdjustedAvg, 1) || byName(a, b)
-    );
-  };
-}
+const byHeat = (a: AlbumEntry, b: AlbumEntry): number =>
+  compareNullable(a.heatAdjustedAvg, b.heatAdjustedAvg, 1) || byName(a, b);
 
-const ORDER: Record<
-  Exclude<Orden, "calor">,
-  (a: AlbumEntry, b: AlbumEntry) => number
-> = {
+const ORDER: Record<Orden, (a: AlbumEntry, b: AlbumEntry) => number> = {
   estado: byName, // dentro de cada banda
   alfabetico: byName,
   intentos: (a, b) => b.games - a.games || byName(a, b),
@@ -254,6 +246,7 @@ const ORDER: Record<
 const BAND_TITLE: Record<Filtro, string> = {
   objetivos: "Objetivos sin ganar",
   "sin-ganar": "Jugados sin ganar",
+  "frio-calor": "Frío/calor",
   "sin-jugar": "Sin jugar",
   ganados: "Ganados",
   todos: "Todos",
@@ -262,6 +255,7 @@ const BAND_TITLE: Record<Filtro, string> = {
 const BAND_TONE: Record<Filtro, SectionTone> = {
   objetivos: "target",
   "sin-ganar": "neutral",
+  "frio-calor": "neutral",
   "sin-jugar": "neutral",
   ganados: "won",
   todos: "neutral",
@@ -279,13 +273,23 @@ export const ORDEN_LABEL: Record<Orden, string> = {
   intentos: "Más intentados",
   mejor: "Mejor puesto",
   reciente: "Último jugado",
-  calor: "Frío/calor",
 };
 
 const EMPTY_TARGETS_NONE =
   "Marca objetivos con ◎ en cualquier campeón para verlos aquí.";
 const EMPTY_TARGETS_DONE =
   "No tienes objetivos pendientes. Marca campeones con ◎ para verlos aquí.";
+const EMPTY_HEAT = `Ningún campeón en modo diablo ni en la nevera. Solo se marcan los que aún no tienen un 1º, con ${HEAT_MIN_GAMES} partidas o más.`;
+
+/** Bandas del filtro «Frío/calor», en el orden en que salen (los neutrales no salen). */
+const HEAT_BANDS = [
+  { heat: "hot", key: "modo-diablo", emoji: "🔥" },
+  { heat: "cold", key: "nevera", emoji: "❄️" },
+] as const satisfies readonly {
+  heat: Exclude<HeatState, "neutral">;
+  key: string;
+  emoji: string;
+}[];
 
 /**
  * Secciones del álbum con la semántica de `renderAlbum` de la maqueta. La búsqueda se aplica
@@ -297,6 +301,11 @@ const EMPTY_TARGETS_DONE =
  *   objetivos) y «Ganados».
  * - Con `orden = estado` se agrupa en esas bandas (alfabético dentro de cada una); con otro orden
  *   sale una única sección con el título del filtro, ordenada.
+ * - `frio-calor` (F16): solo los campeones con marca efectiva (`effectiveHeat`: un ganado a mano
+ *   es neutral), en dos bandas, «🔥 Modo diablo» y «❄️ Nevera», sea cual sea el orden: las bandas
+ *   mandan. Con `orden = estado` cada banda va por media ajustada (mejor primero); con otro orden,
+ *   ese orden dentro de cada banda. Una banda vacía no sale; sin ninguna, una sección vacía que lo
+ *   explica.
  * - Una búsqueda sin resultados da una única sección vacía que lo explica.
  *
  * `params.filtro` puede ser `null` (manda `defaultFiltro`); el componente lo pasa ya resuelto
@@ -332,20 +341,34 @@ export function albumSections(
   const none = visible.filter((e) => stateOf(e) === "none");
   const won = visible.filter(isWon);
 
-  // Banda que `estado` daría a un cromo con «Todos»: objetivos, jugados, sin jugar y ganados. Con
-  // un filtro concreto `estado` es una sola lista por nombre: sin bandas.
-  const neutralBand = (entry: AlbumEntry) => {
-    if (filtro !== "todos") return 0;
-    if (isWon(entry)) return 3;
-    if (isTarget(entry)) return 0;
-    return stateOf(entry) === "played" ? 1 : 2;
-  };
-  const sorted = sortSection(
-    params.orden === "calor"
-      ? byHeat((entry) => effectiveHeat(entry, stateOf(entry)), neutralBand)
-      : ORDER[params.orden],
-  );
+  if (filtro === "frio-calor") {
+    const sortedHeat = sortSection(
+      params.orden === "estado" ? byHeat : ORDER[params.orden],
+    );
+    const bands = HEAT_BANDS.map(
+      ({ heat, key, emoji }): AlbumSection => ({
+        key,
+        title: `${emoji} ${HEAT_LABEL[heat]}`,
+        tone: "neutral",
+        entries: visible.filter((e) => effectiveHeat(e, stateOf(e)) === heat),
+        empty: "",
+      }),
+    ).filter((band) => band.entries.length > 0);
+    if (bands.length === 0) {
+      return [
+        {
+          key: "frio-calor",
+          title: BAND_TITLE["frio-calor"],
+          tone: "neutral",
+          entries: [],
+          empty: EMPTY_HEAT,
+        },
+      ];
+    }
+    return bands.map(sortedHeat);
+  }
 
+  const sorted = sortSection(ORDER[params.orden]);
   const section = (
     key: Filtro,
     entries: AlbumEntry[],
@@ -373,7 +396,10 @@ export function albumSections(
     ].map(sorted);
   }
 
-  const single: Record<Exclude<Filtro, "todos">, AlbumSection> = {
+  const single: Record<
+    Exclude<Filtro, "todos" | "frio-calor">,
+    AlbumSection
+  > = {
     objetivos: section("objetivos", targets, emptyTargets),
     "sin-ganar": section("sin-ganar", played, "Nada por aquí."),
     "sin-jugar": section("sin-jugar", none, "Has jugado todos."),
@@ -396,13 +422,6 @@ type CardData = Pick<
   AlbumEntry,
   "name" | "games" | "firsts" | "bestPlacement" | "firstWinAt" | "heat"
 >;
-
-/** Nombre visible de la marca de frío/calor (F16); `null` si el cromo no la lleva. */
-export const HEAT_LABEL: Record<HeatState, string | null> = {
-  hot: "Modo diablo",
-  cold: "Nevera",
-  neutral: null,
-};
 
 /** Dato secundario bajo el nombre (`subTxt` de la maqueta). */
 export function cardSub(entry: CardData, state: CardState): string {

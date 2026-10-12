@@ -5,9 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Btn } from "@/components/hy/btn";
+import { useFloatingToast } from "@/components/hy/floating";
 import { Notice } from "@/components/hy/notice";
 import { SegButton, Segmented } from "@/components/hy/segmented";
-import { ToastRegion, useToast } from "@/components/hy/toast";
 import { formatRelative } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import { championHref } from "./champion-panel-view";
@@ -21,6 +21,7 @@ import {
   type EloRowChange,
   eloBreakdown,
   eloRowChange,
+  eloRowStreak,
   type FilterPatch,
   formatDuration,
   hasFilters,
@@ -80,7 +81,7 @@ export function MatchesPanel({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const now = useNow(nowMs);
-  const { toast, show } = useToast();
+  const { show } = useFloatingToast();
 
   const search = searchParams.toString();
   const params = useMemo(() => parseMatchParams(searchParams), [searchParams]);
@@ -305,8 +306,6 @@ export function MatchesPanel({
           )}
         </div>
       )}
-
-      <ToastRegion>{toast}</ToastRegion>
     </div>
   );
 }
@@ -330,6 +329,18 @@ function RatingChange({ change }: { change: EloRowChange }) {
       className={`num flex-none font-mono text-[13px] font-medium whitespace-nowrap ${ELO_TONE_CLASS[change.tone]}`}
     >
       {change.text}
+    </span>
+  );
+}
+
+/** Racha que sumó a la partida («🔥×1,5»), junto al cambio; no se encoge. */
+function StreakChange({ text }: { text: string }) {
+  return (
+    <span
+      title="Racha de primeros: multiplica el cambio"
+      className="num flex-none font-mono text-xs whitespace-nowrap text-muted-foreground"
+    >
+      {text}
     </span>
   );
 }
@@ -363,6 +374,7 @@ function MatchItem({
   const detailId = useId();
   const when = formatRelative(row.gameCreation, now);
   const change = eloRowChange(elo, row.matchId);
+  const streak = eloRowStreak(elo, row.matchId);
   return (
     <li
       data-scroll-target={open && inList ? "" : undefined}
@@ -418,6 +430,7 @@ function MatchItem({
               </Link>
             </b>
             {change && <RatingChange change={change} />}
+            {streak && <StreakChange text={streak} />}
             {row.newFirst && <NewFirst />}
           </span>
           <span className="block truncate text-[13px] text-muted-foreground">

@@ -140,6 +140,8 @@ async function measure(
   headers: Record<string, string> = {},
 ): Promise<string | null> {
   const started = now();
+  // La pestaña al pedir: el cliente puede cambiar de pestaña mientras espera la respuesta.
+  const tab = client.tab;
   let status = 0;
   let bytes = 0;
   let text: string | null = null;
@@ -160,11 +162,14 @@ async function measure(
   } catch (error) {
     // Abortada por la parada de la prueba: no es una muestra.
     if (stopController.signal.aborted) return null;
+    // También si falla al leer el cuerpo (p. ej. timeout con el HTML a medio llegar): es un fallo
+    // aunque las cabeceras trajeran un 200.
+    status = 0;
     failure = describeError(error);
   }
   const sample: Sample = {
     kind,
-    tab: client.tab,
+    tab,
     status,
     ms: now() - started,
     bytes,
@@ -289,6 +294,13 @@ function printReport(report: Report, elapsedMs: number, mode: Mode): void {
   console.log("\nTiempos por tipo y pestaña:");
   for (const [k, s] of Object.entries(report.byKindTab))
     console.log(statLine(k, s));
+  console.log(
+    "\nPeticiones más lentas (segundo de la prueba en que empezaron):",
+  );
+  for (const s of [...samples].sort((a, b) => b.ms - a.ms).slice(0, 8))
+    console.log(
+      `  ${(s.at / 1000).toFixed(0).padStart(5)} s  ${`${s.kind}/${s.tab}`.padEnd(24)} ${fmt(s.ms).padStart(6)} ms  HTTP ${s.status}${s.error ? ` (${s.error})` : ""}`,
+    );
 }
 
 console.log(

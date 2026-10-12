@@ -7,14 +7,16 @@
 // Las claves de `EloStanding.key` son claves de miembro (`GroupViewMember.key`), como en el resto
 // de la vista del grupo.
 
-import { type EloStanding, formatEloChange } from "@/domain/elo";
+import { type EloStanding, eloLeague, formatEloChange } from "@/domain/elo";
 import type { DisplayedPeriod } from "@/domain/group-titles";
 import {
+  ELO_LEAGUE_MARGIN,
   ELO_LEAGUES,
   ELO_PLACEMENT_POINTS,
   ELO_PROVISIONAL_GAMES,
   ELO_START_RATING,
   ELO_STRANGER_MULTIPLIERS,
+  ELO_STREAK_MULTIPLIERS,
 } from "@/lib/config";
 import { formatCount, formatDecimal } from "@/lib/format";
 import type { MemberRef } from "./group-view-model";
@@ -38,6 +40,25 @@ export function changeCell(change: number | null): ChangeCell {
   return { text, tone: text.startsWith("+") ? "up" : "down" };
 }
 
+/** Racha mínima que se marca con 🔥 en las tablas (la de 1 solo sale en el aviso del perfil). */
+const STREAK_BADGE_MIN = 2;
+
+export interface StreakBadge {
+  /** «🔥3»: el número de 1º seguidos. */
+  text: string;
+  /** «3 primeros seguidos». */
+  title: string;
+}
+
+/** El 🔥 de una fila con su racha en curso (`streak ≥ 2`); `null` si no llega. */
+export function streakBadge(streak: number): StreakBadge | null {
+  if (streak < STREAK_BADGE_MIN) return null;
+  return {
+    text: `🔥${formatCount(streak)}`,
+    title: `${formatCount(streak)} primeros seguidos`,
+  };
+}
+
 export interface ClasificacionRow {
   key: string;
   member: MemberRef | null;
@@ -51,6 +72,8 @@ export interface ClasificacionRow {
   week: ChangeCell;
   games: string;
   provisional: boolean;
+  /** Racha en curso de 2 o más 1º; `null` si no. */
+  streak: StreakBadge | null;
 }
 
 export function clasificacionRows(
@@ -68,6 +91,7 @@ export function clasificacionRows(
     week: changeCell(standing.weekChange),
     games: formatCount(standing.games),
     provisional: standing.provisional,
+    streak: streakBadge(standing.streak),
   }));
 }
 
@@ -99,18 +123,24 @@ export function changeHeader(period: DisplayedPeriod): ChangeHeader {
 
 // --- Nota de la regla -------------------------------------------------------------------------
 
-/** Signo con el menos tipográfico (U+2212), como el resto de la prosa de la nota. */
-const signed = (value: number) =>
-  `${value > 0 ? "+" : "−"}${formatCount(Math.abs(value))}`;
-
-/** Multiplicador sin ceros de relleno: 1,15 · 1,3 · 0,75 · 0,5 · 1. */
-function multiplierText(value: number): string {
+/** Número sin ceros de relleno (hasta 2 decimales): 12,5 · 1,1 · 0,85 · 2. */
+function numberText(value: number): string {
   return Number.isInteger(value)
     ? formatCount(value)
     : formatDecimal(value, 2).replace(/0$/, "");
 }
 
-/** "1º +25 · 2º +12 · …" a partir de `ELO_PLACEMENT_POINTS`. */
+/**
+ * Signo con el menos tipográfico (U+2212), como el resto de la prosa de la nota, y los decimales
+ * de los puntos de F28: "+12,5", "−2,5", "+6".
+ */
+const signed = (value: number) =>
+  `${value > 0 ? "+" : "−"}${numberText(Math.abs(value))}`;
+
+/** Multiplicador sin ceros de relleno: 1,1 · 1,2 · 0,85 · 0,8 · 1,5 · 2. */
+const multiplierText = numberText;
+
+/** "1º +12,5 · 2º +6 · …" a partir de `ELO_PLACEMENT_POINTS`. */
 export function placementPointsText(): string {
   return ELO_PLACEMENT_POINTS.map(
     (points, index) => `${index + 1}º ${signed(points)}`,
@@ -128,6 +158,39 @@ export function strangerMultipliersText(): string {
     );
   });
   return parts.join("; ");
+}
+
+/**
+ * Multiplicadores de racha (F28) distintos de ×1, a partir de `ELO_STREAK_MULTIPLIERS`: "2 primeros
+ * seguidos: ×1,5; 3 o más: ×2". El último valor vale para esa racha o más larga.
+ */
+export function streakMultipliersText(): string {
+  const last = ELO_STREAK_MULTIPLIERS.length - 1;
+  const parts: string[] = [];
+  ELO_STREAK_MULTIPLIERS.forEach((multiplier, streak) => {
+    if (streak === 0 || multiplier === 1) return;
+    const count =
+      streak === last ? `${formatCount(streak)} o más` : formatCount(streak);
+    parts.push(
+      `${count}${parts.length === 0 ? " primeros seguidos" : ""}: ×${multiplierText(multiplier)}`,
+    );
+  });
+  return parts.join("; ");
+}
+
+/**
+ * Margen de las ligas (F28) con el ejemplo de la liga de salida y la de arriba, a partir de
+ * `ELO_LEAGUE_MARGIN` y `ELO_LEAGUES`: "… (de Plata se pasa a Oro con 1520 y se vuelve con 1500)".
+ */
+export function leagueMarginText(): string {
+  const margin = formatCount(ELO_LEAGUE_MARGIN);
+  const start = eloLeague(ELO_START_RATING);
+  const upper =
+    ELO_LEAGUES[ELO_LEAGUES.findIndex((l) => l.id === start.id) + 1];
+  const example = upper
+    ? ` (de ${start.name} se pasa a ${upper.name} con ${String(upper.min + ELO_LEAGUE_MARGIN)} y se vuelve con ${String(upper.min - ELO_LEAGUE_MARGIN)})`
+    : "";
+  return `se sube al llegar ${margin} por encima del corte de la liga de arriba y se baja al quedarse ${margin} por debajo del de la tuya${example}`;
 }
 
 /** "Hierro < 1450 · Bronce 1450–1479 · … · Diamante ≥ 1570" a partir de `ELO_LEAGUES`. */
@@ -150,7 +213,8 @@ export function clasificacionNote(): ClasificacionNote {
     paragraphs: [
       `Todos empiezan la temporada en ${String(ELO_START_RATING)}. Cada partida de Arena suma o resta según el puesto (con ${String(ELO_START_RATING)}): ${placementPointsText()}. Cuanto más alto estás, un poco menos ganas y un poco más pierdes; por debajo, al revés.`,
       `Los compañeros de equipo que no son del grupo cuentan como desconocidos y cambian el resultado: ${strangerMultipliersText()}.`,
-      `Ligas por rating redondeado: ${leaguesText()}. Con menos de ${formatCount(ELO_PROVISIONAL_GAMES)} partidas en la temporada, la fila es provisional. Solo cuenta la temporada actual.`,
+      `Los 1º seguidos tienen premio, solo en las partidas que suman (${streakMultipliersText()}). La racha sigue aunque cambie el día; cualquier otro puesto la corta.`,
+      `Ligas por rating redondeado: ${leaguesText()}. Para que la liga no suba y baje en el mismo día hay margen: ${leagueMarginText()}. Con menos de ${formatCount(ELO_PROVISIONAL_GAMES)} partidas en la temporada, la fila es provisional. Solo cuenta la temporada actual.`,
     ],
   };
 }

@@ -51,7 +51,7 @@ function Riot({ gameName, tagLine }: { gameName: string; tagLine: string }) {
   );
 }
 
-/** Riot ID sin registrar: ofrece darlo de alta (empieza el backfill, que se ve en la banda). */
+/** Riot ID sin registrar: ofrece darlo de alta (empieza el backfill, que se ve en la pila flotante). */
 export function UnregisteredCard({
   slug,
   gameName,

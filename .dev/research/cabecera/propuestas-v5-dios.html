@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dios de Arena hylistats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500&family=Atkinson+Hyperlegible+Next:wght@400;500;700&family=Big+Shoulders:opsz,wght@10..72,600..800&display=swap">
+<style>
+/* Layout: documento de una columna. Controles (escritorio/móvil) → tres variantes del trofeo, cada una junto a El grupo hoy a tamaño real → recomendación. Estilos base copiados de propuestas-v4.html. */
+
+/* Layout: documento de una columna. Controles fijos (vista escritorio/móvil) → A y B a tamaño real
+   dentro de un marco con la línea del pliegue → comparativa y preguntas. Solo oscuro, como la app. */
+:root {
+  color-scheme: dark;
+  --bg: #0f1013; --surface-1: #17191e; --surface-2: #20232a; --line: #2c3038;
+  --text: #ece6d9; --muted: #a29d92; --faint: #858179;
+  --place-1: #e8b64c; --won-deep: #8f6a1f; --place-top: #4fb3a3;
+  --trust: #7fa3d1; --danger: #e5534b; --ok: #6cc08b;
+  --shame: #c77fa0; --shame-bg: #2a1a22;
+  --honor: #4fb3a3; --honor-bg: #142624;
+  --lg-platino: #4fb3a3; --lg-oro: #e8b64c; --lg-plata: #b9c3cd; --lg-diamante: #8fb2e0;
+  --cabin: color-mix(in srgb, var(--bg) 92%, black);
+  --f-display: "Big Shoulders", "Arial Narrow", sans-serif;
+  --f-body: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --f-mono: "Atkinson Hyperlegible Mono", ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 var(--f-body); }
+.doc { max-width: 1340px; margin: 0 auto; padding: 40px 20px 80px; display: grid; gap: 52px; }
+h1, h2, h3 { font-family: var(--f-display); font-variation-settings: "opsz" 72; text-transform: uppercase; letter-spacing: .02em; line-height: 1; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(40px, 6vw, 64px); font-weight: 800; }
+h2 { font-size: 34px; font-weight: 800; }
+h3 { font-size: 21px; font-weight: 700; }
+p { margin: 0; }
+.prose { max-width: 76ch; display: grid; gap: 12px; color: var(--muted); }
+.prose b { color: var(--text); font-weight: 500; }
+.eyebrow { font: 500 12px/1 var(--f-mono); text-transform: uppercase; letter-spacing: .14em; color: var(--faint); }
+section { display: grid; gap: 20px; min-width: 0; }
+.sec-head { display: grid; gap: 10px; }
+.num { font-variant-numeric: tabular-nums; }
+svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.controls { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--surface-1) 92%, transparent); backdrop-filter: blur(6px); }
+.controls .lab { font: 500 12px var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+.controls a { color: var(--muted); font-size: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--surface-1); }
+.seg button { font: 500 14px var(--f-body); color: var(--muted); background: none; border: 0; padding: 7px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); box-shadow: inset 0 -2px 0 var(--place-1); }
+button:focus-visible { outline: 2px solid var(--trust); outline-offset: 2px; }
+
+.prop-head { display: grid; gap: 8px; }
+.prop-head .tag { font: 500 13px var(--f-mono); color: var(--place-1); letter-spacing: .08em; text-transform: uppercase; }
+.stage { overflow-x: auto; padding: 18px; border-radius: 12px; background: repeating-linear-gradient(135deg, #121317 0 12px, #14161a 12px 24px); border: 1px solid var(--line); }
+.frame { position: relative; margin: 0 auto; width: 100%; max-width: 1240px; container-type: inline-size; background: var(--bg); overflow: hidden; height: var(--h); --fold: 860px; --h: 1000px; }
+.frame.mobile { width: 375px; --fold: 720px; --h: 1100px; }
+.pros { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.pc { border-top: 2px solid var(--line); padding-top: 12px; display: grid; gap: 8px; align-content: start; }
+.pc.good { border-color: var(--ok); } .pc.bad { border-color: var(--danger); } .pc.how { border-color: var(--trust); }
+.pc h4 { margin: 0; font: 500 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+.pc ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); font-size: 15px; }
+.pc li b { color: var(--text); font-weight: 500; }
+
+/* Pliegue: dónde acaba la pantalla al entrar (1440×860 en escritorio; móvil con la barra del navegador). */
+.fold { position: absolute; left: 0; right: 0; top: var(--fold); border-top: 2px dashed var(--danger); z-index: 8; pointer-events: none; }
+.fold span { position: absolute; right: 8px; top: -24px; font: 500 11px var(--f-mono); color: var(--danger); background: var(--bg); padding: 2px 6px; border-radius: 4px; letter-spacing: .06em; }
+.fold::after { content: ""; position: absolute; inset: 0 0 auto; height: calc(var(--h) - var(--fold)); background: rgba(15,16,19,.55); }
+
+/* ================= MAQUETA ================= */
+.mk { font-size: 14px; line-height: 1.4; }
+.mk .disp { font-family: var(--f-display); font-variation-settings: "opsz" 72; text-transform: uppercase; font-weight: 800; letter-spacing: .02em; line-height: 1; }
+.mk .lbl { font: 600 12px/1 var(--f-display); font-variation-settings: "opsz" 72; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.mk .faint { color: var(--faint); } .mk .muted { color: var(--muted); }
+.topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; }
+.topbar .logo { display: flex; align-items: center; gap: 10px; font-size: 26px; }
+.topbar .coin { width: 24px; height: 24px; border-radius: 50%; background: var(--place-1); color: var(--bg); display: grid; place-items: center; font: 800 14px var(--f-display); }
+.cab { margin: 0 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--cabin); overflow: hidden; }
+
+.hero { position: relative; isolation: isolate; overflow: hidden; padding: 18px 20px 16px; }
+.hero .bg { position: absolute; inset: 0; z-index: -2; background: url("https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Nocturne_0.jpg") center 22% / cover no-repeat; filter: saturate(.55) blur(1.5px); transform: scale(1.02); }
+.hero::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(12,13,16,.92) 0%, rgba(12,13,16,.72) 48%, rgba(12,13,16,.55) 100%); }
+.hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, transparent 35%, var(--cabin) 100%); }
+
+.idrow { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.av { width: 64px; height: 64px; border-radius: 50%; flex: none; position: relative; border: 1px solid var(--won-deep); box-shadow: 0 0 0 3px #201b28, 0 0 0 5px var(--place-1); }
+.av img { width: 100%; height: 100%; border-radius: 50%; display: block; }
+.av .seal { position: absolute; right: -5px; bottom: -5px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--place-1); color: var(--bg); font-size: 13px; border: 3px solid #201b28; }
+.idtxt { min-width: 0; display: grid; gap: 6px; }
+.nameline { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; min-width: 0; }
+.name { font-size: 44px; }
+.name small { font: 500 18px var(--f-body); color: var(--faint); text-transform: none; letter-spacing: 0; margin-left: 2px; }
+.star { color: var(--faint); font-size: 18px; display: grid; place-items: center; width: 28px; height: 28px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; background: rgba(0,0,0,.25); }
+.chip.gold { border-color: var(--won-deep); color: var(--place-1); }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 13px; border-radius: 7px; border: 1px solid var(--line); background: rgba(32,35,42,.85); color: var(--text); font: 500 14px var(--f-body); white-space: nowrap; }
+.btn.sm { padding: 3px 9px; font-size: 12px; }
+.btn.sq { padding: 8px 9px; }
+.bar { margin-left: auto; display: flex; align-items: center; gap: 12px; align-self: flex-start; }
+.fresh { font-size: 12px; color: var(--muted); text-align: right; line-height: 1.35; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+.fresh b { color: var(--text); font-weight: 500; }
+.shield { width: 1em; height: 1.15em; display: inline-block; flex: none; }
+.delta { font: 500 12px var(--f-mono); padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
+.delta.up { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.delta.down { color: var(--danger); background: color-mix(in srgb, var(--danger) 13%, transparent); }
+.up { color: var(--ok); } .down { color: var(--danger); }
+
+/* B: la liga sube a la identidad, como segunda línea */
+.leagueline { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; font-size: 13px; color: var(--muted); }
+.leagueline .shield { font-size: 26px; color: var(--lg-platino); }
+.leagueline .lg { font-size: 17px; color: var(--lg-platino); letter-spacing: .08em; }
+.leagueline .rt { font-size: 26px; color: var(--text); }
+.leagueline .pos { color: var(--text); font-weight: 500; }
+
+/* Fila de trofeos */
+.trow { display: grid; gap: 12px; margin-top: 16px; }
+.trow.a { grid-template-columns: 1fr 1fr 1.05fr; }
+.trow.b { grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); }
+.tw { border-radius: 10px; border: 1px solid rgba(255,255,255,.09); background: rgba(15,16,19,.6); backdrop-filter: blur(4px); padding: 12px 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.tw .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tw .hd .faint { font-size: 12px; }
+.tw .row { display: flex; align-items: center; gap: 14px; }
+.tw .foot { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--muted); align-items: center; }
+.tw .foot b { color: var(--text); font-weight: 500; }
+.tw.e .shield { font-size: 58px; color: var(--lg-platino); filter: drop-shadow(0 6px 18px rgba(0,0,0,.5)); }
+.tw.e .lg { font-size: 17px; color: var(--lg-platino); letter-spacing: .1em; }
+.tw.e .rt { font-size: 50px; }
+.ring { width: 78px; height: 78px; flex: none; }
+.tw.g .gn { font-size: 50px; color: var(--place-1); }
+.tw.g .gn small { font-size: 22px; color: var(--muted); }
+.tw.g .sub { font-size: 12px; color: var(--muted); display: flex; gap: 10px; margin-top: 4px; }
+.tw.g .sub b { color: var(--text); font-weight: 500; }
+.okc { color: var(--ok); }
+.q { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--line); font: 500 10px var(--f-mono); color: var(--faint); margin-left: 4px; vertical-align: 1px; }
+
+/* Escalera compacta */
+.lad { display: grid; gap: 1px; }
+.lad > div { display: grid; grid-template-columns: 14px 14px minmax(0, 1fr) auto 34px; gap: 8px; align-items: center; padding: 2px 6px; border-radius: 5px; font-size: 13px; }
+.lad .shield { font-size: 13px; }
+.lad .me { background: var(--surface-2); outline: 1px solid var(--line); }
+.lad .me .nm { color: var(--text); font-weight: 700; }
+.lad .p { font: 500 11px var(--f-mono); color: var(--faint); }
+.lad .r { font: 500 12px var(--f-mono); }
+.lad .d { font: 500 11px var(--f-mono); text-align: right; }
+.lad .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+
+/* B: el grupo hoy (escalera + actividad del día) */
+.gt { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: auto; }
+.gtw { overflow: hidden; min-width: 0; }
+.mk a { color: inherit; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 2px; }
+.mk a:hover { text-decoration-color: currentColor; }
+.gt th { font: 500 10px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); text-align: right; padding: 0 6px 6px; white-space: nowrap; }
+.gt th:nth-child(-n+2) { text-align: left; }
+.gt td { padding: 3px 6px; text-align: right; white-space: nowrap; }
+.gt td.nmc { text-align: left; width: 100%; max-width: 0; }
+.gt .nmw { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.gt .nmw .shield { font-size: 13px; }
+.gt .nmw .n { overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.gt tr.me td { background: var(--surface-2); }
+.gt tr.me td:first-child { border-radius: 5px 0 0 5px; } .gt tr.me td:last-child { border-radius: 0 5px 5px 0; }
+.gt tr.me .n { color: var(--text); font-weight: 700; }
+.gt td:last-child, .gt th:last-child { text-align: left; }
+.gt .p { font: 500 11px var(--f-mono); color: var(--faint); text-align: left; }
+.gt .mono { font: 500 12px var(--f-mono); }
+.gt .first { color: var(--place-1); }
+.gt .good { color: var(--ok); } .gt .bad { color: var(--shame); }
+.gt tr.idle td { opacity: .45; }
+.last { display: inline-flex; gap: 3px; vertical-align: middle; }
+.last i { position: relative; width: 22px; height: 22px; border-radius: 4px; background: var(--surface-2) center / cover; display: inline-block; }
+.last i b { position: absolute; right: -3px; bottom: -3px; min-width: 12px; height: 12px; padding: 0 2px; border-radius: 3px; font: 600 9px/12px var(--f-mono); font-style: normal; text-align: center; background: var(--surface-2); color: var(--muted); border: 1px solid var(--cabin); }
+.last i b.w { background: var(--place-1); color: var(--bg); }
+
+/* Títulos: el compañero manda */
+.titles { padding: 14px 20px 16px; display: grid; gap: 10px; border-top: 1px solid var(--line); }
+.titles .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.titles .hd .meta { font-size: 12px; color: var(--faint); display: flex; gap: 12px; }
+.titles .hd a { color: var(--text); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
+.tgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: start; }
+.tc { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: start; padding: 7px 10px 8px 7px; border-radius: 8px; border: 1px solid; }
+.tc.honor { background: linear-gradient(90deg, var(--honor-bg), transparent 90%); border-color: color-mix(in srgb, var(--honor) 22%, transparent); }
+.tc.shame { background: linear-gradient(90deg, var(--shame-bg), transparent 90%); border-color: color-mix(in srgb, var(--shame) 22%, transparent); }
+.tico { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; color: var(--bg); }
+.honor .tico { background: var(--honor); } .shame .tico { background: var(--shame); }
+.tbody { display: grid; gap: 4px; min-width: 0; }
+.tname { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.tname .disp { font-size: 16px; letter-spacing: .03em; white-space: nowrap; }
+.honor .tname .disp { color: var(--honor); } .shame .tname .disp { color: var(--shame); }
+.tname .metric { font-size: 11px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tline { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; min-width: 0; }
+.who { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.who .plus { color: var(--faint); font-size: 12px; }
+.mate { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px 1px 2px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); font-weight: 700; font-size: 13px; color: var(--text); white-space: nowrap; }
+.mate img { width: 18px; height: 18px; border-radius: 50%; }
+.per { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.per i { font: 500 9px/1 var(--f-mono); font-style: normal; letter-spacing: .08em; padding: 3px 4px; border-radius: 3px; border: 1px solid; }
+.honor .per i { color: var(--honor); background: color-mix(in srgb, var(--honor) 14%, transparent); }
+.shame .per i { color: var(--shame); background: color-mix(in srgb, var(--shame) 14%, transparent); }
+.per b { color: var(--text); font-weight: 500; }
+
+/* Pestañas y álbum (solo para ver el pliegue) */
+.tabs { display: flex; gap: 4px; padding: 0 16px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow: hidden; }
+.tabs span { padding: 11px 12px; font-size: 14px; color: var(--muted); white-space: nowrap; }
+.tabs span.on { color: var(--text); box-shadow: inset 0 -2px 0 var(--place-1); }
+.albw { display: grid; grid-template-columns: minmax(0, 1fr) 270px; }
+.alb { padding: 14px 16px; display: grid; gap: 12px; align-content: start; }
+.alb .filters { display: flex; gap: 8px; }
+.alb .filters span { height: 32px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-1); }
+.alb .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 10px 8px; }
+.alb .grid div { display: grid; gap: 4px; font-size: 11px; color: var(--muted); }
+.alb .grid img { width: 100%; aspect-ratio: 1; border-radius: 6px; display: block; filter: grayscale(.2); }
+.rail { border-left: 1px solid var(--line); padding: 14px; display: grid; gap: 10px; align-content: start; }
+.rail .box { border: 1px solid var(--line); border-radius: 8px; height: 120px; background: var(--surface-1); }
+
+/* Aviso flotante (toast) en vez de la banda */
+.toast { position: absolute; z-index: 9; right: 20px; top: calc(var(--fold) - 92px); width: 340px; padding: 12px 14px 12px 12px; border-radius: 10px; border: 1px solid #34486a; background: #142033; box-shadow: 0 12px 34px rgba(0,0,0,.55); display: grid; grid-template-columns: 22px minmax(0, 1fr) 18px; gap: 10px; font-size: 13px; }
+.toast .ic { width: 22px; height: 22px; border-radius: 50%; background: var(--trust); color: var(--bg); display: grid; place-items: center; font: 700 13px var(--f-mono); }
+.toast b { display: block; font-weight: 500; }
+.toast span { color: var(--muted); font-size: 12px; }
+.toast .x { color: var(--faint); }
+
+/* ---------- Escritorio estrecho ---------- */
+@container (max-width: 1000px) {
+  .trow.a { grid-template-columns: 1fr 1fr; } .trow.a .tw.l { grid-column: 1 / -1; }
+  .tgrid { grid-template-columns: 1fr; }
+  .albw { grid-template-columns: 1fr; } .rail { display: none; }
+}
+/* Con menos de 1000 px El grupo hoy y Dios de Arena se apilan: la tabla necesita todo el ancho. */
+@container (max-width: 1000px) {
+  .trow.b { grid-template-columns: 1fr; }
+}
+/* Con menos de 900 px la barra pasa a una franja propia arriba, como en la app. */
+@container (max-width: 900px) {
+  .hero { padding-top: 64px; }
+  .bar { position: absolute; top: 12px; right: 14px; }
+}
+/* ---------- Móvil ---------- */
+@container (max-width: 640px) {
+  .topbar { padding: 10px 14px; } .topbar .logo { font-size: 20px; }
+  .cab { margin: 0 8px; }
+  .hero { padding: 54px 12px 12px; }
+  .bar { position: absolute; top: 10px; left: 12px; right: 10px; margin: 0; justify-content: space-between; }
+  .bar .fresh { text-align: left; font-size: 11px; } .bar .btn .t { display: none; }
+  .idrow { gap: 12px; } .av { width: 52px; height: 52px; } .av .seal { width: 22px; height: 22px; font-size: 11px; }
+  .name { font-size: 28px; } .name small { font-size: 13px; }
+  .trow.a { grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .trow.a .tw.l { display: none; }
+  .trow.b { grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
+  .tw { padding: 10px; gap: 8px; }
+  .tw.e .row { gap: 8px; } .tw.e .shield { font-size: 38px; } .tw.e .rt, .tw.g .gn { font-size: 34px; } .tw.e .lg { font-size: 14px; }
+  .tw.g .gn small { font-size: 16px; } .tw.g .row { gap: 8px; } .ring { width: 52px; height: 52px; }
+  .tw.g .sub { flex-direction: column; gap: 0; }
+  .tw.g.wide .row { gap: 12px; }
+  .tw .foot .opt { display: none; }
+  .gt .hide-m { display: none; }
+  .gt td, .gt th { padding-inline: 4px; }
+  .titles { padding: 12px; }
+  .tc { padding: 6px 8px 7px 6px; gap: 8px; grid-template-columns: 26px minmax(0, 1fr); }
+  .tico { width: 26px; height: 26px; font-size: 14px; }
+  .tname .metric { display: none; }
+  /* En móvil cada título es nombre + compañeros + marcas; el número sale al tocarlo. */
+  .per { font-size: 0; gap: 0; } .per i { font-size: 9px; }
+  .tline { gap: 4px 6px; }
+  .tgrid { gap: 4px; }
+  /* B en móvil: Dios de Arena en una fila baja, la tabla sin rating. */
+  .trow.b .tw.g .foot { display: none; }
+  .trow.b .tw.g .ring { width: 44px; height: 44px; }
+  .trow.b .tw.g .gn { font-size: 30px; }
+  .trow.b .tw.g .sub { flex-direction: row; gap: 10px; }
+  .gt .hide-m2 { display: none; }
+  .tabs { padding: 0 6px; } .tabs span { padding: 10px 8px; font-size: 13px; }
+  .alb { padding: 12px; } .alb .grid { grid-template-columns: repeat(4, 1fr); }
+  .toast { left: 12px; right: 12px; width: auto; top: calc(var(--fold) - 96px); }
+}
+
+.cmp { width: 100%; border-collapse: collapse; min-width: 640px; font-size: 15px; }
+.cmp th, .cmp td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.cmp thead th { font: 800 20px/1 var(--f-display); font-variation-settings: "opsz" 72; text-transform: uppercase; letter-spacing: .03em; }
+.cmp tbody th { font: 500 12px/1.3 var(--f-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); width: 190px; }
+.cmp td { color: var(--muted); }
+.cmp td b { color: var(--text); font-weight: 500; }
+.scroll-x { overflow-x: auto; }
+.rec-box { border: 1px solid var(--won-deep); background: #2a2214; border-radius: 10px; padding: 20px 22px; display: grid; gap: 10px; }
+.rec-box h3 { color: var(--place-1); }
+.rec-box p, .rec-box li { color: var(--muted); }
+.rec-box b { color: var(--text); font-weight: 500; }
+.rec-box ul, .open ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.open ol { color: var(--muted); max-width: 84ch; }
+.open li b { color: var(--text); font-weight: 500; }
+@media (max-width: 760px) { .controls { position: static; } }
+@media (max-width: 520px) { .doc { padding-inline: 16px; gap: 40px; } h2 { font-size: 28px; } .stage { padding: 10px; } }
+
+
+/* ================= Dios de Arena v5 ================= */
+.pair { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
+.pair > .tw { height: 100%; }
+@container (max-width: 1000px) { .pair { grid-template-columns: 1fr; } }
+.frame.v5 { height: auto; padding: 18px 20px; background: linear-gradient(115deg, #1f1a2b, #2b2235 40%, #1a2230); border-radius: 12px; }
+.frame.v5.mobile { padding: 12px; }
+.g5 { display: grid; gap: 12px; align-content: space-between; }
+.g5 .big { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.g5 .gn { font-size: 50px; color: var(--place-1); }
+.g5 .gn small { font-size: 22px; color: var(--muted); }
+.g5 .pct { font: 500 14px var(--f-mono); color: var(--muted); }
+.g5 .pct b { color: var(--text); font-size: 20px; font-weight: 500; }
+/* Barra con hitos */
+.gbar { position: relative; height: 12px; border-radius: 6px; background: rgba(255,255,255,.08); margin: 4px 0 22px; }
+.gbar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: linear-gradient(90deg, #b5852c, var(--place-1)); box-shadow: 0 0 14px color-mix(in srgb, var(--place-1) 40%, transparent); }
+.gbar .tick { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--text); border-radius: 1px; }
+.gbar .tick.off { background: var(--trust); width: 2px; top: -3px; bottom: -3px; }
+.gbar .lab { position: absolute; top: 19px; transform: translateX(-50%); font: 500 11px var(--f-mono); color: var(--faint); white-space: nowrap; display: inline-flex; gap: 4px; align-items: center; }
+.gbar .lab.ms { color: var(--place-1); }
+.gbar .lab.end { transform: translateX(-100%); }
+.gbar .lab.start { transform: none; }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); }
+.facts b { color: var(--text); font-weight: 500; }
+.facts .up { color: var(--ok); }
+.recent { display: grid; gap: 6px; }
+.recent .row5 { display: flex; gap: 6px; }
+.recent .ch { display: grid; gap: 3px; justify-items: center; font-size: 10px; color: var(--faint); width: 44px; }
+.recent .ch img { width: 36px; height: 36px; border-radius: 6px; display: block; outline: 1px solid var(--won-deep); }
+.recent .ch:first-child img { outline: 2px solid var(--place-1); }
+/* Anillo grande */
+.ringbig { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; }
+.ringbig > svg { width: 112px; height: 112px; }
+.ringbig .list { display: grid; gap: 3px; font-size: 13px; color: var(--muted); }
+.ringbig .list b { color: var(--text); font-weight: 500; }
+.ringbig .list .ms { color: var(--place-1); }
+/* Ritmo */
+.pace { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+.spark { display: flex; align-items: end; gap: 4px; height: 36px; }
+.spark i { flex: 1; min-width: 8px; background: color-mix(in srgb, var(--place-1) 55%, transparent); border-radius: 2px 2px 0 0; position: relative; }
+.spark i.now { background: var(--place-1); }
+.sparkx { display: flex; justify-content: space-between; font: 500 10px var(--f-mono); color: var(--faint); margin-top: 4px; }
+.tiles { display: grid; grid-template-columns: repeat(3, auto); gap: 14px; text-align: right; }
+.tiles div { font-size: 12px; color: var(--muted); }
+.tiles b { display: block; font: 800 22px/1 var(--f-display); font-variation-settings: "opsz" 72; color: var(--text); }
+@container (max-width: 640px) {
+  .g5 .gn { font-size: 36px; } .g5 .gn small { font-size: 16px; }
+  .ringbig > svg { width: 88px; height: 88px; }
+  .recent .ch { width: 38px; } .recent .ch img { width: 32px; height: 32px; }
+}
+
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 18h18M4 15 3 7l5 4 4-7 4 7 5-4-1 8z" fill="currentColor" stroke="currentColor"/></symbol>
+    <symbol id="i-bomb" viewBox="0 0 24 24"><circle cx="10" cy="14" r="7" fill="currentColor"/><path d="m15 9 2.5-2.5M19 3v2M21 5h-2M21.5 2.5 20 4"/></symbol>
+    <symbol id="i-swords" viewBox="0 0 24 24"><path d="m4 4 11 11M20 4 9 15M14 18l4-4M6 14l4 4M17 17l3 3M7 17l-3 3"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path fill="currentColor" d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.4 12 20 12 20z"/></symbol>
+    <symbol id="i-heartbreak" viewBox="0 0 24 24"><path fill="currentColor" d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.4 12 20 12 20z"/><path stroke="#20232a" d="m12 7-1.5 4 3 2-1.5 4"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M3 21v-5h5"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4.5 4.5L19 7"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 28"><path d="M12 1.5 22.5 5v8.5c0 6.3-4.4 10.9-10.5 13-6.1-2.1-10.5-6.7-10.5-13V5z" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="1.6"/><path d="M12 6.5 18 8.6v5c0 3.6-2.5 6.4-6 7.7-3.5-1.3-6-4.1-6-7.7v-5z" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<main class="doc">
+  <header class="sec-head">
+    <span class="eyebrow">hylistats · perfil · Dios de Arena · v5 · 12 oct 2026</span>
+    <h1>Dios de Arena, otra vuelta</h1>
+    <div class="prose">
+      <p>La tarjeta mide lo mismo que <b>El grupo hoy</b> (siete filas), pero el anillo con la cifra solo llena la mitad de arriba. Aquí van tres formas de usar ese alto. Cada una está a tamaño real junto a la tabla, para ver si llena.</p>
+      <p>Dos piezas nuevas salen de datos que ya tiene el perfil (la fecha del primer 1º de cada campeón): los <b>últimos conquistados</b> y el <b>ritmo</b>, campeones nuevos por semana. Los datos son de Hylimichi en la BD local, a 2 de octubre: 112 de 173, +10 esa semana.</p>
+    </div>
+  </header>
+
+  <div class="controls" role="group" aria-label="Controles">
+    <span class="lab">Vista</span>
+    <div class="seg" id="view">
+      <button type="button" aria-pressed="true" data-v="desk">Escritorio</button>
+      <button type="button" aria-pressed="false" data-v="mobile">Móvil</button>
+    </div>
+    <a href="#v1">1 · Barra con hitos</a><a href="#v2">2 · Anillo grande</a><a href="#v3">3 · Barra y ritmo</a>
+  </div>
+
+  <section id="v1">
+    <div class="prop-head"><span class="tag">Variante 1</span><h2>Barra con hitos</h2></div>
+    <div class="stage"><div class="frame v5 mk" data-v="1"></div></div>
+    <div class="pros">
+      <div class="pc how"><h4>Qué es</h4><ul><li>La cifra y el % arriba; debajo, una <b>barra a todo el ancho</b> con la marca de la Deidad (60) y del oficial; al final, Dios (173).</li><li>Una línea de datos: faltan, <b>+10 esta semana</b> y ✓ oficial.</li><li><b>Últimos conquistados</b>: los 5 campeones con 1º nuevo más recientes, que abren su panel.</li></ul></div>
+      <div class="pc good"><h4>A favor</h4><ul><li>Un hito intermedio (60) se lee mejor en una barra que en un anillo: ves cuánto falta para cada uno.</li><li>Los retratos dan vida a la tarjeta y conectan con el álbum.</li></ul></div>
+      <div class="pc bad"><h4>En contra</h4><ul><li>Se pierde el anillo, que era la forma «trofeo» de la C2.</li></ul></div>
+    </div>
+  </section>
+
+  <section id="v2">
+    <div class="prop-head"><span class="tag">Variante 2</span><h2>Anillo grande</h2></div>
+    <div class="stage"><div class="frame v5 mk" data-v="2"></div></div>
+    <div class="pros">
+      <div class="pc how"><h4>Qué es</h4><ul><li>El anillo crece hasta 112 px con la cifra dentro; a su lado, una lista: faltan, +10 esta semana, oficial y los dos hitos.</li><li>Abajo, los últimos conquistados.</li></ul></div>
+      <div class="pc good"><h4>A favor</h4><ul><li>Mantiene la forma de trofeo y llena el alto.</li></ul></div>
+      <div class="pc bad"><h4>En contra</h4><ul><li>La Deidad (60) vuelve a ser solo una muesca en el anillo.</li><li>En móvil el anillo grande ocupa mucho.</li></ul></div>
+    </div>
+  </section>
+
+  <section id="v3">
+    <div class="prop-head"><span class="tag">Variante 3</span><h2>Barra y ritmo</h2></div>
+    <div class="stage"><div class="frame v5 mk" data-v="3"></div></div>
+    <div class="pros">
+      <div class="pc how"><h4>Qué es</h4><ul><li>La misma barra con hitos de la 1.</li><li>En lugar de los retratos, el <b>ritmo</b>: campeones nuevos por semana en las últimas 8 y, a la derecha, «esta semana», «media de 4 semanas» y «Dios en ~5 semanas» al ritmo actual.</li></ul></div>
+      <div class="pc good"><h4>A favor</h4><ul><li>Responde a «¿voy bien?» y «¿cuándo llego?», que la cifra sola no dice.</li></ul></div>
+      <div class="pc bad"><h4>En contra</h4><ul><li>Más abstracto que los retratos; la estimación puede bailar mucho de una semana a otra.</li></ul></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="rec-box">
+      <h3>Recomendación: variante 1</h3>
+      <p>La barra enseña mejor los <b>dos hitos</b> (Deidad y Dios) que el anillo, y los <b>últimos conquistados</b> es lo que llena el hueco con algo que apetece mirar y tocar. El ritmo de la 3 es buena idea, pero cabe más adelante en la pestaña Resumen, junto a la curva de ganados, sin cargar la cabecera.</p>
+      <p>Lo que descarto: meter retratos y ritmo a la vez, porque no caben en el alto de la tarjeta sin apretar todo, y quitar la cifra grande, porque es lo primero que se busca.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+
+const V = "16.19.1";
+const icon = (id) => `https://ddragon.leagueoflegends.com/cdn/${V}/img/profileicon/${id}.png`;
+const champ = (k) => `https://ddragon.leagueoflegends.com/cdn/${V}/img/champion/${k}.png`;
+const svg = (id, cls = "i") => `<svg class="${cls}"><use href="#i-${id}"/></svg>`;
+const shield = (c) => `<svg class="shield" style="color:${c}"><use href="#i-shield"/></svg>`;
+const LG = { platino: "var(--lg-platino)", oro: "var(--lg-oro)", plata: "var(--lg-plata)" };
+
+const ICONS = { Hylimichi: 7146, Azpekaa: 539, "BEJITO MAMBO": 7176, Krill1nt: 4895, TheCIutch: 4070, zapas14: 7027 };
+
+// Escalera (captura) + el día 2 oct de la BD local: partidas, 1º, puesto medio y campeones (más reciente primero).
+const GROUP = [
+  { pos: 1, name: "Krill1nt", lg: "platino", r: 1578, d: 52, g: 2, f: 2, avg: "1,00", last: [["Yasuo", 1], ["Swain", 1]] },
+  { pos: 2, name: "Hylimichi", lg: "platino", r: 1544, d: 17, g: 24, f: 3, avg: "3,17", me: true, last: [["Katarina", 3], ["Fizz", 2], ["Poppy", 5], ["Rammus", 3], ["Rammus", 3]] },
+  { pos: 3, name: "BEJITO MAMBO", lg: "oro", r: 1527, d: -30, g: 8, f: 1, avg: "3,50", last: [["Thresh", 4], ["Varus", 5], ["Zoe", 3], ["Nami", 3], ["Blitzcrank", 5]] },
+  { pos: 4, name: "TheCIutch", lg: "oro", r: 1517, d: 64, g: 7, f: 2, avg: "2,57", last: [["Renata", 4], ["Ziggs", 1], ["Naafiri", 3], ["Galio", 3], ["Aurora", 1]] },
+  { pos: 4, name: "zapas14", lg: "oro", r: 1517, d: -15, g: 9, f: 0, avg: "3,33", last: [["Kayn", 5], ["Skarner", 3], ["Garen", 5], ["Kayn", 3], ["Kayn", 3]] },
+  { pos: 6, name: "Azpekaa", lg: "plata", r: 1509, d: -21, g: 3, f: 0, avg: "4,00", last: [["Anivia", 4], ["Gragas", 5], ["Shaco", 3]] },
+];
+
+// Títulos de Hylimichi (captura), agrupados por compañero.
+const TITLES = [
+  { name: "Equipo roto", tone: "honor", icon: "swords", metric: "más 1º juntos", lines: [
+    { who: ["TheCIutch", "zapas14"], per: [["SEM", "<b>2</b> primeros en 17 · media 3,59"]] } ] },
+  { name: "Equipo mental boom", tone: "shame", icon: "bomb", metric: "peor puesto medio juntos", lines: [
+    { who: ["Azpekaa", "BEJITO MAMBO"], per: [["SEM", "media <b>4,70</b> en 10"]] } ] },
+  { name: "Pareja rota", tone: "honor", icon: "heart", metric: "más 1º juntos", lines: [
+    { who: ["TheCIutch"], per: [["HOY", "<b>2</b> primeros en 6 · 2,33"], ["SEM", "<b>5</b> en 27 · 3,41"]] } ] },
+  { name: "Pareja mental boom", tone: "shame", icon: "heartbreak", metric: "peor puesto medio juntos", lines: [
+    { who: ["BEJITO MAMBO"], per: [["HOY", "media <b>3,33</b> en 6"]] },
+    { who: ["zapas14"], per: [["HOY", "media <b>3,33</b> en 6"]] },
+    { who: ["Azpekaa"], per: [["SEM", "media <b>4,07</b> en 15"]] } ] },
+];
+
+const delta = (d) => (d > 0 ? `+${d}` : `−${Math.abs(d)}`);
+const dcls = (d) => (d > 0 ? "up" : d < 0 ? "down" : "");
+
+function ring(size = 78) {
+  const r = 32, c = 2 * Math.PI * r, p = 112 / 173, deity = 60 / 173;
+  const a = deity * 2 * Math.PI - Math.PI / 2;
+  const x1 = 40 + Math.cos(a) * 26, y1 = 40 + Math.sin(a) * 26, x2 = 40 + Math.cos(a) * 39, y2 = 40 + Math.sin(a) * 39;
+  return `<svg class="ring" viewBox="0 0 80 80" aria-hidden="true">
+    <circle cx="40" cy="40" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="9"/>
+    <circle cx="40" cy="40" r="${r}" fill="none" stroke="var(--place-1)" stroke-width="9" stroke-linecap="round"
+      stroke-dasharray="${c * p} ${c}" transform="rotate(-90 40 40)" style="filter:drop-shadow(0 0 6px rgba(232,182,76,.4))"/>
+    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--text)" stroke-width="2"/>
+    <text x="40" y="44" text-anchor="middle" font-family="Atkinson Hyperlegible Mono" font-size="12" fill="var(--text)">65%</text>
+  </svg>`;
+}
+
+const bar = `<div class="bar">
+  <div class="fresh">Última partida <b>hace 3 d</b><br>Comprobado hace 3 d</div>
+  <span class="btn">${svg("refresh")}<span class="t">Actualizar</span></span>
+  <span class="btn sq">${svg("sliders")}</span>
+</div>`;
+
+const avatar = `<div class="av"><img src="${icon(7146)}" alt=""><span class="seal">${svg("crown")}</span></div>`;
+const nameline = `<div class="nameline">
+  <span class="disp name">Hylimichi<small>#EUW</small></span>
+  <span class="star">${svg("star")}</span>
+  <span class="btn sm">Este soy yo</span>
+  <span class="chip gold">${svg("crown")} Deidad de Arena</span>
+</div>`;
+
+const leagueCard = `<div class="tw e">
+  <div class="hd"><span class="lbl">Liga del grupo</span><span class="faint">2º de 6</span></div>
+  <div class="row">${shield(LG.platino)}<div><div class="disp lg">Platino</div><div class="disp rt num">1544</div></div></div>
+  <div class="foot"><span class="delta up">hoy +17</span><span class="delta up">sem +116</span><span class="opt">a <b>34</b> de Krill1nt · a <b>26</b> de Diamante</span></div>
+</div>`;
+
+const godCard = (wide = false) => `<div class="tw g${wide ? " wide" : ""}">
+  <div class="hd"><span class="lbl">Dios de Arena<span class="q">?</span></span><span class="faint">temporada</span></div>
+  <div class="row">${ring()}<div>
+    <div class="disp gn num">112<small> / 173</small></div>
+    <div class="sub"><span>faltan <b>61</b></span><span><span class="okc">✓</span> oficial 112</span></div>
+  </div></div>
+  <div class="foot"><span style="color:var(--place-1)">${svg("crown")} Deidad · 60</span><span>Dios · 173</span></div>
+</div>`;
+
+const ladderCard = `<div class="tw l">
+  <div class="hd"><span class="lbl">Escalera del grupo</span><span class="faint">cambio de hoy</span></div>
+  <div class="lad">${GROUP.map((m) => `<div class="${m.me ? "me" : ""}">
+    <span class="p">${m.pos}</span>${shield(LG[m.lg])}<span class="nm">${m.name}</span>
+    <span class="r num">${m.r}</span><span class="d ${dcls(m.d)}">${delta(m.d)}</span></div>`).join("")}</div>
+</div>`;
+
+const groupToday = `<div class="tw">
+  <div class="hd"><span class="lbl">El grupo hoy</span><span class="faint">53 partidas · cambio de ELO de hoy</span></div>
+  <div class="gtw"><table class="gt">
+    <thead><tr><th></th><th>Miembro</th><th class="hide-m2">Rating</th><th>Hoy</th><th>Part.</th><th>1º</th><th>Media</th><th class="hide-m">Últimas</th></tr></thead>
+    <tbody>${GROUP.map((m) => `<tr class="${m.me ? "me" : ""}${m.g === 0 ? " idle" : ""}">
+      <td class="p">${m.pos}</td>
+      <td class="nmc"><span class="nmw">${shield(LG[m.lg])}<a class="n" href="#">${m.name}</a></span></td>
+      <td class="mono num hide-m2">${m.r}</td>
+      <td class="mono num ${dcls(m.d)}">${delta(m.d)}</td>
+      <td class="mono num">${m.g}</td>
+      <td class="mono num ${m.f > 0 ? "first" : "faint"}">${m.f}</td>
+      <td class="mono num ${parseFloat(m.avg.replace(",", ".")) <= 3 ? "good" : parseFloat(m.avg.replace(",", ".")) >= 3.75 ? "bad" : ""}">${m.avg}</td>
+      <td class="hide-m"><span class="last">${m.last.map(([k, p]) => `<i style="background-image:url(${champ(k)})" title="${k} · ${p}º"><b class="${p === 1 ? "w" : ""}">${p}</b></i>`).join("")}</span></td>
+    </tr>`).join("")}</tbody>
+  </table></div>
+</div>`;
+
+const titles = `<div class="titles">
+  <div class="hd"><span class="lbl">Títulos</span><span class="meta"><a href="#">Cómo funcionan los títulos</a></span></div>
+  <div class="tgrid">${TITLES.map((t) => `<div class="tc ${t.tone}">
+    <span class="tico">${svg(t.icon)}</span>
+    <div class="tbody"><div class="tname"><span class="disp">${t.name}</span><span class="metric">${t.metric}</span></div>
+    ${t.lines.map((l) => `<div class="tline">
+      <span class="who">${l.who.map((w) => `<a class="mate" href="#"><img src="${icon(ICONS[w])}" alt="">${w}</a>`).join('<span class="plus">+</span>')}</span>
+      ${l.per.map(([p, txt]) => `<span class="per"><i>${p}</i>${txt}</span>`).join("")}
+    </div>`).join("")}</div>
+  </div>`).join("")}</div>
+</div>`;
+
+const ALBUM = ["Aatrox", "Aphelios", "Ashe", "Caitlyn", "Camille", "Evelynn", "Fizz", "Gnar", "Graves", "Heimerdinger", "Irelia", "Ivern", "Janna", "Jhin", "KSante", "Kaisa", "Katarina", "Kayn", "Kennen", "Kled"];
+const album = `<div class="tabs"><span class="on">Campeones</span><span>Resumen</span><span>Estadísticas</span><span>Compañeros</span><span>Partidas</span><span>Grupo</span></div>
+<div class="albw"><div class="alb"><div class="filters"><span style="flex:1"></span><span style="width:240px"></span></div>
+  <span class="lbl">Jugados sin ganar · 40</span>
+  <div class="grid">${ALBUM.map((k) => `<div><img src="${champ(k)}" alt="">${k}</div>`).join("")}</div></div>
+  <div class="rail"><span class="lbl">Marcador</span><div class="box"></div><span class="lbl">Forma</span><div class="box"></div></div></div>`;
+
+const toast = `<div class="toast" role="status"><span class="ic">!</span><div><b>Actualización pausada: la clave de Riot ha caducado.</b><span>Los datos son los de la última sincronización.</span></div><span class="x">${svg("x")}</span></div>`;
+
+
+
+const LAST = [["Nocturne", "2 oct"], ["Alistar", "2 oct"], ["Azir", "1 oct"], ["Urgot", "1 oct"], ["Bard", "30 sept"]];
+const WEEKS = [10, 3, 10, 17, 14, 22, 6, 10];
+const P = 112, G = 173, D = 60, OFF = 112;
+const pct = (n) => `${(n / G) * 100}%`;
+const head = `<div class="hd"><span class="lbl">Dios de Arena<span class="q">?</span></span><span class="faint">temporada</span></div>`;
+const bigNum = `<div class="big"><span class="disp gn num">${P}<small> / ${G}</small></span><span class="pct"><b>65</b> %</span></div>`;
+const barH = `<div class="gbar"><span class="fill" style="width:${pct(P)}"></span>
+  <span class="tick" style="left:${pct(D)}"></span><span class="tick off" style="left:calc(${pct(OFF)} - 1px)" title="Oficial ${OFF}"></span>
+  <span class="lab start" style="left:0">0</span>
+  <span class="lab ms" style="left:${pct(D)}">${svg("crown")} Deidad · ${D} ✓</span>
+  <span class="lab end" style="left:100%">Dios · ${G}</span></div>`;
+const facts = `<div class="facts"><span>faltan <b>${G - P}</b></span><span class="up">+10 esta semana</span><span><span class="okc">✓</span> oficial ${OFF}</span></div>`;
+const recent = `<div class="recent"><span class="lbl">Últimos conquistados</span><div class="row5">${LAST.map(([k, d]) => `<div class="ch" title="${k} · primer 1º el ${d}"><img src="${champ(k)}" alt="">${d}</div>`).join("")}</div></div>`;
+function ringBig() {
+  const r = 52, c = 2 * Math.PI * r, p = P / G, a = (D / G) * 2 * Math.PI - Math.PI / 2;
+  const x1 = 64 + Math.cos(a) * 44, y1 = 64 + Math.sin(a) * 44, x2 = 64 + Math.cos(a) * 61, y2 = 64 + Math.sin(a) * 61;
+  return `<svg viewBox="0 0 128 128" aria-hidden="true"><circle cx="64" cy="64" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="12"/>
+  <circle cx="64" cy="64" r="${r}" fill="none" stroke="var(--place-1)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${c * p} ${c}" transform="rotate(-90 64 64)" style="filter:drop-shadow(0 0 6px rgba(232,182,76,.4))"/>
+  <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--text)" stroke-width="2.5"/>
+  <text x="64" y="70" text-anchor="middle" font-family="Big Shoulders" font-weight="800" font-size="40" fill="var(--place-1)">${P}</text>
+  <text x="64" y="88" text-anchor="middle" font-family="Atkinson Hyperlegible Mono" font-size="11" fill="var(--muted)">de ${G} · 65%</text></svg>`;
+}
+const VAR = {
+  1: `<div class="tw g5">${head}${bigNum}${barH}${facts}${recent}</div>`,
+  2: `<div class="tw g5">${head}<div class="ringbig">${ringBig()}<div class="list">
+      <span>faltan <b>${G - P}</b></span><span class="up" style="color:var(--ok)">+10 esta semana</span><span><span class="okc">✓</span> oficial ${OFF}</span>
+      <span class="ms">${svg("crown")} Deidad · ${D} ✓</span><span>Dios · ${G}</span></div></div>${recent}</div>`,
+  3: `<div class="tw g5">${head}${bigNum}${barH}
+      <div class="pace"><div><span class="lbl">Nuevos por semana</span><div class="spark" style="margin-top:8px">${WEEKS.map((w, i) => `<i class="${i === WEEKS.length - 1 ? "now" : ""}" style="height:${(w / 22) * 100}%" title="${w}"></i>`).join("")}</div><div class="sparkx"><span>10 ago</span><span>esta</span></div></div>
+      <div class="tiles"><div><b>+10</b>esta semana</div><div><b>13</b>media 4 sem.</div><div><b>~5 sem.</b>para Dios</div></div></div></div>`,
+};
+for (const f of document.querySelectorAll(".frame.v5")) f.innerHTML = `<div class="pair">${groupToday}${VAR[f.dataset.v]}</div>`;
+document.getElementById("view").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  for (const x of e.currentTarget.querySelectorAll("button")) x.setAttribute("aria-pressed", String(x === b));
+  for (const f of document.querySelectorAll(".frame")) f.classList.toggle("mobile", b.dataset.v === "mobile");
+});
+
+</script>
+</body>
+</html>

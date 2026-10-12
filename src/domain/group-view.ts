@@ -44,6 +44,7 @@ import {
   type PlayerTitle,
   titlesOf,
 } from "./group-titles";
+import { computeGroupToday, type GroupToday } from "./group-today";
 import { getGroupRows } from "./queries";
 
 /** Clave estable y no sensible de un miembro en la salida: `String(profileId)`. */
@@ -122,6 +123,11 @@ export interface GroupView {
    * `now` que `day` y `week`. `standings[i].key` es `GroupViewMember.key`.
    */
   elo: GroupElo;
+  /**
+   * Actividad de HOY de cada miembro (iter-11): el día de juego de `now`, estricto (sin caer al
+   * último día con partidas, a diferencia de `day`). `members` por `GroupViewMember.key`.
+   */
+  today: GroupToday;
   /** Dúos y tríos de miembros de toda la temporada con 3 o más partidas juntos. */
   seasonTeams: SeasonTeams;
   /** Tabla de Temporada: una fila por miembro (en el orden de `members`) y líderes por columna. */
@@ -253,6 +259,11 @@ export async function loadGroupView(
       viewMembers.map((m) => m.key),
       now,
     ),
+    today: computeGroupToday(
+      rows,
+      viewMembers.map((m) => m.key),
+      now,
+    ),
     seasonTeams: computeSeasonTeams(rows),
     seasonTable: withDisplayNames(
       computeSeasonTable(
@@ -289,6 +300,8 @@ export interface ProfileElo {
   provisional: boolean;
   /** Partidas de la temporada que cuentan para el rating. */
   games: number;
+  /** Racha en curso (F28): 1º seguidos al final de su historial; 0 si la última no fue 1º. */
+  streak: number;
   /** Desglose de cada partida que cuenta, por `matchId`. */
   matches: Record<string, EloMatch>;
   /** Una entrada por partida que cuenta, en orden cronológico (gráfica del rating). */
@@ -312,6 +325,7 @@ export function profileEloOf(elo: GroupElo, key: string): ProfileElo | null {
     league: standing.league,
     provisional: standing.provisional,
     games: standing.games,
+    streak: standing.streak,
     matches: Object.fromEntries(standing.history.map((m) => [m.matchId, m])),
     series: standing.history.map((m) => ({
       gameStartTimestamp: m.gameStartTimestamp,

@@ -9,7 +9,6 @@ import {
 } from "@/domain/album";
 import { type ArenaGodGoal, arenaGodGoal } from "@/domain/arena-god";
 import { isGroupMember } from "@/domain/group";
-import type { PlayerTitle } from "@/domain/group-titles";
 import {
   type GroupView,
   memberKey,
@@ -73,10 +72,11 @@ import {
   teammatesAtLeast,
 } from "./teammates-view";
 import { availableTab, type ProfileTab } from "./view-model";
+import { type ProfileVitrina, profileVitrina } from "./vitrina-view";
 
 // Carga de datos de `/euw/{nombre}-{tag}`, separada de la página para poder probarla contra la
 // BD. Devuelve una lista blanca explícita: ni el `puuid` (ni siquiera se lee del perfil) llega a la
-// página. Lo común a todas las pestañas (header, barra, raíl, álbum y forma) se carga siempre; lo
+// página. Lo común a todas las pestañas (vitrina, raíl, álbum y forma) se carga siempre; lo
 // propio de cada pestaña, solo si es la activa (`view.tab`). El catálogo de Data Dragon se inyecta
 // (la página pasa `getChampionCatalog()`, que es server-only y usa la red): así esta carga se
 // prueba sin red.
@@ -181,8 +181,8 @@ export interface ProfileView {
   form: RecentGame[];
   challenge: ProfileChallenge;
   /**
-   * Badge «Deidad de Arena» y meta de la barra (`arenaGodGoal`): se decide en el servidor con los
-   * verificados y el contador oficial, y el mismo valor llega a la cabecera y a la barra.
+   * Badge «Deidad de Arena» y meta del trofeo Dios de Arena (`arenaGodGoal`): se decide en el
+   * servidor con los verificados y el contador oficial, y el mismo valor llega al chip y al trofeo.
    */
   arenaGod: ArenaGodGoal;
   /**
@@ -190,11 +190,14 @@ export interface ProfileView {
    * el raíl se pinta en todas las pestañas. Cifras ya formateadas y sin `puuid`.
    */
   railTeammates: RailTeammate[];
-  /** Títulos vigentes del miembro (badges de la cabecera); vacío si el perfil no es del grupo. */
-  titles: PlayerTitle[];
+  /**
+   * La vitrina de la cabecera (iter-11): campeón del fondo y, en miembros, sus títulos agrupados, la
+   * escalera y las distancias del ELO. Ya derivado (`profileVitrina`): la `GroupView` no viaja.
+   */
+  vitrina: ProfileVitrina;
   /** ELO del miembro (iter-09); `null` si el perfil no es del grupo. */
   elo: ProfileElo | null;
-  /** El perfil es miembro del grupo: decide si la barra lleva la pestaña Grupo. */
+  /** El perfil es miembro del grupo: decide si la barra de pestañas lleva la Grupo. */
   isMember: boolean;
   /**
    * Versiones de datos leídas antes de cargar la página (`initial` de `StatusProvider`); la del
@@ -352,9 +355,10 @@ export async function loadProfilePage(
       : null;
 
   // La vista sale del mismo cálculo (memorizado) que los títulos y el ELO de la cabecera.
+  const ownerKey = memberKey(profile.id);
   const group =
     tab === "grupo" && groupData.view
-      ? { view: groupData.view, ownerKey: memberKey(profile.id) }
+      ? { view: groupData.view, ownerKey }
       : null;
 
   const partidas =
@@ -400,7 +404,13 @@ export async function loadProfilePage(
       championTotal: championCatalog.champions.length,
     }),
     railTeammates: railTeammates(stats.teammates, RAIL_TEAMMATES),
-    titles: groupData.titles,
+    vitrina: profileVitrina({
+      verified: stats.verifiedChampions,
+      catalog: championCatalog,
+      titles: groupData.titles,
+      view: groupData.view,
+      ownerKey,
+    }),
     elo: groupData.elo,
     isMember,
     versions: {
