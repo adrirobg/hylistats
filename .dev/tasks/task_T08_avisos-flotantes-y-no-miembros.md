@@ -43,8 +43,13 @@ Reglas comunes:
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] Ningún aviso de sincronización en el flujo: error, pausa, límite (ambos) y progreso en la pila flotante, uno persistente a la vez por prioridad, más el toast encima.
-- [ ] Cerrar funciona y no vuelve hasta cambiar de `kind`; indicador para reabrir (A3).
-- [ ] Slot `band` retirado o justificado.
-- [ ] No miembros: Dios de Arena a todo el ancho con el aviso a la derecha; sin aviso, ajustado a su contenido.
-- [ ] Función pura de prioridad con tests; `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] Ningún aviso de sincronización en el flujo: error, pausa, límite (ambos) y progreso en la pila flotante, uno persistente a la vez por prioridad, más el toast encima.
+- [x] Cerrar funciona y no vuelve hasta cambiar de `kind`; indicador para reabrir (A3).
+- [x] Slot `band` retirado o justificado.
+- [x] No miembros: Dios de Arena a todo el ancho con el aviso a la derecha; sin aviso, ajustado a su contenido.
+- [x] Función pura de prioridad con tests; `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+
+## Evidencias <!-- MUST -->
+
+- Commit `734b48d`. `npm run lint && npm run typecheck && npm test && npm run build`: EXIT 0 (75 archivos, 1519 tests; `floating-notices.test.ts` 11 tests).
+- Navegador (worker): Hylimichi a 1440 y 375 — aviso de pausa, cerrar, indicador y reabrir sin mover frescura, botón ni pestañas; elruffles a 1440/768/700/375 con Dios de Arena a lo ancho y el aviso a la derecha; error, toast y progreso forzados y revertidos. Slot `band` y `sync-band.tsx` retirados.

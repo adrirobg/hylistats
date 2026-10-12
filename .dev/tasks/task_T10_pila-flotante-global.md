@@ -36,6 +36,11 @@ Reglas comunes:
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] AC22 de la spec.
-- [ ] `ToastRegion` y la pila local de `Vitrina` sustituidas por la global; nada sin uso.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] AC22 de la spec.
+- [x] `ToastRegion` y la pila local de `Vitrina` sustituidas por la global; nada sin uso.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+
+## Evidencias <!-- MUST -->
+
+- Commit `dd0750a`. `npm run lint && npm run typecheck && npm test && npm run build`: EXIT 0 (76 archivos, 1540 tests).
+- Navegador (worker y orquestador): Hylimichi a 1440 → pestañas en 662 px antes y después de cerrar avisos (pausa + Arena); a 375, 1214 px estables; elruffles con pausa + Dios de Arena + «+1 aviso», rastro «! no cuadra con el oficial (3)», cierre persistente tras recargar; BEJITO MAMBO con «! revisa las marcas manuales». Toast de /grupo no provocable (botón deshabilitado por la pausa).

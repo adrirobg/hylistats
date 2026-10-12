@@ -32,6 +32,12 @@ Reglas comunes:
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] AC14–AC18 de la spec.
-- [ ] Componentes sin uso retirados (`LeagueTrophy`, `GroupLadder`) o justificados.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] AC14–AC18 de la spec.
+- [x] Componentes sin uso retirados (`LeagueTrophy`, `GroupLadder`) o justificados.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+
+## Evidencias <!-- MUST -->
+
+- Commit `bd71f96`. `npm run lint && npm run typecheck && npm test && npm run build`: EXIT 0 (74 archivos, 1508 tests).
+- Navegador (orquestador): Hylimichi a 1440×860 → pestañas en 662 px (antes 858); a 700 px sin scroll horizontal; elruffles solo con Dios de Arena. A 375 px, 1085 px (> 1000): aceptado por el supervisor el 2026-10-06.
+- `LeagueTrophy` y `GroupLadder` borrados.

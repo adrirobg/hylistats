@@ -37,7 +37,12 @@ Reglas comunes:
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] `GroupView.today` con hoy estricto y tests.
-- [ ] `groupTodayRows` + `todayGames` en `VitrinaGroup`.
-- [ ] `TitleRow` por compañero con `metric` y textos cortos; tests de los casos listados.
-- [ ] `npm run lint && npm run typecheck && npm test` en verde.
+- [x] `GroupView.today` con hoy estricto y tests.
+- [x] `groupTodayRows` + `todayGames` en `VitrinaGroup`.
+- [x] `TitleRow` por compañero con `metric` y textos cortos; tests de los casos listados.
+- [x] `npm run lint && npm run typecheck && npm test` en verde.
+
+## Evidencias <!-- MUST -->
+
+- Commit `2cdcd4f`. `npm run lint && npm run typecheck && npm test`: EXIT 0 (74 archivos, 1508 tests); reverificado por el orquestador (`group-today.test.ts` + `vitrina-view.test.ts`: 49 tests).
+- `GroupView.today` (hoy estricto, `computeGroupToday`), `groupTodayRows`/`todayGames` y `TitleRow` por compañero con `metric` y textos cortos; `ladderRows`, `titleCounts` y `titleLineText` retirados.

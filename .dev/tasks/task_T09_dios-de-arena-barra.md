@@ -31,6 +31,11 @@ Reglas comunes:
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] AC21 de la spec.
-- [ ] Anillo retirado (o justificado) y tests de la barra con los casos del anillo.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] AC21 de la spec.
+- [x] Anillo retirado (o justificado) y tests de la barra con los casos del anillo.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+
+## Evidencias <!-- MUST -->
+
+- Commit `3948eaf`. `npm run lint && npm run typecheck && npm test && npm run build`: EXIT 0 (75 archivos, 1526 tests).
+- Navegador: Hylimichi a 1440 — tarjeta 487×217 igual a El grupo hoy, pestañas en 706 (con el aviso de Arena aún en el flujo); últimos 5 en orden (Nocturne … Bardo) y enlace al panel (`?tab=resumen&campeon=nocturne`); elruffles con meta 60 y aviso de descuadre. Captura del orquestador revisada. `god-ring*` borrados.
