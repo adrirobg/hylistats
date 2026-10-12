@@ -32,9 +32,8 @@ export function VitrinaLabel({
 /**
  * Los trofeos a la par: El grupo hoy y Dios de Arena (≈ 1,75 : 1); al apilarse (< 1000 px)
  * cualquiera ocupa el ancho. Con uno solo (no miembros, I1: Dios de Arena, en su disposición
- * `wide`) la tarjeta va a la izquierda a su medida, o a todo el ancho si lleva el aviso de
- * descuadre (lo decide `page.tsx`); la rejilla es entonces el contenedor `god` del trofeo, porque
- * una tarjeta a su medida no puede serlo (sin ancho propio, se quedaría en nada).
+ * `wide`) la tarjeta va a la izquierda a su medida; la rejilla es entonces el contenedor `god` del
+ * trofeo, porque una tarjeta a su medida no puede serlo (sin ancho propio, se quedaría en nada).
  */
 export function TrophyGrid({
   single = false,

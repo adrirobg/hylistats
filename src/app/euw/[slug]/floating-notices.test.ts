@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
+import {
+  type FloatingEntry,
+  floatingLayout,
+} from "@/components/hy/floating-stack";
+import { arenaGodState } from "@/domain/arena-god";
 import type { SyncProgress } from "./data";
 import {
-  floatingNotices,
-  pickNotice,
+  ARENA_QUIET_PRIORITY,
+  arenaQuietSignature,
+  closedNoticeKey,
+  GOD_PRIORITY,
+  godNoticeSignature,
+  godTrace,
+  SYNC_PRIORITY,
   type SyncNoticeInput,
-  type SyncNoticeKind,
   type SyncNoticeModel,
+  syncNoticeId,
   syncNotices,
 } from "./floating-notices";
 
@@ -38,7 +48,6 @@ const input = (rest: Partial<SyncNoticeInput> = {}): SyncNoticeInput => ({
   now: NOW,
   ...rest,
 });
-const NONE: readonly SyncNoticeKind[] = [];
 
 describe("syncNotices", () => {
   it("sin nada que contar, ningún aviso", () => {
@@ -86,7 +95,25 @@ describe("syncNotices", () => {
   });
 });
 
-describe("pickNotice", () => {
+/** Entradas de la pila (`FloatingItem`) para unos avisos de sincronización, como la vitrina. */
+const syncEntries = (notices: readonly SyncNoticeModel[]): FloatingEntry[] =>
+  notices.map((notice) => ({
+    id: syncNoticeId(notice.kind),
+    priority: SYNC_PRIORITY[notice.kind],
+    group: "sync",
+  }));
+const GOD: FloatingEntry = {
+  id: "dios",
+  priority: GOD_PRIORITY,
+  group: "dios",
+};
+const ARENA: FloatingEntry = {
+  id: "arena",
+  priority: ARENA_QUIET_PRIORITY,
+  group: "arena",
+};
+
+describe("prioridad en la pila", () => {
   const error: SyncNoticeModel = { kind: "error" };
   const paused: SyncNoticeModel = { kind: "paused", progress: null };
   const limit: SyncNoticeModel = {
@@ -100,62 +127,49 @@ describe("pickNotice", () => {
     position: 2,
     startMinutes: 1,
   };
+  const first = (notices: SyncNoticeModel[]) =>
+    floatingLayout({ entries: syncEntries(notices), closed: [], mobile: true })
+      .visible[0];
 
-  it("con varios activos enseña el de mayor prioridad: error, pausa, límite, progreso", () => {
-    expect(pickNotice([queued, limit, paused, error], NONE)).toMatchObject({
-      notice: error,
-      closed: null,
-    });
-    expect(pickNotice([queued, limit, paused], NONE).notice).toBe(paused);
-    expect(pickNotice([queued, limit], NONE).notice).toBe(limit);
-    expect(pickNotice([queued], NONE).notice).toBe(queued);
+  it("de sincronización, el de mayor prioridad: error, pausa, límite, progreso", () => {
+    expect(first([queued, limit, paused, error])).toBe("sync:error");
+    expect(first([queued, limit, paused])).toBe("sync:paused");
+    expect(first([queued, limit])).toBe("sync:rate_limit");
+    expect(first([queued])).toBe("sync:queued");
   });
 
-  it("cerrar el primero deja ver el siguiente y lo marca como cerrado activo", () => {
-    expect(pickNotice([limit, error], ["error"])).toEqual({
-      notice: limit,
-      closed: "error",
-      dismissed: ["error"],
+  it("sincronización > Dios de Arena > Arena fuera de rotación", () => {
+    const entries = [ARENA, GOD, ...syncEntries([paused])];
+    expect(floatingLayout({ entries, closed: [], mobile: false })).toEqual({
+      visible: ["sync:paused", "dios"],
+      folded: ["arena"],
+      closed: [],
     });
-    expect(pickNotice([limit, error], ["error", "rate_limit"])).toMatchObject({
-      notice: null,
-      closed: "error",
-    });
-  });
-
-  it("sin nada activo no hay aviso ni cerrados (y los cerrados se olvidan)", () => {
-    expect(pickNotice([], NONE)).toEqual({
-      notice: null,
-      closed: null,
-      dismissed: NONE,
-    });
-    expect(pickNotice([], ["paused"])).toEqual({
-      notice: null,
-      closed: null,
-      dismissed: [],
-    });
-  });
-
-  it("si no cambia nada devuelve el mismo array de cerrados", () => {
-    const dismissed: readonly SyncNoticeKind[] = ["paused"];
-    expect(pickNotice([paused], dismissed).dismissed).toBe(dismissed);
   });
 });
 
-describe("floatingNotices: cerrar a lo largo del tiempo", () => {
-  /** Aplica una secuencia de estados guardando los cerrados como haría la vitrina. */
+describe("cerrar a lo largo del tiempo", () => {
+  /**
+   * Aplica una secuencia de estados como la pila: cerrar vale para el `id` a la vista, y el cierre
+   * se olvida en cuanto el aviso deja de estar registrado.
+   */
   function run(
     steps: { input: SyncNoticeInput; close?: boolean }[],
-  ): { notice: SyncNoticeKind | null; closed: SyncNoticeKind | null }[] {
-    let dismissed: readonly SyncNoticeKind[] = [];
+  ): { notice: string | null; closed: string | null }[] {
+    let closed: string[] = [];
     return steps.map((step) => {
-      let result = floatingNotices(step.input, dismissed);
-      dismissed = result.dismissed;
-      if (step.close && result.notice) {
-        dismissed = [...dismissed, result.notice.kind];
-        result = floatingNotices(step.input, dismissed);
+      const entries = syncEntries(syncNotices(step.input));
+      closed = closed.filter((id) => entries.some((e) => e.id === id));
+      let layout = floatingLayout({ entries, closed, mobile: false });
+      const shown = layout.visible[0];
+      if (step.close && shown) {
+        closed = [...closed, shown];
+        layout = floatingLayout({ entries, closed, mobile: false });
       }
-      return { notice: result.notice?.kind ?? null, closed: result.closed };
+      return {
+        notice: layout.visible[0] ?? null,
+        closed: layout.closed[0] ?? null,
+      };
     });
   }
 
@@ -169,10 +183,10 @@ describe("floatingNotices: cerrar a lo largo del tiempo", () => {
         { input: paused },
       ]),
     ).toEqual([
-      { notice: null, closed: "paused" },
-      { notice: null, closed: "paused" },
+      { notice: null, closed: "sync:paused" },
+      { notice: null, closed: "sync:paused" },
       { notice: null, closed: null },
-      { notice: "paused", closed: null },
+      { notice: "sync:paused", closed: null },
     ]);
   });
 
@@ -190,17 +204,13 @@ describe("floatingNotices: cerrar a lo largo del tiempo", () => {
     expect(
       run([
         { input: input({ sync: fetching("backfill") }), close: true },
-        {
-          input: input({
-            sync: fetching("backfill", {}, 60),
-          }),
-        },
+        { input: input({ sync: fetching("backfill", {}, 60) }) },
         { input: listing },
       ]),
     ).toEqual([
-      { notice: null, closed: "fetching" },
-      { notice: null, closed: "fetching" },
-      { notice: "listing", closed: null },
+      { notice: null, closed: "sync:fetching" },
+      { notice: null, closed: "sync:fetching" },
+      { notice: "sync:listing", closed: null },
     ]);
   });
 
@@ -211,8 +221,76 @@ describe("floatingNotices: cerrar a lo largo del tiempo", () => {
         { input: input({ sync: fetching("backfill"), paused: true }) },
       ]),
     ).toEqual([
-      { notice: null, closed: "fetching" },
-      { notice: "paused", closed: null },
+      { notice: null, closed: "sync:fetching" },
+      { notice: "sync:paused", closed: null },
     ]);
+  });
+});
+
+const god = (
+  verifiedIds: number[],
+  official: number | null,
+  manualIds: number[] = [],
+) => arenaGodState({ verifiedIds, manualIds, official, goal: 60 });
+const ids = (n: number, from = 1) =>
+  Array.from({ length: n }, (_, i) => from + i);
+
+describe("firmas de cierre", () => {
+  it("Dios de Arena: mismo estado, misma firma; cualquier cifra que cambie, otra", () => {
+    const base = godNoticeSignature(god(ids(75), 79));
+    expect(godNoticeSignature(god(ids(75), 79))).toBe(base);
+    expect(godNoticeSignature(god(ids(76), 79))).not.toBe(base);
+    expect(godNoticeSignature(god(ids(75), 80))).not.toBe(base);
+    expect(godNoticeSignature(god(ids(75), 79, [200]))).not.toBe(base);
+  });
+
+  it("Dios de Arena: el caso entra en la firma (sin oficial no se confunde con un 0)", () => {
+    expect(godNoticeSignature(god(ids(3), null))).toBe("dios:unknown:3:0:-");
+    expect(godNoticeSignature(god(ids(3), 5))).toBe("dios:missing:3:0:5");
+  });
+
+  it("Arena fuera de rotación: cambia con la última partida de Arena", () => {
+    expect(arenaQuietSignature(1000)).toBe("arena:1000");
+    expect(arenaQuietSignature(2000)).not.toBe(arenaQuietSignature(1000));
+  });
+
+  it("la clave va por perfil y por aviso", () => {
+    expect(closedNoticeKey("hylimichi#euw", "arena")).toBe(
+      "hylistats:aviso-cerrado:arena:hylimichi#euw",
+    );
+    expect(closedNoticeKey("hylimichi#euw", "dios")).not.toBe(
+      closedNoticeKey("elruffles#6485", "dios"),
+    );
+  });
+});
+
+describe("godTrace", () => {
+  it("cuando cuadra no hay rastro (va el ✓ oficial N)", () => {
+    expect(godTrace(god(ids(5), 5), false)).toBeNull();
+    expect(godTrace(god(ids(5), 5), true)).toBeNull();
+  });
+
+  it("un texto corto por caso", () => {
+    expect(godTrace(god(ids(75), 79), false)).toEqual({
+      text: "no cuadra con el oficial (79)",
+      alert: true,
+    });
+    expect(godTrace(god(ids(5), null), false)).toEqual({
+      text: "sin contador oficial",
+      alert: true,
+    });
+    expect(godTrace(god(ids(10), 8), false)?.text).toBe(
+      "no cuadra con el oficial (8)",
+    );
+    expect(godTrace(god(ids(5), 6, [100, 101]), false)?.text).toBe(
+      "revisa las marcas manuales",
+    );
+  });
+
+  it("con una sincronización en marcha, sincronizando…", () => {
+    expect(godTrace(god(ids(75), 79), true)).toEqual({
+      text: "sincronizando…",
+      alert: false,
+    });
   });
 });

@@ -1,7 +1,7 @@
 # Task T10 — Pila flotante global: todos los avisos y toasts
 
 **Owner**: worker:opus
-**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: derivada de `spec.md` → "Revisión v5b" (D8–D12, AC22). Parte de lo hecho en T08 (pila de sincronización en `Vitrina`) y T09 (tarjeta Dios de Arena con barra).
 

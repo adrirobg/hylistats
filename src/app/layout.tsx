@@ -4,6 +4,7 @@ import {
   Atkinson_Hyperlegible_Next,
   Big_Shoulders,
 } from "next/font/google";
+import { FloatingProvider } from "@/components/hy/floating";
 import "./globals.css";
 
 // Tres familias del brief §6.2. Las variables `--font-*` las consume
@@ -44,7 +45,8 @@ export const metadata: Metadata = {
 };
 
 // `dark` activa las variantes `dark:` de los componentes de shadcn: el tema
-// oscuro es el único (P9), no hay selector de tema.
+// oscuro es el único (P9), no hay selector de tema. `FloatingProvider` es la
+// pila flotante de avisos y toasts de toda la app (revisión v5b de la cabecera).
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -52,16 +54,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${display.variable} ${body.variable} ${mono.variable} dark h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <div className="mx-auto flex w-full max-w-[1480px] flex-1 flex-col px-4 pb-16">
-          {children}
-          <footer className="mt-16 border-t border-line py-4 text-center text-xs text-faint">
-            hylistats isn't endorsed by Riot Games and doesn't reflect the views
-            or opinions of Riot Games or anyone officially involved in producing
-            or managing Riot Games properties. Riot Games, and all associated
-            properties are trademarks or registered trademarks of Riot Games,
-            Inc.
-          </footer>
-        </div>
+        <FloatingProvider>
+          <div className="mx-auto flex w-full max-w-[1480px] flex-1 flex-col px-4 pb-16">
+            {children}
+            <footer className="mt-16 border-t border-line py-4 text-center text-xs text-faint">
+              hylistats isn't endorsed by Riot Games and doesn't reflect the
+              views or opinions of Riot Games or anyone officially involved in
+              producing or managing Riot Games properties. Riot Games, and all
+              associated properties are trademarks or registered trademarks of
+              Riot Games, Inc.
+            </footer>
+          </div>
+        </FloatingProvider>
       </body>
     </html>
   );

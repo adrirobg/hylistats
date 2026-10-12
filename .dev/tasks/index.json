@@ -110,7 +110,7 @@
     {
       "id": "T10",
       "title": "Pila flotante global: todos los avisos y toasts",
-      "status": "in_progress",
+      "status": "done",
       "owner": "worker:opus",
       "branch": "feat/27-cabecera-vitrina",
       "worktree": "/Users/adri/dev/hylistats/.claude/worktrees/feat-27",
@@ -119,7 +119,7 @@
       ],
       "artifact_path": ".dev/tasks/task_T10_pila-flotante-global.md",
       "created_at": "2026-10-12T12:00:26Z",
-      "updated_at": "2026-10-12T12:00:26Z"
+      "updated_at": "2026-10-12T12:16:35Z"
     },
     {
       "id": "T07",

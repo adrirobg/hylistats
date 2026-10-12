@@ -1,18 +1,22 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { FloatingNotice } from "@/components/hy/toast";
+import { FloatingItem } from "@/components/hy/floating";
 import { cn } from "@/lib/utils";
-import type { SyncNoticeModel } from "./floating-notices";
+import {
+  SYNC_PRIORITY,
+  type SyncNoticeModel,
+  syncNoticeId,
+} from "./floating-notices";
 import { dataAgePhrase, rateLimitPhrase, sharingPhrase } from "./view-model";
 
-// Contenido de los avisos de sincronización de la pila flotante (brief §4.10; revisión v4, T08):
-// error de la actualización con [Reintentar], pausa por key caducada, límite de peticiones (del
-// backfill o del incremental) y progreso del backfill y la cola (`.sync-band` de la maqueta, que ya
-// no va en el flujo). Cuál toca lo decide `floating-notices.ts`; la pila y el estado de los cerrados
-// viven en la vitrina (`vitrina.tsx`), que tiene el botón Actualizar y su toast. El progreso va en el
-// tono neutro (esperar turno no avisa de nada); el resto, en azul acero: no es un error del usuario
-// (§4.3).
+// Avisos de sincronización en la pila flotante global (brief §4.10; T08, revisión v5b): error de la
+// actualización con [Reintentar], pausa por key caducada, límite de peticiones (del backfill o del
+// incremental) y progreso del backfill y la cola (`.sync-band` de la maqueta, que ya no va en el
+// flujo). Cada uno se registra en la pila (`FloatingItem`, familia `sync`) con su prioridad de
+// `floating-notices.ts`; los registra la vitrina (`vitrina.tsx`), que tiene el botón Actualizar. Los
+// cierres, en memoria. El progreso va en el tono neutro (esperar turno no avisa de nada); el resto,
+// en azul acero: no es un error del usuario (§4.3).
 
 /** Progreso: no avisa de nada, va sin marca y en el tono neutro. */
 const NEUTRAL = new Set<SyncNoticeModel["kind"]>([
@@ -27,7 +31,6 @@ export function SyncNotice({
   lastSyncedAt,
   now,
   retry,
-  onClose,
 }: {
   notice: SyncNoticeModel;
   lastSyncedAt: number | null;
@@ -35,14 +38,15 @@ export function SyncNotice({
   now: number;
   /** Botón [Reintentar] del error (el formulario de Actualizar de la vitrina). */
   retry: ReactNode;
-  onClose: () => void;
 }) {
   const neutral = NEUTRAL.has(notice.kind);
   return (
-    <FloatingNotice
+    <FloatingItem
+      id={syncNoticeId(notice.kind)}
+      priority={SYNC_PRIORITY[notice.kind]}
+      group="sync"
       tone={neutral ? "neutral" : "trust"}
       icon={neutral ? null : "!"}
-      onClose={onClose}
     >
       <div className="grid gap-1.5 [&_b]:font-medium [&_small]:text-xs">
         <Body
@@ -52,7 +56,7 @@ export function SyncNotice({
           retry={retry}
         />
       </div>
-    </FloatingNotice>
+    </FloatingItem>
   );
 }
 

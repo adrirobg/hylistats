@@ -210,14 +210,9 @@ function ProfileCabin({
                 <GroupToday rows={group.today} games={group.todayGames} />
               </TrophyCard>
             )}
-            {/* Fuera del grupo, a todo el ancho si lleva el aviso de descuadre; si no, a su medida,
-                con un mínimo para que la barra no quede corta. */}
+            {/* Fuera del grupo, a su medida, con un mínimo para que la barra no quede corta. */}
             <TrophyCard
-              className={
-                group
-                  ? undefined
-                  : "min-w-[min(400px,100%)] has-[[data-slot=god-notice]]:w-full"
-              }
+              className={group ? undefined : "min-w-[min(400px,100%)]"}
             >
               <GodTrophy
                 wide={!group}

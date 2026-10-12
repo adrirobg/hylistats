@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/hy/badge";
 import { Btn } from "@/components/hy/btn";
 import { Chip } from "@/components/hy/chip";
-import { FloatingStack } from "@/components/hy/toast";
+import { FloatingItem, useFloatingStack } from "@/components/hy/floating";
 import { DEITY_CONDITION, DEITY_NAME } from "@/domain/arena-god";
 import type { LocalState } from "@/lib/local-store";
 import { normalizeRiotId } from "@/lib/riot-id";
@@ -26,7 +26,12 @@ import {
 } from "@/lib/use-local-store";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
-import { floatingNotices, type SyncNoticeKind } from "./floating-notices";
+import {
+  ARENA_QUIET_PRIORITY,
+  arenaQuietSignature,
+  closedNoticeKey,
+  syncNotices,
+} from "./floating-notices";
 import { type LeagueId, LeagueShield, leagueColor } from "./league-shield";
 import { LocalMenu } from "./local-menu";
 import type { RefreshSnapshot } from "./refresh-outcome";
@@ -46,8 +51,8 @@ import { barCompact, barRootMargin } from "./vitrina-bar";
 // en la revisión v4 con la propuesta B de `propuestas-v4.html`). Sustituye al header y a la barra
 // Arena God: banner con el splash del último 1º (tratamiento oscuro), identidad (avatar con el sello
 // de la Deidad; en una línea, nombre, `#tag`, ★, «mi perfil» y chip Deidad; debajo, en miembros, la
-// línea de liga, que llega hecha por `leagueLine`; y el aviso de Arena fuera de rotación) y los
-// trofeos (El grupo hoy y Dios de Arena), que llegan hechos por `children` (servidor y cliente).
+// línea de liga, que llega hecha por `leagueLine`) y los trofeos (El grupo hoy y Dios de Arena), que
+// llegan hechos por `children` (servidor y cliente).
 //
 // Una sola cabecera pegajosa (I6), así hay un solo botón Actualizar (`REFRESH_BUTTON_ID`, al que
 // llaman Sincronizar y Reintentar del trofeo): un `sticky` de alto 0 al principio de la cabina,
@@ -55,13 +60,14 @@ import { barCompact, barRootMargin } from "./vitrina-bar";
 // vista la barra es transparente y solo lleva frescura, Actualizar y ⋯ (arriba a la derecha);
 // cuando la identidad empieza a pasar bajo ella (`IntersectionObserver`, decisión en
 // `vitrina-bar.ts`) gana fondo, borde y la identidad compacta (avatar, nombre, liga · rating).
-// Los avisos de sincronización (error con [Reintentar], pausa por key caducada, límite de peticiones
-// y progreso del backfill) no van en el flujo (T08): salen en la pila flotante (`FloatingStack`), uno
-// a la vez según `floating-notices.ts`, con el toast de Actualizar encima. Aquí viven el estado de
-// los cerrados y, si hay uno cerrado que sigue activo, el indicador «!» junto a la frescura que lo
-// reabre. Es cliente porque lee el navegador («mi perfil», favoritos), el reloj de la frescura corre
-// en cliente y la sincronización sale del estado de `StatusProvider`; el resto llega por props del
-// servidor.
+// Lo que aparece solo no va en el flujo (T08, revisión v5b): los avisos de sincronización (error con
+// [Reintentar], pausa por key caducada, límite de peticiones y progreso del backfill) y el de Arena
+// fuera de rotación se registran aquí en la pila flotante global (`FloatingItem`, prioridades de
+// `floating-notices.ts`; el de Arena recuerda su cierre en `localStorage`), igual que el toast de
+// Actualizar. Si hay avisos cerrados que siguen activos (de cualquier familia, también el de Dios de
+// Arena), el indicador «!» junto a la frescura los cuenta y los reabre. Es cliente porque lee el
+// navegador («mi perfil», favoritos), el reloj de la frescura corre en cliente y la sincronización
+// sale del estado de `StatusProvider`; el resto llega por props del servidor.
 //
 // Rangos (container queries sobre `.app`):
 //   ≥ 900 px   identidad a la izquierda con hueco a la derecha para la barra (frescura y botones).
@@ -184,16 +190,9 @@ export function Vitrina({
   // Un incremental en cola: su posición va en el botón (el límite de peticiones, en la pila).
   const status = incrementalStatus(sync, paused, now);
 
-  // Pila flotante: cerrar un aviso vale para su `kind` mientras siga activo (los que dejan de
-  // estarlo salen de `dismissed` al pintar, así vuelven a salir la próxima vez).
-  const [dismissed, setDismissed] = useState<readonly SyncNoticeKind[]>([]);
-  const floating = floatingNotices(
-    { sync, paused, errorAt: lastJobErrorAt, now },
-    dismissed,
-  );
-  if (floating.dismissed !== dismissed) setDismissed(floating.dismissed);
-  const notice = floating.notice;
-  const closed = floating.closed;
+  // Pila flotante: los avisos de sincronización activos (cuál se ve y los cierres, en la pila).
+  const notices = syncNotices({ sync, paused, errorAt: lastJobErrorAt, now });
+  const { closed, reopenAll } = useFloatingStack();
 
   // Barra compacta en cuanto la identidad grande empieza a pasar bajo ella.
   const barRef = useRef<HTMLElement>(null);
@@ -262,24 +261,27 @@ export function Vitrina({
               </span>
             )}
           </div>
-          {/* Rastro de un aviso cerrado que sigue activo. Va delante de la frescura y, en móvil, justo
-              antes de Actualizar (`order`): así aparece en un hueco y no mueve nada, y se ve también
-              cuando la barra compacta en móvil oculta la frescura. */}
-          {closed !== null && (
+          {/* Rastro de los avisos cerrados que siguen activos: los reabre todos. Va delante de la
+              frescura y, en móvil, justo antes de Actualizar (`order`): así aparece en un hueco y no
+              mueve nada, y se ve también cuando la barra compacta en móvil oculta la frescura. */}
+          {closed > 0 && (
             <button
               type="button"
-              aria-label="Ver aviso"
-              title="Ver aviso"
-              onClick={() =>
-                setDismissed((kinds) => kinds.filter((kind) => kind !== closed))
+              aria-label={
+                closed === 1 ? "Ver aviso" : `Ver ${closed} avisos cerrados`
               }
-              className="pointer-events-auto grid size-7 flex-none cursor-pointer place-items-center rounded-full hover:bg-white/10 @max-[640px]:order-1"
+              title={closed === 1 ? "Ver aviso" : `Ver ${closed} avisos`}
+              onClick={reopenAll}
+              className="pointer-events-auto grid h-7 min-w-7 flex-none cursor-pointer place-items-center rounded-full px-1 hover:bg-white/10 @max-[640px]:order-1"
             >
               <span
                 aria-hidden="true"
-                className="grid size-5 place-items-center rounded-full border border-trust/60 bg-trust-bg font-mono text-xs font-bold text-trust"
+                className="flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-full border border-trust/60 bg-trust-bg px-1 font-mono text-xs font-bold text-trust"
               >
                 !
+                {closed > 1 && (
+                  <span className="num font-medium">{closed}</span>
+                )}
               </span>
             </button>
           )}
@@ -455,42 +457,46 @@ export function Vitrina({
               )}
             </div>
             {leagueLine}
-            {/* `<output>` es una región viva (`role="status"`). Va siempre presente y vacía si no
-                hay nada: el lector de pantalla solo anuncia el texto cuando aparece o cambia. */}
-            <output className="block max-w-[420px] text-[13px] text-muted-foreground empty:hidden">
-              {arenaQuietSince !== null &&
-                arenaQuietPhrase(arenaQuietSince, now)}
-            </output>
           </div>
         </div>
 
         {children}
       </div>
 
-      <FloatingStack toast={refresh.toast}>
-        {notice && (
-          <SyncNotice
-            notice={notice}
-            lastSyncedAt={lastSyncedAt}
-            now={now}
-            retry={
-              <form action={refresh.formAction}>
-                <input type="hidden" name="slug" value={slug} />
-                <Btn
-                  type="submit"
-                  size="small"
-                  variant="trust"
-                  onClick={refresh.markPress}
-                  disabled={refresh.busy}
-                >
-                  Reintentar
-                </Btn>
-              </form>
-            }
-            onClose={() => setDismissed((kinds) => [...kinds, notice.kind])}
-          />
-        )}
-      </FloatingStack>
+      {notices.map((notice) => (
+        <SyncNotice
+          key={notice.kind}
+          notice={notice}
+          lastSyncedAt={lastSyncedAt}
+          now={now}
+          retry={
+            <form action={refresh.formAction}>
+              <input type="hidden" name="slug" value={slug} />
+              <Btn
+                type="submit"
+                size="small"
+                variant="trust"
+                onClick={refresh.markPress}
+                disabled={refresh.busy}
+              >
+                Reintentar
+              </Btn>
+            </form>
+          }
+        />
+      ))}
+      {arenaQuietSince !== null && (
+        <FloatingItem
+          id={arenaQuietSignature(arenaQuietSince)}
+          priority={ARENA_QUIET_PRIORITY}
+          group="arena"
+          remember={closedNoticeKey(norm, "arena")}
+          title="Arena"
+          icon="i"
+        >
+          <p>{arenaQuietPhrase(arenaQuietSince, now)}</p>
+        </FloatingItem>
+      )}
     </>
   );
 }

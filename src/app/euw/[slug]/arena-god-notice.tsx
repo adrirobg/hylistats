@@ -3,8 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import { Btn } from "@/components/hy/btn";
-import { Notice } from "@/components/hy/notice";
-import { ToastRegion, useToast } from "@/components/hy/toast";
+import { useFloatingToast } from "@/components/hy/floating";
 import {
   ARENA_GOD_EXPLANATION,
   type ArenaGodAction,
@@ -22,8 +21,9 @@ import { REFRESH_BUTTON_ID } from "./use-refresh";
 import { markByHandHref, whenPhrase } from "./view-model";
 
 // Piezas de Arena God del trofeo de la vitrina (`GodTrophy`): el estado de las tres capas con los
-// manuales de «mi perfil», el aviso de descuadre con sus acciones, el botón «?» y la explicación.
-// Las compartía con la barra Arena God, que la vitrina sustituyó (iter-11).
+// manuales de «mi perfil», el cuerpo del aviso de descuadre con sus acciones (va en la pila flotante
+// global, revisión v5b: la caja, el título y el ✕ los pone `FloatingItem`), el botón «?» y la
+// explicación. Las compartía con la barra Arena God, que la vitrina sustituyó (iter-11).
 
 export interface ArenaGodProps {
   /** Forma canónica de Riot: con ella se decide si el perfil es «mi perfil». */
@@ -60,7 +60,7 @@ export function useArenaGod({
 }: Pick<
   ArenaGodProps,
   "gameName" | "tagLine" | "verifiedIds" | "official" | "goal"
->): { state: ArenaGodState; mine: boolean } {
+>): { state: ArenaGodState; mine: boolean; ready: boolean } {
   // «Mi perfil» se decide igual que en el header. Hasta que el cliente lee `localStorage`
   // (`ready`) el estado es el vacío del servidor, así que ahí no se cuenta ningún manual.
   const norm = normalizeRiotId(gameName, tagLine);
@@ -81,10 +81,13 @@ export function useArenaGod({
     () => arenaGodState({ verifiedIds, manualIds, official, goal }),
     [verifiedIds, manualIds, official, goal],
   );
-  return { state, mine };
+  return { state, mine, ready };
 }
 
-/** Aviso de descuadre con sus acciones (brief §4.3) y el toast de esas acciones. */
+/**
+ * Cuerpo del aviso de descuadre con sus acciones (brief §4.3); sus toasts van a la pila flotante.
+ * Solo se pinta con descuadre: cuando cuadra lo dice el «✓ oficial N» de la tarjeta.
+ */
 export function ArenaGodNotice({
   state,
   mine,
@@ -102,7 +105,7 @@ export function ArenaGodNotice({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { toast, show } = useToast();
+  const { show } = useFloatingToast();
   const now = useNow(nowMs);
 
   /** [Sincronizar] y [Reintentar]: pulsan Actualizar de la barra fija, con su progreso y su toast. */
@@ -139,34 +142,32 @@ export function ArenaGodNotice({
 
   return (
     <>
-      <Notice
-        role="status"
-        variant={state.status === "match" ? "okay" : "trust"}
-        actions={
-          noticeActions.length > 0
-            ? noticeActions.map((name) => (
-                <Btn
-                  key={name}
-                  size="small"
-                  variant="trust"
-                  onClick={actions[name].run}
-                >
-                  {actions[name].label}
-                </Btn>
-              ))
-            : undefined
-        }
-      >
+      <p>
         {parts.map((part, i) =>
           typeof part === "string" ? (
             part
           ) : (
             // biome-ignore lint/suspicious/noArrayIndexKey: trozos de un mensaje fijo, sin identidad propia.
-            <b key={i}>{part.strong}</b>
+            <b key={i} className="font-medium">
+              {part.strong}
+            </b>
           ),
         )}
-      </Notice>
-      <ToastRegion>{toast}</ToastRegion>
+      </p>
+      {noticeActions.length > 0 && (
+        <div className="mt-0.5 flex flex-wrap gap-1.5">
+          {noticeActions.map((name) => (
+            <Btn
+              key={name}
+              size="small"
+              variant="trust"
+              onClick={actions[name].run}
+            >
+              {actions[name].label}
+            </Btn>
+          ))}
+        </div>
+      )}
     </>
   );
 }
