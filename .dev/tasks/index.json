@@ -131,7 +131,7 @@
       "depends_on": [
         "T10"
       ],
-      "artifact_path": ".dev/verify-report.md",
+      "artifact_path": ".dev/tasks/task_T07_verificacion-v4.md",
       "created_at": "2026-10-06T19:23:38Z",
       "updated_at": "2026-10-12T12:26:27Z"
     }
