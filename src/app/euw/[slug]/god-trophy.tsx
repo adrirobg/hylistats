@@ -20,10 +20,16 @@ import { godMilestones, godRemaining, godRing } from "./god-ring";
 // barra. Sin envoltorio de tarjeta: fondo, borde y radio los pone la vitrina. La geometría es
 // `god-ring.ts`; las transiciones del arco las apaga el `prefers-reduced-motion` global.
 //
-// Rangos (container query de la propia tarjeta, `/god`): por debajo de 420 px anillo de 44 px,
-// cifra de 30 y sin hitos.
+// Dos disposiciones. En columna (miembros, junto a El grupo hoy) el aviso va debajo. A lo ancho
+// (`wide`, fuera del grupo, T08) el aviso va a la derecha, tras un borde vertical, hasta 460 px.
+//
+// Rangos (container query `/god`: la propia tarjeta en columna; la rejilla de los trofeos a lo ancho,
+// `TrophyGrid single`): por debajo de 420 px anillo de 44 px, cifra de 30 y sin hitos; a lo ancho,
+// por debajo de 700 px el aviso vuelve a ir debajo.
 
 export interface GodTrophyProps extends ArenaGodProps {
+  /** A lo ancho, con el aviso a la derecha (fuera del grupo). */
+  wide?: boolean;
   className?: string;
 }
 
@@ -31,85 +37,112 @@ export function GodTrophy({
   checkedAt,
   goalName,
   nowMs,
+  wide = false,
   className,
   ...input
 }: GodTrophyProps) {
   const explanationId = useId();
   const [explaining, setExplaining] = useState(false);
   const { state, mine } = useArenaGod(input);
+  // Cuando cuadra, el ✓ de «oficial N» ya lo dice: el aviso solo sale con descuadre.
+  const notice = state.status !== "match";
 
   return (
-    <div className={cn("@container/god grid content-start gap-2.5", className)}>
-      <div className="flex items-baseline justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h2 className="font-display text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            {goalName}
-          </h2>
-          <ArenaGodExplainButton
-            label="¿Qué muestra este anillo?"
-            controls={explanationId}
-            open={explaining}
-            onToggle={() => setExplaining((open) => !open)}
+    <div
+      className={cn(
+        "grid content-start gap-2.5",
+        !wide && "@container/god",
+        wide &&
+          notice &&
+          "@min-[700px]/god:grid-cols-[minmax(0,1fr)_minmax(0,460px)] @min-[700px]/god:gap-x-5",
+        className,
+      )}
+    >
+      <div className="grid content-start gap-2.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+              {goalName}
+            </h2>
+            <ArenaGodExplainButton
+              label="¿Qué muestra este anillo?"
+              controls={explanationId}
+              open={explaining}
+              onToggle={() => setExplaining((open) => !open)}
+            />
+          </div>
+          <span className="text-xs text-faint">temporada</span>
+        </div>
+
+        <div className="flex items-center gap-3.5 @max-[420px]/god:gap-3">
+          <Ring state={state} />
+          <div className="min-w-0">
+            <p className="num font-display text-[50px] leading-none font-extrabold text-place-1 @max-[420px]/god:text-[30px]">
+              {state.total}
+              <small className="text-[22px] font-bold text-muted-foreground @max-[420px]/god:text-base">
+                {" "}
+                / {state.goal}
+              </small>
+            </p>
+            <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+              <span>
+                faltan{" "}
+                <b className="num font-medium text-foreground">
+                  {godRemaining(state)}
+                </b>
+              </span>
+              {state.status === "match" && (
+                <span className="inline-flex items-center gap-1">
+                  <Check aria-hidden="true" size={13} className="text-ok" />
+                  oficial {state.official}
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <ul className="flex flex-wrap gap-x-2.5 gap-y-1 text-xs text-muted-foreground @max-[420px]/god:hidden">
+          {godMilestones(state).map((milestone) => (
+            <li
+              key={milestone.label}
+              className={cn(
+                "inline-flex items-center gap-1.5",
+                milestone.done && "text-place-1",
+                milestone.later && "text-faint",
+              )}
+            >
+              {milestone.done && <Crown aria-hidden="true" size={13} />}
+              {milestone.label}
+              {milestone.done && <span className="sr-only"> (conseguida)</span>}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* El `data-slot` lo busca la tarjeta de fuera del grupo para ir a todo el ancho. */}
+      {notice && (
+        <div
+          data-slot="god-notice"
+          className={cn(
+            wide &&
+              "@min-[700px]/god:self-center @min-[700px]/god:border-l @min-[700px]/god:border-[rgba(255,255,255,.09)] @min-[700px]/god:pl-5",
+          )}
+        >
+          <ArenaGodNotice
+            state={state}
+            mine={mine}
+            checkedAt={checkedAt}
+            nowMs={nowMs}
+            onWhy={() => setExplaining(true)}
           />
         </div>
-        <span className="text-xs text-faint">temporada</span>
-      </div>
-
-      <div className="flex items-center gap-3.5 @max-[420px]/god:gap-3">
-        <Ring state={state} />
-        <div className="min-w-0">
-          <p className="num font-display text-[50px] leading-none font-extrabold text-place-1 @max-[420px]/god:text-[30px]">
-            {state.total}
-            <small className="text-[22px] font-bold text-muted-foreground @max-[420px]/god:text-base">
-              {" "}
-              / {state.goal}
-            </small>
-          </p>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
-            <span>
-              faltan{" "}
-              <b className="num font-medium text-foreground">
-                {godRemaining(state)}
-              </b>
-            </span>
-            {state.status === "match" && (
-              <span className="inline-flex items-center gap-1">
-                <Check aria-hidden="true" size={13} className="text-ok" />
-                oficial {state.official}
-              </span>
-            )}
-          </p>
-        </div>
-      </div>
-
-      <ul className="flex flex-wrap gap-x-2.5 gap-y-1 text-xs text-muted-foreground @max-[420px]/god:hidden">
-        {godMilestones(state).map((milestone) => (
-          <li
-            key={milestone.label}
-            className={cn(
-              "inline-flex items-center gap-1.5",
-              milestone.done && "text-place-1",
-              milestone.later && "text-faint",
-            )}
-          >
-            {milestone.done && <Crown aria-hidden="true" size={13} />}
-            {milestone.label}
-            {milestone.done && <span className="sr-only"> (conseguida)</span>}
-          </li>
-        ))}
-      </ul>
-
-      {/* Cuando cuadra, el ✓ de «oficial N» ya lo dice: el aviso solo sale con descuadre. */}
-      {state.status !== "match" && (
-        <ArenaGodNotice
-          state={state}
-          mine={mine}
-          checkedAt={checkedAt}
-          nowMs={nowMs}
-          onWhy={() => setExplaining(true)}
-        />
       )}
-      <ArenaGodExplanation id={explanationId} open={explaining} />
+      {/* A lo ancho, con tope: en la tarjeta a su medida no la estira hasta el borde. */}
+      <ArenaGodExplanation
+        id={explanationId}
+        open={explaining}
+        className={cn(wide && "max-w-[460px]")}
+      />
     </div>
   );
 }

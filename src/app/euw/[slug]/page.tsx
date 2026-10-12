@@ -31,7 +31,6 @@ import { Scoreboard } from "./scoreboard";
 import { StatsPanel } from "./stats-panel";
 import { StatusProvider } from "./status-provider";
 import { SummaryPanel } from "./summary-panel";
-import { SyncBand } from "./sync-band";
 import { SyncEmpty } from "./sync-empty";
 import { TabPanel, Titled } from "./tab-panel";
 import { Tabs } from "./tabs";
@@ -205,8 +204,14 @@ function ProfileCabin({
                 <GroupToday rows={group.today} games={group.todayGames} />
               </TrophyCard>
             )}
-            <TrophyCard>
+            {/* Fuera del grupo, a todo el ancho si lleva el aviso de descuadre; si no, a su medida. */}
+            <TrophyCard
+              className={
+                group ? undefined : "has-[[data-slot=god-notice]]:w-full"
+              }
+            >
               <GodTrophy
+                wide={!group}
                 gameName={data.gameName}
                 tagLine={data.tagLine}
                 verifiedIds={data.verifiedChampions.map((c) => c.championId)}
@@ -220,7 +225,6 @@ function ProfileCabin({
           </TrophyGrid>
         </Vitrina>
       }
-      band={<SyncBand />}
       group={group && <TitleList rows={group.titles} />}
       strip={<Scoreboard summary={data.summary} variant="strip" />}
       tabs={<Tabs active={data.tab} tabs={visibleTabs(data.isMember)} />}

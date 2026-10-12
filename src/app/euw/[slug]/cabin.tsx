@@ -13,13 +13,12 @@ import type { ReactNode } from "react";
 //               este último rango solo se alcanzaría si se ensancha el layout raíz.)
 // La cabecera es la vitrina (`vitrina.tsx`, iter-11; revisión v4): barra fija, banner con la línea
 // de liga y los trofeos (El grupo hoy y Dios de Arena) en `header`, y los Títulos a todo el ancho en
-// `group` (solo miembros). Sus rangos van en cada pieza.
+// `group` (solo miembros). Sus rangos van en cada pieza. Los avisos de sincronización no ocupan
+// sitio en la cabina: flotan (la pila de la vitrina, T08).
 
 interface CabinProps {
   /** La vitrina (`<Vitrina>`): barra fija, banner con identidad y trofeos, y sus avisos. */
   header: ReactNode;
-  /** Banda de sincronización (§4.10), bajo el banner; sus avisos de pausa y límite son flotantes. */
-  band?: ReactNode;
   /** Títulos bajo el banner, a todo el ancho (solo miembros; sin él no ocupa nada). */
   group?: ReactNode;
   /**
@@ -38,19 +37,10 @@ interface CabinProps {
   rail: ReactNode;
 }
 
-export function Cabin({
-  header,
-  band,
-  group,
-  strip,
-  tabs,
-  main,
-  rail,
-}: CabinProps) {
+export function Cabin({ header, group, strip, tabs, main, rail }: CabinProps) {
   return (
     <div className="@container overflow-clip rounded-[10px] border border-line bg-(--cabin)">
       {header}
-      {band}
       {group && (
         <div data-slot="group" className="border-t border-b border-line">
           {group}

@@ -1,25 +1,60 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { FloatingNotice } from "@/components/hy/toast";
-import { syncProgressFromJson } from "@/lib/status-payload";
 import { cn } from "@/lib/utils";
-import { usePageStatus } from "./status-provider";
-import {
-  rateLimitPhrase,
-  type SyncBandModel,
-  sharingPhrase,
-  syncBandModel,
-} from "./view-model";
+import type { SyncNoticeModel } from "./floating-notices";
+import { dataAgePhrase, rateLimitPhrase, sharingPhrase } from "./view-model";
 
-// Banda de progreso de la sincronización bajo la vitrina (brief §4.10, `.sync-band` de la
-// maqueta). Solo la pinta el backfill (el incremental va dentro del botón Actualizar y en los
-// avisos de la vitrina, `vitrina.tsx`), la pausa por key caducada y el límite de peticiones. El
-// progreso y la cola van en el flujo, con el tono neutro (esperar turno no avisa de nada); la pausa
-// y el límite de peticiones (en azul acero: no son un error del usuario, §4.3) salen desde la
-// revisión v4 como aviso flotante que se puede cerrar (`FloatingNotice`, D6): cerrado, no vuelve
-// hasta que cambia el tipo de aviso. Es cliente porque se pinta desde el estado que consulta
-// `StatusProvider`, sin repintar la página.
+// Contenido de los avisos de sincronización de la pila flotante (brief §4.10; revisión v4, T08):
+// error de la actualización con [Reintentar], pausa por key caducada, límite de peticiones (del
+// backfill o del incremental) y progreso del backfill y la cola (`.sync-band` de la maqueta, que ya
+// no va en el flujo). Cuál toca lo decide `floating-notices.ts`; la pila y el estado de los cerrados
+// viven en la vitrina (`vitrina.tsx`), que tiene el botón Actualizar y su toast. El progreso va en el
+// tono neutro (esperar turno no avisa de nada); el resto, en azul acero: no es un error del usuario
+// (§4.3).
+
+/** Progreso: no avisa de nada, va sin marca y en el tono neutro. */
+const NEUTRAL = new Set<SyncNoticeModel["kind"]>([
+  "resolving",
+  "listing",
+  "fetching",
+  "queued",
+]);
+
+export function SyncNotice({
+  notice,
+  lastSyncedAt,
+  now,
+  retry,
+  onClose,
+}: {
+  notice: SyncNoticeModel;
+  lastSyncedAt: number | null;
+  /** En ms. */
+  now: number;
+  /** Botón [Reintentar] del error (el formulario de Actualizar de la vitrina). */
+  retry: ReactNode;
+  onClose: () => void;
+}) {
+  const neutral = NEUTRAL.has(notice.kind);
+  return (
+    <FloatingNotice
+      tone={neutral ? "neutral" : "trust"}
+      icon={neutral ? null : "!"}
+      onClose={onClose}
+    >
+      <div className="grid gap-1.5 [&_b]:font-medium [&_small]:text-xs">
+        <Body
+          model={notice}
+          lastSyncedAt={lastSyncedAt}
+          now={now}
+          retry={retry}
+        />
+      </div>
+    </FloatingNotice>
+  );
+}
 
 /** Barra `.track`; sin `value` es indeterminada (pulsa). */
 function Track({
@@ -59,65 +94,28 @@ function Track({
   );
 }
 
-/** Los modelos que salen como aviso flotante y no en el flujo. */
-type FloatingModel = Extract<SyncBandModel, { kind: "paused" | "rate_limit" }>;
-
-function isFloating(model: SyncBandModel): model is FloatingModel {
-  return model.kind === "paused" || model.kind === "rate_limit";
-}
-
-/** La banda (o el aviso flotante) según el estado de la página; nada si no toca (`syncBandModel`). */
-export function SyncBand() {
-  const { status } = usePageStatus();
-  const syncJson = status.profile?.sync ?? null;
-  const paused = status.profile?.paused ?? false;
-  // La hora del servidor del estado: el primer render coincide con el HTML.
-  const model = useMemo(
-    () =>
-      syncBandModel(
-        syncJson && syncProgressFromJson(syncJson),
-        paused,
-        status.now,
-      ),
-    [syncJson, paused, status.now],
-  );
-  const floating = model && isFloating(model) ? model : null;
-
-  // Cerrado vale para ese tipo de aviso: si cambia (o desaparece), el siguiente vuelve a salir.
-  const floatingKind = floating?.kind ?? null;
-  const [dismissed, setDismissed] = useState(false);
-  const [shownKind, setShownKind] = useState(floatingKind);
-  if (floatingKind !== shownKind) {
-    setShownKind(floatingKind);
-    setDismissed(false);
-  }
-
-  return (
-    <>
-      {model && !floating && <Band model={model} />}
-      <FloatingNotice onClose={() => setDismissed(true)}>
-        {floating && !dismissed && (
-          <div className="grid gap-1.5 [&_b]:font-medium [&_small]:text-xs">
-            <Body model={floating} />
-          </div>
-        )}
-      </FloatingNotice>
-    </>
-  );
-}
-
-function Band({ model }: { model: SyncBandModel }) {
-  return (
-    <div className="px-5 pt-3 @max-[640px]:px-3.5">
-      <output className="grid gap-2 rounded-md border border-line bg-background p-3 text-sm">
-        <Body model={model} />
-      </output>
-    </div>
-  );
-}
-
-function Body({ model }: { model: SyncBandModel }) {
+function Body({
+  model,
+  lastSyncedAt,
+  now,
+  retry,
+}: {
+  model: SyncNoticeModel;
+  lastSyncedAt: number | null;
+  now: number;
+  retry: ReactNode;
+}) {
   switch (model.kind) {
+    case "error":
+      return (
+        <>
+          <b>No se pudo actualizar (Riot no responde).</b>
+          <small className="text-muted-foreground">
+            {dataAgePhrase(lastSyncedAt, now)}
+          </small>
+          <div className="mt-0.5">{retry}</div>
+        </>
+      );
     case "resolving":
       return (
         <>
@@ -170,6 +168,16 @@ function Body({ model }: { model: SyncBandModel }) {
         </>
       );
     case "rate_limit":
+      if (model.job === "incremental") {
+        return (
+          <>
+            <b>{rateLimitPhrase(model.minutes)}</b>
+            <small className="text-muted-foreground">
+              {dataAgePhrase(lastSyncedAt, now)}
+            </small>
+          </>
+        );
+      }
       return (
         <>
           <b>{rateLimitPhrase(model.minutes)}</b>

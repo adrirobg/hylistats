@@ -14,8 +14,7 @@ import {
 import { Badge } from "@/components/hy/badge";
 import { Btn } from "@/components/hy/btn";
 import { Chip } from "@/components/hy/chip";
-import { Notice } from "@/components/hy/notice";
-import { ToastRegion } from "@/components/hy/toast";
+import { FloatingStack } from "@/components/hy/toast";
 import { DEITY_CONDITION, DEITY_NAME } from "@/domain/arena-god";
 import type { LocalState } from "@/lib/local-store";
 import { normalizeRiotId } from "@/lib/riot-id";
@@ -27,18 +26,18 @@ import {
 } from "@/lib/use-local-store";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
+import { floatingNotices, type SyncNoticeKind } from "./floating-notices";
 import { type LeagueId, LeagueShield, leagueColor } from "./league-shield";
 import { LocalMenu } from "./local-menu";
 import type { RefreshSnapshot } from "./refresh-outcome";
 import { usePageStatus } from "./status-provider";
+import { SyncNotice } from "./sync-notice";
 import { REFRESH_BUTTON_ID, useRefresh } from "./use-refresh";
 import {
   arenaQuietPhrase,
-  dataAgePhrase,
   incrementalStatus,
   initials,
   queuedLabel,
-  rateLimitPhrase,
   whenPhrase,
 } from "./view-model";
 import { barCompact, barRootMargin } from "./vitrina-bar";
@@ -56,11 +55,13 @@ import { barCompact, barRootMargin } from "./vitrina-bar";
 // vista la barra es transparente y solo lleva frescura, Actualizar y ⋯ (arriba a la derecha);
 // cuando la identidad empieza a pasar bajo ella (`IntersectionObserver`, decisión en
 // `vitrina-bar.ts`) gana fondo, borde y la identidad compacta (avatar, nombre, liga · rating).
-// Debajo del banner, los avisos de límite de peticiones (del incremental) y de error de la
-// actualización y el toast, como en el header de antes; los de la banda (pausa por key caducada y
-// límite del backfill) son flotantes (`SyncBand`). Es cliente porque lee el navegador («mi
-// perfil», favoritos), el reloj de la frescura corre en cliente y la sincronización sale del estado
-// de `StatusProvider`; el resto llega por props del servidor.
+// Los avisos de sincronización (error con [Reintentar], pausa por key caducada, límite de peticiones
+// y progreso del backfill) no van en el flujo (T08): salen en la pila flotante (`FloatingStack`), uno
+// a la vez según `floating-notices.ts`, con el toast de Actualizar encima. Aquí viven el estado de
+// los cerrados y, si hay uno cerrado que sigue activo, el indicador «!» junto a la frescura que lo
+// reabre. Es cliente porque lee el navegador («mi perfil», favoritos), el reloj de la frescura corre
+// en cliente y la sincronización sale del estado de `StatusProvider`; el resto llega por props del
+// servidor.
 //
 // Rangos (container queries sobre `.app`):
 //   ≥ 900 px   identidad a la izquierda con hueco a la derecha para la barra (frescura y botones).
@@ -180,10 +181,19 @@ export function Vitrina({
       ? sync.fetched / sync.total
       : null;
 
-  // Con la key caducada la banda ya explica por qué no se actualiza: no se duplica el aviso.
-  const showError = lastJobErrorAt !== null && sync === null && !paused;
-  // Un incremental en cola o frenado por el límite de peticiones (el backfill lo pinta la banda).
+  // Un incremental en cola: su posición va en el botón (el límite de peticiones, en la pila).
   const status = incrementalStatus(sync, paused, now);
+
+  // Pila flotante: cerrar un aviso vale para su `kind` mientras siga activo (los que dejan de
+  // estarlo salen de `dismissed` al pintar, así vuelven a salir la próxima vez).
+  const [dismissed, setDismissed] = useState<readonly SyncNoticeKind[]>([]);
+  const floating = floatingNotices(
+    { sync, paused, errorAt: lastJobErrorAt, now },
+    dismissed,
+  );
+  if (floating.dismissed !== dismissed) setDismissed(floating.dismissed);
+  const notice = floating.notice;
+  const closed = floating.closed;
 
   // Barra compacta en cuanto la identidad grande empieza a pasar bajo ella.
   const barRef = useRef<HTMLElement>(null);
@@ -252,6 +262,27 @@ export function Vitrina({
               </span>
             )}
           </div>
+          {/* Rastro de un aviso cerrado que sigue activo. Va delante de la frescura y, en móvil, justo
+              antes de Actualizar (`order`): así aparece en un hueco y no mueve nada, y se ve también
+              cuando la barra compacta en móvil oculta la frescura. */}
+          {closed !== null && (
+            <button
+              type="button"
+              aria-label="Ver aviso"
+              title="Ver aviso"
+              onClick={() =>
+                setDismissed((kinds) => kinds.filter((kind) => kind !== closed))
+              }
+              className="pointer-events-auto grid size-7 flex-none cursor-pointer place-items-center rounded-full hover:bg-white/10 @max-[640px]:order-1"
+            >
+              <span
+                aria-hidden="true"
+                className="grid size-5 place-items-center rounded-full border border-trust/60 bg-trust-bg font-mono text-xs font-bold text-trust"
+              >
+                !
+              </span>
+            </button>
+          )}
           <div
             className={cn(
               "text-right text-[13px] leading-[1.35] text-muted-foreground @max-[640px]:mr-auto @max-[640px]:text-left @max-[640px]:text-xs",
@@ -278,7 +309,10 @@ export function Vitrina({
                 : `Comprobado ${whenPhrase(lastSyncedAt, now)}`}
             </p>
           </div>
-          <form action={refresh.formAction} className="pointer-events-auto">
+          <form
+            action={refresh.formAction}
+            className="pointer-events-auto @max-[640px]:order-2"
+          >
             <input type="hidden" name="slug" value={slug} />
             <Btn
               id={REFRESH_BUTTON_ID}
@@ -314,7 +348,7 @@ export function Vitrina({
               )}
             </Btn>
           </form>
-          <div className="pointer-events-auto">
+          <div className="pointer-events-auto @max-[640px]:order-2">
             <LocalMenu riotId={riotId} />
           </div>
         </header>
@@ -433,20 +467,13 @@ export function Vitrina({
         {children}
       </div>
 
-      {status?.kind === "rate_limit" && (
-        <div className="px-5 pb-3 @max-[640px]:px-3.5">
-          <Notice role="status" icon="!">
-            {rateLimitPhrase(status.minutes)}.{" "}
-            {dataAgePhrase(lastSyncedAt, now)}
-          </Notice>
-        </div>
-      )}
-      {showError && (
-        <div className="px-5 pb-3 @max-[640px]:px-3.5">
-          <Notice
-            role="status"
-            icon="!"
-            actions={
+      <FloatingStack toast={refresh.toast}>
+        {notice && (
+          <SyncNotice
+            notice={notice}
+            lastSyncedAt={lastSyncedAt}
+            now={now}
+            retry={
               <form action={refresh.formAction}>
                 <input type="hidden" name="slug" value={slug} />
                 <Btn
@@ -460,13 +487,10 @@ export function Vitrina({
                 </Btn>
               </form>
             }
-          >
-            No se pudo actualizar (Riot no responde).{" "}
-            {dataAgePhrase(lastSyncedAt, now)}
-          </Notice>
-        </div>
-      )}
-      <ToastRegion>{refresh.toast}</ToastRegion>
+            onClose={() => setDismissed((kinds) => [...kinds, notice.kind])}
+          />
+        )}
+      </FloatingStack>
     </>
   );
 }

@@ -30,9 +30,11 @@ export function VitrinaLabel({
 }
 
 /**
- * Los trofeos a la par: El grupo hoy y Dios de Arena (≈ 1,75 : 1). Con uno solo (no miembros, I1:
- * Dios de Arena) ocupa la columna estrecha, el mismo ancho que junto a El grupo hoy; al apilarse
- * (< 1000 px) cualquiera ocupa el ancho.
+ * Los trofeos a la par: El grupo hoy y Dios de Arena (≈ 1,75 : 1); al apilarse (< 1000 px)
+ * cualquiera ocupa el ancho. Con uno solo (no miembros, I1: Dios de Arena, en su disposición
+ * `wide`) la tarjeta va a la izquierda a su medida, o a todo el ancho si lleva el aviso de
+ * descuadre (lo decide `page.tsx`); la rejilla es entonces el contenedor `god` del trofeo, porque
+ * una tarjeta a su medida no puede serlo (sin ancho propio, se quedaría en nada).
  */
 export function TrophyGrid({
   single = false,
@@ -46,7 +48,7 @@ export function TrophyGrid({
       className={cn(
         "mt-4 grid gap-3 @max-[1000px]:grid-cols-1 @max-[640px]:mt-3 @max-[640px]:gap-2",
         single
-          ? "grid-cols-[minmax(0,1fr)_minmax(0,1.75fr)]"
+          ? "@container/god grid-cols-[minmax(0,1fr)] justify-items-start"
           : "grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]",
       )}
     >
@@ -56,9 +58,20 @@ export function TrophyGrid({
 }
 
 /** Tarjeta `.tw`: translúcida sobre el banner, con desenfoque del fondo. */
-export function TrophyCard({ children }: { children: ReactNode }) {
+export function TrophyCard({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <section className="min-w-0 rounded-[10px] border border-[rgba(255,255,255,.09)] bg-[rgba(15,16,19,.6)] px-3.5 py-3 backdrop-blur-[4px] @max-[640px]:p-2.5">
+    <section
+      className={cn(
+        "min-w-0 max-w-full rounded-[10px] border border-[rgba(255,255,255,.09)] bg-[rgba(15,16,19,.6)] px-3.5 py-3 backdrop-blur-[4px] @max-[640px]:p-2.5",
+        className,
+      )}
+    >
       {children}
     </section>
   );

@@ -17,6 +17,7 @@ import { type LocalState, profileData } from "@/lib/local-store";
 import { normalizeRiotId } from "@/lib/riot-id";
 import { useLocalReady, useLocalStore } from "@/lib/use-local-store";
 import { useNow } from "@/lib/use-now";
+import { cn } from "@/lib/utils";
 import { REFRESH_BUTTON_ID } from "./use-refresh";
 import { markByHandHref, whenPhrase } from "./view-model";
 
@@ -201,15 +202,20 @@ export function ArenaGodExplainButton({
 export function ArenaGodExplanation({
   id,
   open,
+  className,
 }: {
   id: string;
   open: boolean;
+  className?: string;
 }) {
   return (
     <p
       id={id}
       hidden={!open}
-      className="rounded-lg border border-line bg-surface-1 px-3 py-2 text-sm text-muted-foreground"
+      className={cn(
+        "rounded-lg border border-line bg-surface-1 px-3 py-2 text-sm text-muted-foreground",
+        className,
+      )}
     >
       {ARENA_GOD_EXPLANATION}
     </p>
