@@ -29,6 +29,17 @@
   --color-target: var(--target);
   --color-danger: var(--danger);
   --color-ok: var(--ok);
+  /* Vitrina de la cabecera (iter-11): tonos de los títulos y colores de liga del ELO. */
+  --color-honor: var(--honor);
+  --color-honor-bg: var(--honor-bg);
+  --color-shame: var(--shame);
+  --color-shame-bg: var(--shame-bg);
+  --color-league-hierro: var(--league-hierro);
+  --color-league-bronce: var(--league-bronce);
+  --color-league-plata: var(--league-plata);
+  --color-league-oro: var(--league-oro);
+  --color-league-platino: var(--league-platino);
+  --color-league-diamante: var(--league-diamante);
 
   /* Familias cargadas con next/font en layout.tsx. La display fija el eje
      óptico en 72 (la variante Display de Big Shoulders). */
@@ -130,6 +141,22 @@
   --danger: #e5534b;
   --ok: #6cc08b;
   --r: 6px;
+
+  /* Títulos de la vitrina (iter-11): honor en turquesa (el de los puestos altos) y vergüenza en
+     rosa apagado, cada uno con su fondo de fila. */
+  --honor: var(--place-top);
+  --honor-bg: #142624;
+  --shame: #c77fa0;
+  --shame-bg: #2a1a22;
+  /* Ligas del ELO del grupo (escudo, degradado del banner y escalera); valores de la maqueta. */
+  --league-hierro: #8a8d93;
+  --league-bronce: #c08552;
+  --league-plata: #b9c3cd;
+  --league-oro: #e8b64c;
+  --league-platino: #4fb3a3;
+  --league-diamante: #8fb2e0;
+  /* Fondo de la cabina (`Cabin`): el fundido inferior del banner acaba en él. */
+  --cabin: color-mix(in srgb, var(--bg) 92%, black);
 
   /* Mapeo de shadcn a la paleta. Oro, naranja y azul acero tienen significado
      propio (§6.1), así que ninguno hace de color primario o de acento. */

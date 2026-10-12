@@ -39,7 +39,7 @@ export interface GroupMatchRow {
   totalDamageDealtToChampions: number;
 }
 
-const isPlacement = (value: number) =>
+export const isPlacement = (value: number) =>
   (PLACEMENTS as readonly number[]).includes(value);
 
 // ---------------------------------------------------------------------------------------------

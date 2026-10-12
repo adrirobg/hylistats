@@ -5,9 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Btn } from "@/components/hy/btn";
+import { useFloatingToast } from "@/components/hy/floating";
 import { Notice } from "@/components/hy/notice";
 import { SegButton, Segmented } from "@/components/hy/segmented";
-import { ToastRegion, useToast } from "@/components/hy/toast";
 import { formatRelative } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import { championHref } from "./champion-panel-view";
@@ -80,7 +80,7 @@ export function MatchesPanel({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const now = useNow(nowMs);
-  const { toast, show } = useToast();
+  const { show } = useFloatingToast();
 
   const search = searchParams.toString();
   const params = useMemo(() => parseMatchParams(searchParams), [searchParams]);
@@ -305,8 +305,6 @@ export function MatchesPanel({
           )}
         </div>
       )}
-
-      <ToastRegion>{toast}</ToastRegion>
     </div>
   );
 }

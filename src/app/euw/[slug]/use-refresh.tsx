@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { useToast } from "@/components/hy/toast";
+import { useFloatingToast } from "@/components/hy/floating";
 import { refreshAction } from "./actions";
 import {
   advanceWatch,
@@ -13,8 +13,8 @@ import {
 } from "./refresh-outcome";
 
 /**
- * `id` del botón Actualizar del header. La barra Arena God lo pulsa (`.click()`) desde
- * [Sincronizar] y [Reintentar]: así comparte la barra de progreso, el toast y la vigilancia.
+ * `id` del botón Actualizar de la vitrina (barra fija, uno solo en la página). El trofeo Dios
+ * de Arena lo pulsa (`.click()`) desde [Sincronizar] y [Reintentar]: así comparte la barra de progreso, el toast y la vigilancia.
  */
 export const REFRESH_BUTTON_ID = "refresh-profile";
 
@@ -22,7 +22,8 @@ export const REFRESH_BUTTON_ID = "refresh-profile";
 const WATCH_MAX_MS = 90_000;
 
 /**
- * Botón "Actualizar" (§4.1 y §4.10): la action, su estado y el toast de resultado.
+ * Botón "Actualizar" (§4.1 y §4.10): la action, su estado y el toast de resultado (en la pila
+ * flotante global, `useFloatingToast`).
  *
  * - `cooldown` -> toast "Espera un momento"; `active` -> "Ya se está actualizando".
  * - Tras `queued` o `active` vigila la foto del perfil (`snapshot`: el job, `lastSyncedAt` y el
@@ -34,7 +35,7 @@ const WATCH_MAX_MS = 90_000;
  */
 export function useRefresh(snapshot: RefreshSnapshot, dataCurrent: boolean) {
   const [state, formAction, submitting] = useActionState(refreshAction, null);
-  const { toast, show } = useToast();
+  const { show } = useFloatingToast();
   const [watch, setWatch] = useState<RefreshWatch | null>(null);
   // La foto se toma al pulsar: cuando vuelve la action, la página ya viene refrescada.
   const before = useRef<RefreshSnapshot | null>(null);
@@ -103,6 +104,5 @@ export function useRefresh(snapshot: RefreshSnapshot, dataCurrent: boolean) {
     submitting,
     /** Hay un envío en curso o un job activo: el botón muestra progreso y no admite otro clic. */
     busy: submitting || snapshot.active,
-    toast,
   };
 }

@@ -86,6 +86,14 @@ export function profileIconUrl(
   return `${DDRAGON_URL}/cdn/${encodeURIComponent(version)}/img/profileicon/${profileIconId}.png`;
 }
 
+/**
+ * URL del splash del campeón en Data Dragon (`{ddId}_0.jpg`, la skin base). Sin versión: las
+ * imágenes `cdn/img` no dependen de ella.
+ */
+export function championSplashUrl(ddId: string): string {
+  return `${DDRAGON_URL}/cdn/img/champion/splash/${encodeURIComponent(ddId)}_0.jpg`;
+}
+
 async function fetchJson(
   fetchImpl: typeof fetch,
   url: string,

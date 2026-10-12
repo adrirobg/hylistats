@@ -44,6 +44,7 @@ import {
   type PlayerTitle,
   titlesOf,
 } from "./group-titles";
+import { computeGroupToday, type GroupToday } from "./group-today";
 import { getGroupRows } from "./queries";
 
 /** Clave estable y no sensible de un miembro en la salida: `String(profileId)`. */
@@ -122,6 +123,11 @@ export interface GroupView {
    * `now` que `day` y `week`. `standings[i].key` es `GroupViewMember.key`.
    */
   elo: GroupElo;
+  /**
+   * Actividad de HOY de cada miembro (iter-11): el día de juego de `now`, estricto (sin caer al
+   * último día con partidas, a diferencia de `day`). `members` por `GroupViewMember.key`.
+   */
+  today: GroupToday;
   /** Dúos y tríos de miembros de toda la temporada con 3 o más partidas juntos. */
   seasonTeams: SeasonTeams;
   /** Tabla de Temporada: una fila por miembro (en el orden de `members`) y líderes por columna. */
@@ -249,6 +255,11 @@ export async function loadGroupView(
     members: viewMembers,
     ...groupPeriods(rows, now),
     elo: computeGroupElo(
+      rows,
+      viewMembers.map((m) => m.key),
+      now,
+    ),
+    today: computeGroupToday(
       rows,
       viewMembers.map((m) => m.key),
       now,

@@ -1,0 +1,594 @@
+<title>Cabecera del perfil hylistats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500&family=Atkinson+Hyperlegible+Next:wght@400;500;700&family=Big+Shoulders:opsz,wght@10..72,600..800&display=swap">
+<style>
+/* Layout: documento de una columna. Controles globales fijos (perfil, tono de honor) → C1 y C2 a tamaño real → comparativa. Solo oscuro, como la app (P9). */
+:root {
+  color-scheme: dark;
+  --bg: #0f1013; --surface-1: #17191e; --surface-2: #20232a; --line: #2c3038;
+  --text: #ece6d9; --muted: #a29d92; --faint: #858179;
+  --place-1: #e8b64c; --won-deep: #8f6a1f; --place-top: #4fb3a3;
+  --trust: #7fa3d1; --danger: #e5534b; --ok: #6cc08b;
+  --shame: #c77fa0; --shame-bg: #2a1a22; --shame-bg2: #36202c;
+  --honor: #e8b64c; --honor-bg: #2a2214; --honor-bg2: #3a2d14;
+  --lg-hierro: #8a8d93; --lg-bronce: #c08552; --lg-plata: #b9c3cd; --lg-oro: #e8b64c; --lg-platino: #4fb3a3; --lg-diamante: #8fb2e0;
+  --cabin: color-mix(in srgb, var(--bg) 92%, black);
+  --f-display: "Big Shoulders", "Arial Narrow", sans-serif;
+  --f-body: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --f-mono: "Atkinson Hyperlegible Mono", ui-monospace, Menlo, monospace;
+}
+:root.honor-teal { --honor: #4fb3a3; --honor-bg: #142624; --honor-bg2: #18332f; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font: 16px/1.55 var(--f-body); }
+.doc { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; display: grid; gap: 52px; }
+h1, h2, h3 { font-family: var(--f-display); font-variation-settings: "opsz" 72; text-transform: uppercase; letter-spacing: .02em; line-height: 1; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(40px, 6vw, 64px); font-weight: 800; }
+h2 { font-size: 34px; font-weight: 800; }
+h3 { font-size: 21px; font-weight: 700; }
+p { margin: 0; }
+.prose { max-width: 72ch; display: grid; gap: 12px; color: var(--muted); }
+.prose b { color: var(--text); font-weight: 500; }
+.eyebrow { font: 500 12px/1 var(--f-mono); text-transform: uppercase; letter-spacing: .14em; color: var(--faint); }
+section { display: grid; gap: 20px; min-width: 0; }
+.sec-head { display: grid; gap: 10px; }
+code { font: 13px var(--f-mono); color: var(--text); background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+.num { font-variant-numeric: tabular-nums; }
+svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.exn { font: 500 12px var(--f-mono); border: 1px dashed var(--line); border-radius: 4px; padding: 1px 5px; color: var(--faint); }
+
+/* ---------- Cuántos títulos ---------- */
+.count { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.cbox { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: var(--surface-1); display: grid; gap: 8px; align-content: start; }
+.cbox .big { font: 800 44px/1 var(--f-display); font-variation-settings: "opsz" 72; }
+.cbox p { color: var(--muted); font-size: 15px; }
+.cbox .arrow { color: var(--faint); font-size: 28px; }
+
+/* ---------- Controles globales ---------- */
+.controls { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--surface-1) 92%, transparent); backdrop-filter: blur(6px); }
+.controls .grp { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.controls .lab { font: 500 12px var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--surface-1); }
+.seg button { font: 500 14px var(--f-body); color: var(--muted); background: none; border: 0; padding: 7px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); box-shadow: inset 0 -2px 0 var(--place-1); }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--trust); outline-offset: 2px; }
+.pnote { font-size: 13px; color: var(--faint); }
+
+.prop-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 14px; }
+.prop-head .tag { font: 500 13px var(--f-mono); color: var(--place-1); letter-spacing: .08em; text-transform: uppercase; }
+.prop-title { display: grid; gap: 8px; }
+.stage { overflow-x: auto; padding: 18px; border-radius: 12px; background: repeating-linear-gradient(135deg, #121317 0 12px, #14161a 12px 24px); border: 1px solid var(--line); }
+.frame { margin: 0 auto; width: 100%; container-type: inline-size; transition: width .25s ease; }
+.frame.mobile { width: 375px; }
+@media (prefers-reduced-motion: reduce) { .frame { transition: none; } }
+.pros { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.pc { border-top: 2px solid var(--line); padding-top: 12px; display: grid; gap: 8px; align-content: start; }
+.pc.good { border-color: var(--ok); } .pc.bad { border-color: var(--danger); } .pc.how { border-color: var(--trust); }
+.pc h4 { margin: 0; font: 500 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+.pc ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); font-size: 15px; }
+.pc li b { color: var(--text); font-weight: 500; }
+
+/* ================= MAQUETAS ================= */
+.mk { background: var(--cabin); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 14px; line-height: 1.4; }
+.mk .disp { font-family: var(--f-display); font-variation-settings: "opsz" 72; text-transform: uppercase; font-weight: 800; letter-spacing: .02em; line-height: 1; }
+.mk .lbl { font: 600 12px/1 var(--f-display); font-variation-settings: "opsz" 72; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.mk .faint { color: var(--faint); } .mk .muted { color: var(--muted); }
+.mk .ex { font: 500 10px/1 var(--f-mono); color: var(--faint); border: 1px dashed var(--line); border-radius: 4px; padding: 2px 5px; letter-spacing: .06em; white-space: nowrap; }
+.av { width: 88px; height: 88px; border-radius: 50%; flex: none; display: grid; place-items: center; font: 800 32px var(--f-display); color: var(--place-1); border: 1px solid var(--won-deep); background: radial-gradient(circle at 30% 30%, #6b5a3a, #2a2418); position: relative; }
+.av.ring { box-shadow: 0 0 0 3px #201b28, 0 0 0 5px var(--place-1); }
+.av .seal { position: absolute; right: -4px; bottom: -4px; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--place-1); color: var(--bg); font-size: 18px; border: 3px solid #201b28; }
+.name { font-size: 54px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.name .tagl { font: 500 20px var(--f-body); color: var(--faint); text-transform: none; letter-spacing: 0; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; background: rgba(0,0,0,.2); }
+.chip.me { border-color: var(--won-deep); color: var(--place-1); }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 7px; border: 1px solid var(--line); background: rgba(32,35,42,.85); color: var(--text); font: 500 15px var(--f-body); }
+.btn.sq { padding: 9px 10px; }
+.shield { width: 1em; height: 1.15em; display: inline-block; flex: none; }
+.delta { font: 500 13px var(--f-mono); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+.delta.up { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.delta.down { color: var(--danger); background: color-mix(in srgb, var(--danger) 13%, transparent); }
+.delta.zero { color: var(--muted); background: var(--surface-2); }
+
+/* Banner con splash */
+.hero { position: relative; padding: 24px 24px 0; overflow: hidden; isolation: isolate; }
+.hero::before { content: ""; position: absolute; inset: 0; z-index: -1;
+  background: radial-gradient(60% 120% at 85% 10%, color-mix(in srgb, var(--lg) 20%, transparent), transparent 60%),
+    radial-gradient(70% 140% at 10% 0%, #3b2a4a, transparent 55%), linear-gradient(115deg, #1f1a2b, #2b2235 40%, #1a2230); }
+.hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, transparent 25%, var(--cabin) 100%); }
+.splashnote { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); }
+.actions { position: absolute; top: 14px; right: 16px; display: flex; gap: 10px; align-items: center; }
+.fresh { font-size: 13px; color: var(--muted); text-align: right; line-height: 1.3; }
+.fresh b { color: var(--text); font-weight: 500; }
+.idblk { display: flex; align-items: center; gap: 20px; min-width: 0; }
+.idblk .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; align-items: center; }
+.elo { display: flex; align-items: center; gap: 16px; }
+.elo .shield { font-size: 92px; color: var(--lg); filter: drop-shadow(0 6px 18px rgba(0,0,0,.5)); }
+.elo .lg { font-size: 22px; color: var(--lg); letter-spacing: .1em; }
+.elo .rt { font-size: 72px; }
+.elo .sub { font-size: 13px; color: var(--muted); margin-top: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* Escalera */
+.ladder { padding: 18px 20px; border-left: 1px solid var(--line); display: grid; gap: 8px; align-content: start; }
+.lad { display: grid; gap: 2px; }
+.lad div { display: grid; grid-template-columns: 18px 16px minmax(0, 1fr) auto 40px; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 6px; font-size: 13px; }
+.lad .shield { font-size: 14px; }
+.lad div.me { background: var(--surface-2); outline: 1px solid var(--line); }
+.lad div.me .nm { color: var(--text); font-weight: 700; }
+.lad .p { font: 500 12px var(--f-mono); color: var(--faint); }
+.lad .r { font: 500 13px var(--f-mono); }
+.lad .d { font: 500 11px var(--f-mono); text-align: right; }
+.lad .d.up { color: var(--ok); } .lad .d.down { color: var(--danger); }
+.lad .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.ladfoot { font-size: 12px; color: var(--faint); }
+
+/* Títulos: piezas comunes */
+.tico { display: grid; place-items: center; border-radius: 50%; flex: none; }
+.honor .tico { background: var(--honor); color: var(--bg); }
+.shame .tico { background: var(--shame); color: var(--bg); }
+.pips { display: inline-flex; gap: 3px; }
+.pips i { font: 500 9px/1 var(--f-mono); font-style: normal; letter-spacing: .08em; padding: 3px 4px; border-radius: 3px; border: 1px solid; opacity: .28; }
+.pips i.on { opacity: 1; }
+.honor .pips i { color: var(--honor); } .shame .pips i { color: var(--shame); }
+.honor .pips i.on { background: color-mix(in srgb, var(--honor) 16%, transparent); }
+.shame .pips i.on { background: color-mix(in srgb, var(--shame) 16%, transparent); }
+.tempty { border: 1px dashed var(--line); border-radius: 10px; padding: 18px; color: var(--faint); font-size: 13px; display: grid; gap: 4px; }
+.tempty b { color: var(--muted); font-weight: 500; }
+
+/* ---------- C1 · banda ---------- */
+.c1-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+.godband { margin-top: 22px; padding: 14px 0 18px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 22px; align-items: center; border-top: 1px solid rgba(255,255,255,.07); }
+.godband .gl { display: grid; gap: 6px; }
+.godband .gnum { font-size: 52px; color: var(--place-1); }
+.godband .gnum small { font-size: 24px; color: var(--muted); }
+.gtrack { position: relative; height: 16px; border-radius: 8px; background: rgba(255,255,255,.07); margin-bottom: 18px; }
+.gtrack .fill { position: absolute; inset: 0 auto 0 0; border-radius: 8px; background: linear-gradient(90deg, #b5852c, var(--place-1)); box-shadow: 0 0 16px color-mix(in srgb, var(--place-1) 45%, transparent); }
+.gtrack .off { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--text); }
+.gtrack .tk { position: absolute; top: 22px; transform: translateX(-50%); font: 500 11px var(--f-mono); color: var(--faint); white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; }
+.gtrack .tk.ms { color: var(--place-1); }
+.gtrack .tk:first-child { transform: none; }
+.gtrack .tk.end { transform: translateX(-100%); }
+.godband .gr { display: grid; gap: 4px; text-align: right; font-size: 13px; color: var(--muted); }
+.godband .gr b { font: 800 24px var(--f-display); color: var(--text); }
+.okline { display: inline-flex; align-items: center; gap: 5px; justify-content: flex-end; }
+.okline svg { color: var(--ok); }
+.c1-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; border-top: 1px solid var(--line); }
+.medallero { padding: 18px 24px 20px; display: grid; gap: 14px; align-content: start; }
+.mrow { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; align-items: start; }
+.mrow .mlab { font: 500 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; padding-top: 12px; }
+.mrow.honor .mlab { color: var(--honor); } .mrow.shame .mlab { color: var(--shame); }
+.mlist { display: flex; flex-wrap: wrap; gap: 8px; }
+.md { position: relative; display: inline-flex; align-items: center; gap: 9px; padding: 5px 10px 5px 5px; border-radius: 999px; border: 1px solid; font: 500 14px var(--f-body); cursor: pointer; background: none; color: inherit; }
+.md .tico { width: 30px; height: 30px; font-size: 16px; }
+.md.honor { border-color: color-mix(in srgb, var(--honor) 45%, transparent); background: var(--honor-bg); color: var(--honor); }
+.md.shame { border-color: color-mix(in srgb, var(--shame) 45%, transparent); background: var(--shame-bg); color: var(--shame); }
+.md .pop { position: absolute; left: 0; top: calc(100% + 8px); z-index: 5; width: 300px; max-width: 80cqw; padding: 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: left; display: none; gap: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.5); white-space: normal; }
+.md .pop b { color: var(--text); font-weight: 500; }
+.md:hover .pop, .md:focus-visible .pop, .md[data-open] .pop { display: grid; }
+.mhint { font-size: 12px; color: var(--faint); }
+
+/* ---------- C2 · dos trofeos ---------- */
+.c2-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.c2-top .name { font-size: 48px; }
+.av.sm { width: 72px; height: 72px; font-size: 26px; }
+.twins { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; padding-bottom: 20px; }
+.tw { border-radius: 12px; border: 1px solid rgba(255,255,255,.09); background: rgba(15,16,19,.55); backdrop-filter: blur(4px); padding: 16px 18px; display: grid; gap: 12px; align-content: start; }
+.tw .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tw .row { display: flex; align-items: center; gap: 18px; }
+.tw.e .shield { font-size: 84px; color: var(--lg); filter: drop-shadow(0 6px 18px rgba(0,0,0,.5)); }
+.tw.e .lg { font-size: 22px; color: var(--lg); letter-spacing: .1em; }
+.tw.e .rt { font-size: 66px; }
+.tw .foot { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); align-items: center; }
+.tw .foot b { color: var(--text); font-weight: 500; }
+.ring { width: 118px; height: 118px; flex: none; }
+.tw.g .gn .disp { font-size: 66px; color: var(--place-1); }
+.tw.g .gn .disp small { font-size: 26px; color: var(--muted); }
+.miles { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.miles span { display: inline-flex; align-items: center; gap: 5px; }
+.miles .done { color: var(--place-1); }
+.c2-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; border-top: 1px solid var(--line); }
+.tlist { padding: 18px 24px 20px; display: grid; gap: 10px; align-content: start; }
+.tl { display: grid; gap: 4px; }
+.trw { display: grid; grid-template-columns: 30px minmax(150px, auto) auto minmax(0, 1fr); gap: 12px; align-items: center; padding: 6px 10px 6px 6px; border-radius: 8px; border: 1px solid transparent; }
+.trw.honor { background: linear-gradient(90deg, var(--honor-bg), transparent 85%); border-color: color-mix(in srgb, var(--honor) 22%, transparent); }
+.trw.shame { background: linear-gradient(90deg, var(--shame-bg), transparent 85%); border-color: color-mix(in srgb, var(--shame) 22%, transparent); }
+.trw .tico { width: 30px; height: 30px; font-size: 16px; }
+.trw .tn { font: 800 17px/1 var(--f-display); font-variation-settings: "opsz" 72; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
+.trw.honor .tn { color: var(--honor); } .trw.shame .tn { color: var(--shame); }
+.trw .why { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+@container (max-width: 980px) {
+  .c1-body, .c2-body { grid-template-columns: 1fr; }
+  .ladder { border-left: 0; border-top: 1px solid var(--line); }
+}
+@container (max-width: 700px) {
+  .twins { grid-template-columns: 1fr; }
+  .trw { grid-template-columns: 30px minmax(0, 1fr) auto; }
+  .trw .why { grid-column: 2 / -1; white-space: normal; }
+}
+@container (max-width: 640px) {
+  .hero { padding: 54px 14px 0; }
+  .actions { top: 10px; right: 10px; } .actions .fresh, .btn .t { display: none; } .btn { padding: 8px 9px; }
+  .idblk { gap: 14px; } .av, .av.sm { width: 60px; height: 60px; font-size: 22px; } .av .seal { width: 26px; height: 26px; font-size: 13px; }
+  .name, .c2-top .name { font-size: 30px; white-space: normal; } .name .tagl { font-size: 14px; }
+  .elo .shield { font-size: 58px; } .elo .rt { font-size: 48px; }
+  .godband { grid-template-columns: 1fr auto; gap: 6px 12px; } .godband .gnum { font-size: 40px; }
+  .godband .gtrack { grid-column: 1 / -1; grid-row: 2; }
+  .godband .gr { grid-column: 2; grid-row: 1; align-self: center; }
+  .medallero, .tlist, .ladder { padding: 14px; }
+  .mrow { grid-template-columns: 1fr; gap: 6px; } .mrow .mlab { padding-top: 0; }
+  .md { font-size: 13px; }
+  .tw { padding: 14px; } .tw.e .shield { font-size: 58px; } .tw.e .rt, .tw.g .gn .disp { font-size: 48px; } .ring { width: 88px; height: 88px; }
+  .twins { margin-top: 14px; padding-bottom: 14px; gap: 10px; }
+}
+
+/* ---------- Comparativa ---------- */
+.cmp { width: 100%; border-collapse: collapse; min-width: 640px; font-size: 15px; }
+.cmp th, .cmp td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.cmp thead th { font: 800 20px/1 var(--f-display); font-variation-settings: "opsz" 72; text-transform: uppercase; letter-spacing: .03em; }
+.cmp tbody th { font: 500 12px/1.3 var(--f-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); width: 200px; }
+.cmp td { color: var(--muted); }
+.scroll-x { overflow-x: auto; }
+.rec-box { border: 1px solid var(--won-deep); background: #2a2214; border-radius: 10px; padding: 20px 22px; display: grid; gap: 10px; }
+.rec-box h3 { color: var(--place-1); }
+.rec-box p, .rec-box li { color: var(--muted); }
+.rec-box b { color: var(--text); font-weight: 500; }
+.rec-box ul, .open ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.open ol { color: var(--muted); max-width: 80ch; }
+.open li b { color: var(--text); font-weight: 500; }
+@media (max-width: 760px) { .controls { position: static; } }
+@media (max-width: 520px) { .doc { padding-inline: 16px; gap: 40px; } h2 { font-size: 28px; } .stage { padding: 10px; } }
+
+/* ---------- Prueba del splash ---------- */
+.hero .bgimg { position: absolute; inset: 0; z-index: -2; background-size: cover; background-position: center 22%; background-repeat: no-repeat; }
+.hero[data-splash="none"] .bgimg { display: none; }
+.hero:not([data-splash="none"])::before { background: linear-gradient(90deg, rgba(12,13,16,var(--o1)) 0%, rgba(12,13,16,var(--o2)) 48%, rgba(12,13,16,var(--o3)) 100%); }
+.hero[data-fx="vivo"] { --o1: .82; --o2: .35; --o3: .05; }
+.hero[data-fx="medio"] { --o1: .9; --o2: .55; --o3: .25; }
+.hero[data-fx="oscuro"] { --o1: .92; --o2: .72; --o3: .55; }
+.hero[data-fx="medio"] .bgimg { filter: saturate(.85); }
+.hero[data-fx="oscuro"] .bgimg { filter: saturate(.55) blur(1.5px); transform: scale(1.02); }
+.hero:not([data-splash="none"])::after { background: linear-gradient(180deg, transparent 35%, var(--cabin) 100%); }
+.hero .splashnote { z-index: 1; background: rgba(12,13,16,.7); }
+@container (max-width: 640px) {
+  .hero .bgimg { background-position: 70% 20%; }
+  .hero:not([data-splash="none"])::before { background: linear-gradient(180deg, rgba(12,13,16,var(--o3)) 0%, rgba(12,13,16,var(--o2)) 35%, rgba(12,13,16,var(--o1)) 100%); }
+}
+.hero[data-splash="nocturne"] .bgimg { background-image: url("https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Nocturne_0.jpg"); }
+.hero[data-splash="fizz"] .bgimg { background-image: url("https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Fizz_0.jpg"); }
+.hero[data-splash="rammus"] .bgimg { background-image: url("https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Rammus_0.jpg"); }
+.hero[data-splash="alistar"] .bgimg { background-image: url("https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Alistar_0.jpg"); }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 18h18M4 15 3 7l5 4 4-7 4 7 5-4-1 8z" fill="currentColor" stroke="currentColor"/></symbol>
+    <symbol id="i-bomb" viewBox="0 0 24 24"><circle cx="10" cy="14" r="7" fill="currentColor"/><path d="m15 9 2.5-2.5M19 3v2M21 5h-2M21.5 2.5 20 4"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2c.8 3.6 5.5 5.6 5.5 11a5.5 5.5 0 0 1-11 0c0-2.6 1.5-4.4 2.6-5.3.1 1.7.9 2.8 2 2.8-.2-3.5.3-5.9.9-8.5z"/></symbol>
+    <symbol id="i-feather" viewBox="0 0 24 24"><path d="M20 4C11 4 6 9 6 17l-2 3M6 17c7 0 12-4 14-13M9 14h6"/></symbol>
+    <symbol id="i-troll" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 10h.01M16 10h.01M7.5 14c2.5 3 6.5 3 9 0"/><path d="M5 6 3 3M19 6l2-3"/></symbol>
+    <symbol id="i-swords" viewBox="0 0 24 24"><path d="m4 4 11 11M20 4 9 15M14 18l4-4M6 14l4 4M17 17l3 3M7 17l-3 3"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path fill="currentColor" d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.4 12 20 12 20z"/></symbol>
+    <symbol id="i-heartbreak" viewBox="0 0 24 24"><path fill="currentColor" d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.4 12 20 12 20z"/><path stroke="#20232a" d="m12 7-1.5 4 3 2-1.5 4"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M3 21v-5h5"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4.5 4.5L19 7"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 28"><path d="M12 1.5 22.5 5v8.5c0 6.3-4.4 10.9-10.5 13-6.1-2.1-10.5-6.7-10.5-13V5z" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="1.6"/><path d="M12 6.5 18 8.6v5c0 3.6-2.5 6.4-6 7.7-3.5-1.3-6-4.1-6-7.7v-5z" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<script>document.documentElement.classList.add("honor-teal");</script>
+<main class="doc">
+
+  <header class="sec-head">
+    <span class="eyebrow">hylistats · perfil · propuesta de diseño v3 · 3 oct 2026</span>
+    <h1>La cabecera del perfil: vitrina</h1>
+    <div class="prose">
+      <p>Segunda vuelta sobre la <b>propuesta C</b>, con tus notas: los títulos tienen que caber aunque haya muchos, hay que ver cómo queda un título <b>positivo</b>, el rosa se queda para los vergonzantes y <b>Dios de Arena</b> gana peso. La escalera del grupo se mantiene en las dos variantes.</p>
+      <p><b>v3</b>: elegida la <b>C2</b> con honor en <b>turquesa</b>. Esta versión añade la <b>prueba del splash</b>: en los controles de abajo eliges el campeón del fondo y cuánto se oscurece. Nocturne es el último 1º real de Hylimichi; el resto sirve para ver composiciones distintas (oscura, muy colorida, clara). Mira sobre todo la C2 y prueba la vista móvil.</p>
+      <p>Las maquetas usan los datos reales de producción de Hylimichi y BEJITO MAMBO (títulos, ELO y Clasificación de hoy). Los otros dos perfiles del selector son casos inventados para ver los extremos.</p>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">01 · Cuántos títulos caben</span>
+      <h2>De 9 chips a 4 medallas</h2>
+      <div class="prose"><p>Hylimichi lleva hoy <b>8 títulos y la Deidad</b>: cuatro títulos distintos, cada uno de hoy y de la semana. Si cada título sale una sola vez con dos marcas, <b>HOY</b> y <b>SEM</b>, el máximo pasa a ser de <b>7 medallas</b>, una por título de F21, por muchos que se acumulen.</p></div>
+    </div>
+    <div class="count">
+      <div class="cbox"><span class="eyebrow">Hoy en producción</span><span class="big num">9</span><p>Chips: la Deidad de Arena + 4 títulos del día + 4 de la semana. Ocupan cuatro líneas de la cabecera fija.</p></div>
+      <div class="cbox"><span class="eyebrow">Con la fusión día + semana</span><span class="big num" style="color:var(--place-1)">4</span><p>Una medalla por título, con las marcas HOY y SEM. La Deidad pasa al sello del avatar.</p></div>
+      <div class="cbox"><span class="eyebrow">Peor caso posible</span><span class="big num">7</span><p>Un título por definición de F21. Si un empate da el mismo título con dos dúos, sigue siendo una medalla y el detalle lo explica.</p></div>
+    </div>
+  </section>
+
+  <div class="controls" role="group" aria-label="Datos de las maquetas">
+    <div class="grp"><span class="lab">Perfil</span>
+      <div class="seg" id="sel-profile">
+        <button type="button" aria-pressed="true" data-p="hyli">Hylimichi · 8 títulos</button>
+        <button type="button" aria-pressed="false" data-p="bejito">BEJITO MAMBO · 2</button>
+        <button type="button" aria-pressed="false" data-p="zapas">Mezcla con individuales</button>
+        <button type="button" aria-pressed="false" data-p="krill">Sin títulos, antes de 60</button>
+      </div>
+    </div>
+    <div class="grp"><span class="lab">Tono de honor</span>
+      <div class="seg" id="sel-honor">
+        <button type="button" aria-pressed="false" data-h="gold">Dorado</button>
+        <button type="button" aria-pressed="true" data-h="teal">Turquesa</button>
+      </div>
+    </div>
+    <div class="grp"><span class="lab">Fondo</span>
+      <div class="seg" id="sel-splash">
+        <button type="button" aria-pressed="true" data-s="nocturne">Nocturne · último 1º</button>
+        <button type="button" aria-pressed="false" data-s="fizz">Fizz</button>
+        <button type="button" aria-pressed="false" data-s="rammus">Rammus</button>
+        <button type="button" aria-pressed="false" data-s="alistar">Alistar</button>
+        <button type="button" aria-pressed="false" data-s="none">Sin splash</button>
+      </div>
+    </div>
+    <div class="grp"><span class="lab">Tratamiento</span>
+      <div class="seg" id="sel-fx">
+        <button type="button" aria-pressed="false" data-fx="vivo">Vivo</button>
+        <button type="button" aria-pressed="true" data-fx="medio">Medio</button>
+        <button type="button" aria-pressed="false" data-fx="oscuro">Oscuro</button>
+      </div>
+    </div>
+    <p class="pnote" id="pnote"></p>
+  </div>
+
+  <!-- ================= C1 ================= -->
+  <section id="c1">
+    <div class="prop-head">
+      <div class="prop-title"><span class="tag">Propuesta C1</span><h2>Vitrina con banda</h2></div>
+      <div class="seg wsel" role="group" aria-label="Ancho de la maqueta C1"><button type="button" aria-pressed="true" data-w="desk">Escritorio</button><button type="button" aria-pressed="false" data-w="mobile">Móvil 375</button></div>
+    </div>
+    <div class="prose"><p>El banner de C con <b>Dios de Arena como banda gruesa</b> a todo el ancho, con la cifra en grande, la regla, el hito de la Deidad en los 60 y la marca del oficial. Debajo, un <b>medallero</b> compacto en dos filas, Honor y Vergüenza; el «por qué» se abre al pulsar una medalla. A la derecha, la escalera.</p></div>
+    <div class="stage"><div class="frame"><div class="mk" data-mock="c1"></div></div></div>
+    <div class="pros">
+      <div class="pc good"><h4>Gana</h4><ul><li><b>Dios de Arena se lee como progreso</b>: la regla y el hito de los 60 siguen ahí, y la cifra mide 52 px.</li><li>El medallero ocupa <b>dos líneas</b> con 4 o con 7 títulos.</li><li>Separar Honor y Vergüenza deja el pique a la vista: cuántos de cada uno.</li></ul></div>
+      <div class="pc bad"><h4>Pierde</h4><ul><li>El «por qué» vuelve al detalle, aunque ahora se abre al pulsar, también en el móvil.</li><li>ELO y Dios de Arena no están al mismo nivel: la banda es ancha pero baja.</li></ul></div>
+      <div class="pc how"><h4>Coste</h4><ul><li>La banda reutiliza la lógica de <code>arena-god.tsx</code> (regla, oficial, meta 60 o 173).</li><li>El medallero sustituye a <code>Badge</code> por un componente nuevo que agrupa por título.</li></ul></div>
+    </div>
+  </section>
+
+  <!-- ================= C2 ================= -->
+  <section id="c2">
+    <div class="prop-head">
+      <div class="prop-title"><span class="tag">Propuesta C2</span><h2>Vitrina con dos trofeos</h2></div>
+      <div class="seg wsel" role="group" aria-label="Ancho de la maqueta C2"><button type="button" aria-pressed="true" data-w="desk">Escritorio</button><button type="button" aria-pressed="false" data-w="mobile">Móvil 375</button></div>
+    </div>
+    <div class="prose"><p>En el banner, <b>ELO y Dios de Arena son dos trofeos gemelos</b>, con el mismo tamaño de cifra. Debajo, los títulos en una <b>lista compacta</b>, una línea por título con su «por qué» escrito, junto a la escalera. Con 4 títulos, la lista y la escalera miden casi lo mismo.</p></div>
+    <div class="stage"><div class="frame"><div class="mk" data-mock="c2"></div></div></div>
+    <div class="pros">
+      <div class="pc good"><h4>Gana</h4><ul><li><b>Dios de Arena al mismo nivel que el ELO</b>: es el que más peso le da.</li><li>El «por qué» se lee sin tocar nada, a un metro de la pantalla.</li><li>Lista y escalera forman un bloque ordenado de filas.</li></ul></div>
+      <div class="pc bad"><h4>Pierde</h4><ul><li>El anillo no tiene regla: se ve cuánto falta, no la escala 0–173.</li><li>Con 7 títulos la lista llega a ~280 px; en el móvil todo se apila y el álbum baja.</li></ul></div>
+      <div class="pc how"><h4>Coste</h4><ul><li>Igual que C1 más el anillo (SVG simple).</li><li>El «por qué» del día y de la semana ya viene en <code>holder.why</code>; la fila enseña el de hoy y el detalle, los dos.</li></ul></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">02 · Comparativa</span>
+      <h2>C1 frente a C2</h2>
+    </div>
+    <div class="scroll-x">
+      <table class="cmp">
+        <thead><tr><th></th><th>C1 · Banda</th><th>C2 · Dos trofeos</th></tr></thead>
+        <tbody>
+          <tr><th>Dios de Arena</th><td>Banda ancha con regla, hito de 60 y oficial</td><td>Anillo del mismo tamaño que el ELO</td></tr>
+          <tr><th>Títulos</th><td>Medallero en dos filas (Honor / Vergüenza), «por qué» al pulsar</td><td>Lista, una línea por título, «por qué» escrito</td></tr>
+          <tr><th>Con 7 títulos</th><td>Sigue en ~2 líneas</td><td>7 filas (~280 px)</td></tr>
+          <tr><th>Alto sobre las pestañas</th><td>~470 px</td><td>~520 px</td></tr>
+          <tr><th>Móvil</th><td>Más corta: las medallas se reparten en filas</td><td>Más larga: trofeos y lista apilados</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="rec-box">
+      <span class="eyebrow" style="color:var(--place-1)">Decisión del supervisor (3 oct 2026)</span>
+      <h3>C2, con honor en turquesa</h3>
+      <p>Dios de Arena y el ELO pesan lo mismo; los títulos van en lista con el «por qué» escrito, junto a la escalera. Al hacer scroll queda una barra fija reducida. Pendiente: el fondo del banner (prueba del splash en esta versión).</p>
+    </div>
+  </section>
+
+  <section class="open">
+    <div class="sec-head">
+      <span class="eyebrow">03 · Para decidir</span>
+      <h2>Preguntas abiertas</h2>
+    </div>
+    <ol>
+      <li><b>Tono de honor</b>: dorado (el de los cromos ganados, compite con Dios de Arena) o turquesa (el del top 3, se distingue mejor). Pruébalo con el selector.</li>
+      <li><b>Splash del banner</b>: el del último 1º, el del campeón más jugado o uno fijo por jugador. Hay que admitir las imágenes de Data Dragon en <code>next.config</code>.</li>
+      <li><b>Cabecera fija</b>: al hacer scroll el banner se va y queda una barra con avatar, nombre, liga, rating y Actualizar.</li>
+      <li><b>Caso raro</b>: Hylimichi tiene hoy a la vez «Equipo roto» con 0 primeros y «Equipo mental boom», que es la regla literal de F21 (pendiente en <code>think.md</code>). En la vitrina choca más que en un chip.</li>
+    </ol>
+  </section>
+
+</main>
+
+<script>
+var TITLES = {
+  troll:      { name: "El trol",            icon: "troll",      tone: "shame" },
+  pacifist:   { name: "El pacifista",       icon: "feather",    tone: "shame" },
+  devil:      { name: "El D-d-d-diablo",    icon: "flame",      tone: "honor" },
+  brokenTrio: { name: "Equipo roto",        icon: "swords",     tone: "honor" },
+  boomTrio:   { name: "Equipo mental boom", icon: "bomb",       tone: "shame" },
+  brokenDuo:  { name: "Pareja rota",        icon: "heart",      tone: "honor" },
+  boomDuo:    { name: "Pareja mental boom", icon: "heartbreak", tone: "shame" }
+};
+var ORDER = ["troll", "pacifist", "devil", "brokenTrio", "boomTrio", "brokenDuo", "boomDuo"];
+var LEAGUES = [["hierro", "Hierro", -Infinity], ["bronce", "Bronce", 1450], ["plata", "Plata", 1480], ["oro", "Oro", 1510], ["platino", "Platino", 1540], ["diamante", "Diamante", 1570]];
+// Clasificación real (pestaña Grupo de producción, 3 oct 2026): nombre, liga, rating, hoy, semana.
+var LADDER = [["Krill1nt", "diamante", 1578, 52, -11], ["TheCIutch", "oro", 1517, 64, 14], ["zapas14", "oro", 1517, -15, -30], ["Azpekaa", "plata", 1495, -36, -94], ["Hylimichi", "plata", 1492, -35, 64], ["BEJITO MAMBO", "plata", 1489, -69, -115]];
+var PROFILES = {
+  hyli: { ladder: "Hylimichi", name: "Hylimichi", tag: "EUW", init: "HY", god: 112, official: 112, last: "hace 33 min",
+    note: "Datos reales de producción.",
+    titles: { brokenTrio: { day: "Más 1º juntos del día: 0 en 4 partidas (puesto medio 3,00)", week: "Más 1º juntos de la semana: 2 en 17 partidas (puesto medio 3,59)" },
+      boomTrio: { day: "Peor puesto medio juntos del día: 4,25 en 4 partidas", week: "Peor puesto medio juntos de la semana: 4,54 en 13 partidas" },
+      brokenDuo: { day: "Más 1º juntos del día: 2 en 6 partidas (puesto medio 2,33)", week: "Más 1º juntos de la semana: 5 en 27 partidas (puesto medio 3,41)" },
+      boomDuo: { day: "Peor puesto medio juntos del día: 4,25 en 4 partidas", week: "Peor puesto medio juntos de la semana: 4,06 en 18 partidas" } } },
+  bejito: { ladder: "BEJITO MAMBO", name: "Bejito Mambo", tag: "1991", init: "BM", god: 79, official: 79, last: "hace 52 min",
+    note: "Datos reales de producción.",
+    titles: { boomTrio: { day: "Peor puesto medio juntos del día: 4,25 en 4 partidas", week: "Peor puesto medio juntos de la semana: 4,54 en 13 partidas" } } },
+  zapas: { ladder: "zapas14", name: "zapas14", tag: "EUW", init: "ZA", god: 88, official: 88, last: "hace 12 min",
+    note: "ELO real; títulos y Dios de Arena inventados para ver la mezcla de honor y vergüenza.",
+    titles: { devil: { day: "Más daño medio a campeones del día: 52.310 por partida en 6 partidas" },
+      troll: { week: "Peor puesto medio de la semana: 4,40 en 10 partidas" },
+      pacifist: { week: "Menos daño medio a campeones de la semana: 24.870 por partida en 10 partidas" },
+      brokenDuo: { day: "Más 1º juntos del día: 3 en 6 partidas (puesto medio 2,17)", week: "Más 1º juntos de la semana: 6 en 21 partidas (puesto medio 2,90)" } } },
+  krill: { ladder: "Krill1nt", name: "Krill1nt", tag: "EUW", init: "KR", god: 41, official: 41, last: "hace 2 h",
+    note: "ELO real; sin títulos y con 41 campeones inventados para ver la meta de 60 (Deidad de Arena).",
+    titles: {} }
+};
+var SPLASHES = {
+  nocturne: { label: "splash: Nocturne · último 1º de Hylimichi" },
+  fizz: { label: "splash: Fizz · ejemplo" },
+  rammus: { label: "splash: Rammus · ejemplo" },
+  alistar: { label: "splash: Alistar · ejemplo" },
+  none: { label: "sin splash: degradado con el color de la liga" }
+};
+var state = { p: "hyli", s: "nocturne", fx: "medio" };
+
+function ic(id) { return '<svg class="i"><use href="#i-' + id + '"/></svg>'; }
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+function league(r) { var l = LEAGUES[0]; LEAGUES.forEach(function (c) { if (r >= c[2]) l = c; }); return l; }
+function nextLeague(r) { for (var i = 0; i < LEAGUES.length; i++) if (LEAGUES[i][2] > r) return LEAGUES[i]; return null; }
+function sign(n) { return n > 0 ? "+" + n : n < 0 ? "−" + Math.abs(n) : "0"; }
+function dcls(n) { return n > 0 ? "up" : n < 0 ? "down" : "zero"; }
+
+function ctx() {
+  var pr = PROFILES[state.p];
+  var row = LADDER.filter(function (r) { return r[0] === pr.ladder; })[0];
+  var pos = 1 + LADDER.filter(function (r) { return r[2] > row[2]; }).length;
+  var above = LADDER.filter(function (r) { return r[2] > row[2]; }).sort(function (a, b) { return a[2] - b[2]; })[0];
+  var lg = league(row[2]), nx = nextLeague(row[2]);
+  var deity = Math.max(pr.god, pr.official) >= 60;
+  var goal = deity ? 173 : 60;
+  var titles = ORDER.filter(function (id) { return pr.titles[id]; }).map(function (id) { var t = pr.titles[id]; return { id: id, def: TITLES[id], day: t.day, week: t.week }; });
+  return { pr: pr, row: row, pos: pos, above: above, lg: lg, nx: nx, deity: deity, goal: goal, titles: titles };
+}
+
+function heroOpen(c) {
+  var sp = SPLASHES[state.s];
+  return '<div class="hero" data-splash="' + state.s + '" data-fx="' + state.fx + '" style="--lg:var(--lg-' + c.lg[0] + ')"><div class="bgimg"></div><span class="ex splashnote">' + sp.label + "</span>";
+}
+function avatar(c, cls) {
+  return '<div class="av ' + (c.deity ? "ring " : "") + (cls || "") + '">' + c.pr.init + (c.deity ? '<span class="seal" title="Deidad de Arena">' + ic("crown") + "</span>" : "") + "</div>";
+}
+function actions(c) {
+  return '<div class="actions"><div class="fresh"><p>Última partida <b>' + c.pr.last + '</b></p><p>Comprobado ahora</p></div><span class="btn">' + ic("refresh") + '<span class="t">Actualizar</span></span><span class="btn sq">' + ic("sliders") + "</span></div>";
+}
+function eloSub(c) {
+  var parts = ['<span class="delta ' + dcls(c.row[3]) + '">hoy ' + sign(c.row[3]) + "</span>", '<span class="delta ' + dcls(c.row[4]) + '">sem ' + sign(c.row[4]) + "</span>"];
+  return parts.join("");
+}
+function eloFacts(c) {
+  var f = [c.pos + "º de " + LADDER.length];
+  if (c.above) f.push("a " + (c.above[2] - c.row[2]) + " de " + c.above[0]); else f.push("líder por " + (c.row[2] - LADDER.filter(function (r) { return r !== c.row; })[0][2]));
+  if (c.nx) f.push("a " + (c.nx[2] - c.row[2]) + " de " + c.nx[1]);
+  return f;
+}
+function ladder(c) {
+  var rows = LADDER.map(function (r) {
+    var p = 1 + LADDER.filter(function (x) { return x[2] > r[2]; }).length;
+    return '<div class="' + (r === c.row ? "me" : "") + '"><span class="p">' + p + '</span><svg class="shield" style="color:var(--lg-' + league(r[2])[0] + ')"><use href="#i-shield"/></svg><span class="nm">' + esc(r[0]) + '</span><span class="r num">' + r[2] + '</span><span class="d ' + dcls(r[3]) + '">' + (r[3] ? sign(r[3]) : "") + "</span></div>";
+  }).join("");
+  var foot = c.above ? "A " + (c.above[2] - c.row[2]) + " de " + esc(c.above[0]) + " · hoy, cambio del día" : "Líder del grupo · hoy, cambio del día";
+  return '<div class="ladder"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="lbl">Escalera del grupo</span><span class="faint" style="font-size:12px">hoy</span></div><div class="lad">' + rows + '</div><span class="ladfoot">' + foot + "</span></div>";
+}
+function pips(t) { return '<span class="pips"><i class="' + (t.day ? "on" : "") + '">HOY</i><i class="' + (t.week ? "on" : "") + '">SEM</i></span>'; }
+function emptyTitles(c) {
+  return '<div class="tempty"><b>Sin títulos hoy ni esta semana.</b><span>Los individuales piden 3 partidas en el día o 5 en la semana; los de dúo y trío, 3 partidas juntos.</span></div>';
+}
+
+// Dios de Arena: banda (C1)
+function band(c) {
+  var g = c.goal, w = Math.min(100, (c.pr.god / g) * 100), off = Math.min(100, (c.pr.official / g) * 100);
+  var ticks = g === 173 ? [[0, "0"], [60, "60 Deidad", "ms"], [120, "120"], [173, "173", "end"]] : [[0, "0"], [20, "20"], [40, "40"], [60, "60", "end"]];
+  var tk = ticks.map(function (t) {
+    var label = t[2] === "ms" ? ic("crown") + " " + t[1] : t[1];
+    return '<span class="tk ' + (t[2] || "") + '" style="left:' + (t[0] / g * 100) + '%">' + label + "</span>";
+  }).join("");
+  var name = c.deity ? "Dios de Arena" : "Deidad de Arena";
+  var check = c.pr.god === c.pr.official ? '<span class="okline">' + ic("check") + "cuadra con el oficial</span>" : "";
+  return '<div class="godband"><div class="gl"><span class="lbl">' + name + '</span><span class="disp gnum num">' + c.pr.god + "<small> / " + g + '</small></span></div>' +
+    '<div class="gtrack"><div class="fill" style="width:' + w + '%"></div><div class="off" style="left:' + off + '%" title="oficial ' + c.pr.official + '"></div>' + tk + "</div>" +
+    '<div class="gr"><span>faltan</span><b class="num">' + (g - c.pr.god) + "</b>" + check + "</div></div>";
+}
+
+function renderC1(el) {
+  var c = ctx();
+  var groups = ["honor", "shame"].map(function (tone) {
+    var ts = c.titles.filter(function (t) { return t.def.tone === tone; });
+    if (!ts.length) return "";
+    var md = ts.map(function (t) {
+      var pop = '<span class="pop"><b>' + t.def.name + "</b>" + (t.day ? "<span>Hoy: " + esc(t.day) + "</span>" : "") + (t.week ? "<span>Semana: " + esc(t.week) + "</span>" : "") + '<span style="color:var(--trust)">Qué es cada título →</span></span>';
+      return '<button type="button" class="md ' + tone + '"><span class="tico">' + ic(t.def.icon) + "</span>" + t.def.name + pips(t) + pop + "</button>";
+    }).join("");
+    return '<div class="mrow ' + tone + '"><span class="mlab">' + (tone === "honor" ? "Honor" : "Vergüenza") + " · " + ts.length + '</span><div class="mlist">' + md + "</div></div>";
+  }).join("");
+  var med = c.titles.length ? groups + '<span class="mhint">Pasa el ratón o pulsa una medalla para ver por qué.</span>' : emptyTitles(c);
+  el.innerHTML =
+    heroOpen(c) + actions(c) +
+      '<div class="c1-top"><div class="idblk">' + avatar(c) + '<div style="min-width:0"><div class="disp name">' + esc(c.pr.name) + '<span class="tagl">#' + c.pr.tag + '</span></div><div class="meta"><span class="chip me">Mi perfil</span>' + (c.deity ? '<span class="chip" style="border-color:var(--won-deep);color:var(--place-1)">' + ic("crown") + "Deidad de Arena</span>" : "") + "</div></div></div>" +
+      '<div class="elo"><svg class="shield"><use href="#i-shield"/></svg><div><div class="disp lg">' + c.lg[1] + '</div><div class="disp rt num">' + c.row[2] + '</div><div class="sub">' + eloSub(c) + "<span>" + eloFacts(c).join(" · ") + "</span></div></div></div></div>" +
+      band(c) + "</div>" +
+    '<div class="c1-body"><div class="medallero"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span class="lbl">Títulos</span><span class="faint" style="font-size:12px">hoy y esta semana</span></div>' + med + "</div>" + ladder(c) + "</div>";
+}
+
+function ringSvg(c) {
+  var r = 50, C = 2 * Math.PI * r, f = Math.min(1, c.pr.god / c.goal);
+  var ms = c.goal === 173 ? '<line x1="60" y1="3" x2="60" y2="17" stroke="#e8b64c" stroke-width="3" transform="rotate(' + (60 / 173 * 360) + ' 60 60)"/>' : "";
+  return '<svg class="ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="12"/>' +
+    '<circle cx="60" cy="60" r="50" fill="none" stroke="#e8b64c" stroke-width="12" stroke-linecap="round" stroke-dasharray="' + (C * f).toFixed(1) + " " + C.toFixed(1) + '" transform="rotate(-90 60 60)"/>' + ms +
+    '<text x="60" y="66" text-anchor="middle" fill="#ece6d9" font-family="Atkinson Hyperlegible Mono, monospace" font-size="18">' + Math.round(f * 100) + "%</text></svg>";
+}
+function renderC2(el) {
+  var c = ctx();
+  var rows = c.titles.map(function (t) {
+    var why = t.day ? "Hoy: " + t.day : "Semana: " + t.week;
+    return '<div class="trw ' + t.def.tone + '"><span class="tico">' + ic(t.def.icon) + '</span><span class="tn">' + t.def.name + "</span>" + pips(t) + '<span class="why" title="' + esc(why) + '">' + esc(why) + "</span></div>";
+  }).join("");
+  var nH = c.titles.filter(function (t) { return t.def.tone === "honor"; }).length, nS = c.titles.length - nH;
+  var miles = c.deity
+    ? '<span class="done">' + ic("crown") + ' Deidad · 60</span><span>Dios · 173</span>'
+    : '<span>Deidad · 60</span><span class="faint">después, Dios · 173</span>';
+  var check = c.pr.god === c.pr.official ? '<span style="display:inline-flex;gap:4px;align-items:center"><span style="color:var(--ok);display:inline-grid">' + ic("check") + "</span>oficial " + c.pr.official + "</span>" : "";
+  el.innerHTML =
+    heroOpen(c) + actions(c) +
+      '<div class="c2-top"><div class="idblk">' + avatar(c, "sm") + '<div style="min-width:0"><div class="disp name">' + esc(c.pr.name) + '<span class="tagl">#' + c.pr.tag + '</span></div><div class="meta"><span class="chip me">Mi perfil</span>' + (c.deity ? '<span class="chip" style="border-color:var(--won-deep);color:var(--place-1)">' + ic("crown") + "Deidad de Arena</span>" : "") + "</div></div></div></div>" +
+      '<div class="twins">' +
+        '<div class="tw e"><div class="hd"><span class="lbl">Liga del grupo</span><span class="faint" style="font-size:12px">' + c.pos + "º de " + LADDER.length + '</span></div><div class="row"><svg class="shield"><use href="#i-shield"/></svg><div><div class="disp lg">' + c.lg[1] + '</div><div class="disp rt num">' + c.row[2] + '</div></div></div><div class="foot">' + eloSub(c) + "<span>" + eloFacts(c).slice(1).join(" · ") + "</span></div></div>" +
+        '<div class="tw g"><div class="hd"><span class="lbl">' + (c.deity ? "Dios de Arena" : "Deidad de Arena") + '</span><span class="faint" style="font-size:12px">temporada</span></div><div class="row">' + ringSvg(c) + '<div class="gn"><div class="disp num">' + c.pr.god + "<small> / " + c.goal + '</small></div><div class="foot" style="margin-top:6px"><span>faltan <b>' + (c.goal - c.pr.god) + "</b></span>" + check + '</div></div></div><div class="miles">' + miles + "</div></div>" +
+      "</div></div>" +
+    '<div class="c2-body"><div class="tlist"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span class="lbl">Títulos</span><span class="faint" style="font-size:12px">' + (c.titles.length ? nH + " de honor · " + nS + " de vergüenza" : "hoy y esta semana") + "</span></div>" + (c.titles.length ? '<div class="tl">' + rows + "</div>" : emptyTitles(c)) + "</div>" + ladder(c) + "</div>";
+}
+
+function render() {
+  renderC1(document.querySelector('[data-mock="c1"]'));
+  renderC2(document.querySelector('[data-mock="c2"]'));
+  document.getElementById("pnote").textContent = PROFILES[state.p].note;
+}
+
+function segBind(seg, fn) {
+  seg.addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    seg.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    fn(b);
+  });
+}
+segBind(document.getElementById("sel-profile"), function (b) { state.p = b.dataset.p; render(); });
+segBind(document.getElementById("sel-splash"), function (b) { state.s = b.dataset.s; render(); });
+segBind(document.getElementById("sel-fx"), function (b) { state.fx = b.dataset.fx; render(); });
+segBind(document.getElementById("sel-honor"), function (b) { document.documentElement.classList.toggle("honor-teal", b.dataset.h === "teal"); });
+document.querySelectorAll(".wsel").forEach(function (seg) {
+  var frame = seg.closest("section").querySelector(".frame");
+  segBind(seg, function (b) { frame.classList.toggle("mobile", b.dataset.w === "mobile"); });
+});
+// Medallas: pulsar abre o cierra el detalle (en táctil no hay hover).
+document.addEventListener("click", function (e) {
+  var m = e.target.closest(".md");
+  document.querySelectorAll(".md[data-open]").forEach(function (x) { if (x !== m) x.removeAttribute("data-open"); });
+  if (m) { if (m.hasAttribute("data-open")) m.removeAttribute("data-open"); else m.setAttribute("data-open", ""); }
+});
+render();
+</script>

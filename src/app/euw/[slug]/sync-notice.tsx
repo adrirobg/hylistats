@@ -1,22 +1,64 @@
 "use client";
 
-import { useMemo } from "react";
-import { syncProgressFromJson } from "@/lib/status-payload";
+import type { ReactNode } from "react";
+import { FloatingItem } from "@/components/hy/floating";
 import { cn } from "@/lib/utils";
-import { usePageStatus } from "./status-provider";
 import {
-  rateLimitPhrase,
-  type SyncBandModel,
-  sharingPhrase,
-  syncBandModel,
-} from "./view-model";
+  SYNC_PRIORITY,
+  type SyncNoticeModel,
+  syncNoticeId,
+} from "./floating-notices";
+import { dataAgePhrase, rateLimitPhrase, sharingPhrase } from "./view-model";
 
-// Banda de progreso de la sincronización bajo el header (brief §4.10, `.sync-band` de la
-// maqueta). Solo la pinta el backfill (el incremental va dentro del botón Actualizar y en el
-// header, `header.tsx`), la pausa por key caducada y el límite de peticiones, ambas en azul
-// acero: no son un error del usuario (§4.3). La cola compartida usa el tono neutro del progreso:
-// esperar turno no avisa de nada. Es cliente porque se pinta desde el estado que consulta
-// `StatusProvider`, sin repintar la página.
+// Avisos de sincronización en la pila flotante global (brief §4.10; T08, revisión v5b): error de la
+// actualización con [Reintentar], pausa por key caducada, límite de peticiones (del backfill o del
+// incremental) y progreso del backfill y la cola (`.sync-band` de la maqueta, que ya no va en el
+// flujo). Cada uno se registra en la pila (`FloatingItem`, familia `sync`) con su prioridad de
+// `floating-notices.ts`; los registra la vitrina (`vitrina.tsx`), que tiene el botón Actualizar. Los
+// cierres, en memoria. El progreso va en el tono neutro (esperar turno no avisa de nada); el resto,
+// en azul acero: no es un error del usuario (§4.3).
+
+/** Progreso: no avisa de nada, va sin marca y en el tono neutro. */
+const NEUTRAL = new Set<SyncNoticeModel["kind"]>([
+  "resolving",
+  "listing",
+  "fetching",
+  "queued",
+]);
+
+export function SyncNotice({
+  notice,
+  lastSyncedAt,
+  now,
+  retry,
+}: {
+  notice: SyncNoticeModel;
+  lastSyncedAt: number | null;
+  /** En ms. */
+  now: number;
+  /** Botón [Reintentar] del error (el formulario de Actualizar de la vitrina). */
+  retry: ReactNode;
+}) {
+  const neutral = NEUTRAL.has(notice.kind);
+  return (
+    <FloatingItem
+      id={syncNoticeId(notice.kind)}
+      priority={SYNC_PRIORITY[notice.kind]}
+      group="sync"
+      tone={neutral ? "neutral" : "trust"}
+      icon={neutral ? null : "!"}
+    >
+      <div className="grid gap-1.5 [&_b]:font-medium [&_small]:text-xs">
+        <Body
+          model={notice}
+          lastSyncedAt={lastSyncedAt}
+          now={now}
+          retry={retry}
+        />
+      </div>
+    </FloatingItem>
+  );
+}
 
 /** Barra `.track`; sin `value` es indeterminada (pulsa). */
 function Track({
@@ -56,42 +98,28 @@ function Track({
   );
 }
 
-/** La banda según el estado de la página; nada si no toca (`syncBandModel`). */
-export function SyncBand() {
-  const { status } = usePageStatus();
-  const syncJson = status.profile?.sync ?? null;
-  const paused = status.profile?.paused ?? false;
-  // La hora del servidor del estado: el primer render coincide con el HTML.
-  const model = useMemo(
-    () =>
-      syncBandModel(
-        syncJson && syncProgressFromJson(syncJson),
-        paused,
-        status.now,
-      ),
-    [syncJson, paused, status.now],
-  );
-  return model && <Band model={model} />;
-}
-
-function Band({ model }: { model: SyncBandModel }) {
-  const warning = model.kind === "paused" || model.kind === "rate_limit";
-  return (
-    <div className="px-5 pt-3 @max-[640px]:px-3.5">
-      <output
-        className={cn(
-          "grid gap-2 rounded-md border p-3 text-sm",
-          warning ? "border-trust/35 bg-trust-bg" : "border-line bg-background",
-        )}
-      >
-        <Body model={model} />
-      </output>
-    </div>
-  );
-}
-
-function Body({ model }: { model: SyncBandModel }) {
+function Body({
+  model,
+  lastSyncedAt,
+  now,
+  retry,
+}: {
+  model: SyncNoticeModel;
+  lastSyncedAt: number | null;
+  now: number;
+  retry: ReactNode;
+}) {
   switch (model.kind) {
+    case "error":
+      return (
+        <>
+          <b>No se pudo actualizar (Riot no responde).</b>
+          <small className="text-muted-foreground">
+            {dataAgePhrase(lastSyncedAt, now)}
+          </small>
+          <div className="mt-0.5">{retry}</div>
+        </>
+      );
     case "resolving":
       return (
         <>
@@ -144,6 +172,16 @@ function Body({ model }: { model: SyncBandModel }) {
         </>
       );
     case "rate_limit":
+      if (model.job === "incremental") {
+        return (
+          <>
+            <b>{rateLimitPhrase(model.minutes)}</b>
+            <small className="text-muted-foreground">
+              {dataAgePhrase(lastSyncedAt, now)}
+            </small>
+          </>
+        );
+      }
       return (
         <>
           <b>{rateLimitPhrase(model.minutes)}</b>
