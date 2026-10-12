@@ -1,7 +1,7 @@
 # Task T02 — Racha en la UI: historial, aviso y 🔥
 
 **Owner**: worker:sonnet
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -52,10 +52,22 @@ La racha de 1º seguidos se ve en tres sitios:
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] AC4, AC5 y AC6 de la spec, con tests de lo puro: texto de racha (1,5, 2 y nada), línea del desglose, aviso (activo con 0, 1 y 3 seguidos; segunda y tercera persona; firma distinta con otra longitud; orden de prioridad) y 🔥 en las filas (0, 1, 2 y 4).
-- [ ] Los perfiles de no miembros no cambian.
-- [ ] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
+- [x] AC4, AC5 y AC6 de la spec, con tests de lo puro: texto de racha (1,5, 2 y nada), línea del desglose, aviso (activo con 0, 1 y 3 seguidos; segunda y tercera persona; firma distinta con otra longitud; orden de prioridad) y 🔥 en las filas (0, 1, 2 y 4).
+- [x] Los perfiles de no miembros no cambian.
+- [x] `npm run lint && npm run typecheck && npm test && npm run build` en verde.
 
 ## Notas de implementacion <!-- MAY -->
 
+- **Datos**: `ProfileElo.streak` (nuevo, `src/domain/group-view.ts`, solo cableado: `profileEloOf` copia `standing.streak`) lleva la racha del dueño a la página; `standings` ya traía `streak` para las tablas. `elo.ts` y `config.ts` sin tocar; T01 sin fallos detectados.
+- **Funciones puras (con tests)**:
+  - `matches-view.ts`: `eloRowStreak` (`🔥×1,5` / `🔥×2`, `null` con ×1) y línea "Racha" en `eloBreakdown` ("3 primeros seguidos · ×2", tras "Multiplicador", solo si `streakMultiplier > 1`). `formatMultiplier` pasa a exportarse.
+  - `floating-notices.ts`: `STREAK_PRIORITY = 15` (entre Dios de Arena y Arena fuera de rotación), `streakNoticeSignature` (`racha:N`), `streakNoticeText` (I3; M = `eloStreakMultiplier(N + 1)`) y `"racha"` en `closedNoticeKey`.
+  - `clasificacion-model.ts`: `streakBadge` (`🔥N` + title "N primeros seguidos" si N ≥ 2); `ClasificacionRow.streak` y `GroupTodayRow.streak` (`vitrina-view.ts`) lo reutilizan.
+- **UI**: `matches-panel.tsx` (`StreakChange`, `flex-none` junto al cambio), `vitrina.tsx` (`FloatingItem` título "Racha", icono 🔥, `remember` por perfil; solo tras `useLocalReady` para no pintarlo en 3ª persona y cambiar a 2ª), `clasificacion-block.tsx`, `group-today.tsx` (🔥 tras el nombre, `title` + texto `sr-only`), `page.tsx` (prop `streak`).
+- **Desviación menor**: con N = 1 el texto es "1 primero seguido" (el contrato decía "1 primero"; concordancia).
+
 ## Evidencias <!-- MUST -->
+
+- `npm run lint && npm run typecheck && npm test && npm run build`: verde (76 ficheros, 1591 tests).
+- Tests nuevos: `eloRowStreak` (1,5 / 2 / nada), línea "Racha" del desglose (sola y con desconocidos), aviso (texto 2ª/3ª persona con 1, 2 y 3+; firma distinta por longitud; prioridad; cierre por longitud), `streakBadge` (0, 1, 2, 4) y su paso a `clasificacionRows` y `groupTodayRows`.
+- Comprobación manual contra la BD local (build de producción, `WORKER_ENABLED=false`): `/euw/Krill1nt-EUW` (racha en curso de 3): 🔥3 en El grupo hoy y en la Clasificación (`?tab=grupo`), aviso "Krill1nt lleva 3 primeros seguidos: su próximo 1º vale ×2" en la pila (plegado en "+N avisos" a 375 px porque hay otro de sincronización), 🔥×2 / 🔥×1,5 en `?tab=partidas`. Sin captura formal (T04).

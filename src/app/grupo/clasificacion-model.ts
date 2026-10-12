@@ -40,6 +40,25 @@ export function changeCell(change: number | null): ChangeCell {
   return { text, tone: text.startsWith("+") ? "up" : "down" };
 }
 
+/** Racha mínima que se marca con 🔥 en las tablas (la de 1 solo sale en el aviso del perfil). */
+const STREAK_BADGE_MIN = 2;
+
+export interface StreakBadge {
+  /** «🔥3»: el número de 1º seguidos. */
+  text: string;
+  /** «3 primeros seguidos». */
+  title: string;
+}
+
+/** El 🔥 de una fila con su racha en curso (`streak ≥ 2`); `null` si no llega. */
+export function streakBadge(streak: number): StreakBadge | null {
+  if (streak < STREAK_BADGE_MIN) return null;
+  return {
+    text: `🔥${formatCount(streak)}`,
+    title: `${formatCount(streak)} primeros seguidos`,
+  };
+}
+
 export interface ClasificacionRow {
   key: string;
   member: MemberRef | null;
@@ -53,6 +72,8 @@ export interface ClasificacionRow {
   week: ChangeCell;
   games: string;
   provisional: boolean;
+  /** Racha en curso de 2 o más 1º; `null` si no. */
+  streak: StreakBadge | null;
 }
 
 export function clasificacionRows(
@@ -70,6 +91,7 @@ export function clasificacionRows(
     week: changeCell(standing.weekChange),
     games: formatCount(standing.games),
     provisional: standing.provisional,
+    streak: streakBadge(standing.streak),
   }));
 }
 

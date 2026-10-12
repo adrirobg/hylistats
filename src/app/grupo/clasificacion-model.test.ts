@@ -11,6 +11,7 @@ import {
   leaguesText,
   placementPointsText,
   strangerMultipliersText,
+  streakBadge,
   streakMultipliersText,
 } from "./clasificacion-model";
 import { type MemberRef, memberMap } from "./group-view-model";
@@ -104,6 +105,38 @@ describe("clasificacionRows", () => {
   it("deja el miembro en null si la clave no está en el mapa", () => {
     const elo = computeGroupElo(game(1, ["9"]), ["9"], NOW);
     expect(clasificacionRows(elo.standings, MEMBERS)[0].member).toBeNull();
+  });
+});
+
+describe("streakBadge", () => {
+  it("nada con 0 o 1 seguidos", () => {
+    expect(streakBadge(0)).toBeNull();
+    expect(streakBadge(1)).toBeNull();
+  });
+
+  it("con 2 o más, 🔥 con el número y el texto en el title", () => {
+    expect(streakBadge(2)).toEqual({
+      text: "🔥2",
+      title: "2 primeros seguidos",
+    });
+    expect(streakBadge(4)).toEqual({
+      text: "🔥4",
+      title: "4 primeros seguidos",
+    });
+  });
+
+  it("las filas de la Clasificación llevan la racha en curso del dominio", () => {
+    // Ana: dos 1º seguidos; Beto: 1º y luego un 4º, que la corta.
+    const rows = [...game(1, ["1", "2"]), ...game(1, ["1"]), ...game(4, ["2"])];
+    const elo = computeGroupElo(rows, ["1", "2"], NOW);
+    const model = clasificacionRows(elo.standings, MEMBERS);
+    const byName = Object.fromEntries(
+      model.map((r) => [r.member?.gameName, r.streak]),
+    );
+    expect(byName).toEqual({
+      Ana: { text: "🔥2", title: "2 primeros seguidos" },
+      Beto: null,
+    });
   });
 });
 
