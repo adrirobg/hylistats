@@ -22,8 +22,10 @@ import {
   eloFacts,
   type GroupTodayRow,
   groupTodayRows,
+  newThisWeek,
   nextLeagueText,
   profileVitrina,
+  recentConquests,
   splashChampion,
   TITLES_LINK,
   titleRows,
@@ -746,6 +748,143 @@ describe("splashChampion", () => {
     expect(
       splashChampion([verified(56, 1)], { version: null, champions: [] }),
     ).toBeNull();
+  });
+});
+
+// --- Dios de Arena ---------------------------------------------------------------------------
+
+/** Verificado con su primer 1º en `firstWinAt` (el último, después). */
+const conquered = (
+  championId: number,
+  firstWinAt: number,
+  championName = `c${championId}`,
+): VerifiedChampion => ({
+  ...verified(championId, firstWinAt + 1_000),
+  championName,
+  firstWinAt,
+});
+
+const NOW_OCT = Date.UTC(2026, 9, 7, 12); // miércoles 7-oct-2026, 14:00 en Madrid
+
+describe("recentConquests", () => {
+  const PORTRAITS: ChampionCatalog = {
+    version: "16.19.1",
+    champions: [
+      { ...champ(56, "Nocturne", "Nocturne"), portraitUrl: "https://p/56.png" },
+      champ(9, "FiddleSticks", "Fiddlesticks"),
+      champ(11, "MasterYi", "Maestro Yi"),
+    ],
+  };
+
+  it("por primer 1º, el más reciente primero, con nombre, slug, retrato y fecha", () => {
+    expect(
+      recentConquests(
+        [
+          conquered(9, Date.UTC(2026, 8, 30)),
+          conquered(56, Date.UTC(2026, 9, 2)),
+          conquered(11, Date.UTC(2026, 9, 1)),
+        ],
+        PORTRAITS,
+        NOW_OCT,
+      ),
+    ).toEqual([
+      {
+        championId: 56,
+        name: "Nocturne",
+        slug: "nocturne",
+        portraitUrl: "https://p/56.png",
+        firstWinAt: Date.UTC(2026, 9, 2),
+        dateText: "2 oct",
+      },
+      {
+        championId: 11,
+        name: "Maestro Yi",
+        slug: "masteryi",
+        portraitUrl: null,
+        firstWinAt: Date.UTC(2026, 9, 1),
+        dateText: "1 oct",
+      },
+      {
+        championId: 9,
+        name: "Fiddlesticks",
+        slug: "fiddlesticks",
+        portraitUrl: null,
+        firstWinAt: Date.UTC(2026, 8, 30),
+        dateText: "30 sept",
+      },
+    ]);
+  });
+
+  it("ordena por el primer 1º, no por el último", () => {
+    const early = { ...conquered(9, 100), lastWinAt: 9_999 };
+    const late = { ...conquered(56, 200), lastWinAt: 300 };
+    expect(
+      recentConquests([early, late], PORTRAITS, NOW_OCT).map(
+        (c) => c.championId,
+      ),
+    ).toEqual([56, 9]);
+  });
+
+  it("solo los n primeros (5 por defecto)", () => {
+    const many = Array.from({ length: 8 }, (_, i) => conquered(i + 1, i));
+    expect(
+      recentConquests(many, PORTRAITS, NOW_OCT).map((c) => c.championId),
+    ).toEqual([8, 7, 6, 5, 4]);
+    expect(recentConquests(many, PORTRAITS, NOW_OCT, 2)).toHaveLength(2);
+  });
+
+  it("empate en el primer 1º: el championId mayor, sea cual sea el orden", () => {
+    const a = [conquered(9, 100), conquered(56, 100), conquered(11, 100)];
+    const order = (list: VerifiedChampion[]) =>
+      recentConquests(list, PORTRAITS, NOW_OCT).map((c) => c.championId);
+    expect(order(a)).toEqual([56, 11, 9]);
+    expect(order([...a].reverse())).toEqual([56, 11, 9]);
+  });
+
+  it("fuera del catálogo: el nombre de la partida, su slug y sin retrato", () => {
+    expect(
+      recentConquests(
+        [conquered(999, Date.UTC(2026, 9, 1), "Zaahen")],
+        PORTRAITS,
+        NOW_OCT,
+      )[0],
+    ).toMatchObject({ name: "Zaahen", slug: "zaahen", portraitUrl: null });
+  });
+
+  it("de otro año: la fecha lleva el año", () => {
+    expect(
+      recentConquests(
+        [conquered(56, Date.UTC(2025, 11, 30))],
+        PORTRAITS,
+        NOW_OCT,
+      )[0]?.dateText,
+    ).toBe("30 dic 2025");
+  });
+
+  it("sin verificados: vacío", () => {
+    expect(recentConquests([], PORTRAITS, NOW_OCT)).toEqual([]);
+  });
+});
+
+describe("newThisWeek", () => {
+  it("cuenta los primeros 1º de la semana de juego de now (lunes 06:00 de Madrid)", () => {
+    const list = [
+      conquered(1, Date.UTC(2026, 9, 5, 4)), // lunes 06:00 en Madrid: ya es esta semana
+      conquered(2, Date.UTC(2026, 9, 5, 3, 59)), // lunes 05:59: aún es el domingo anterior
+      conquered(3, Date.UTC(2026, 9, 7, 10)),
+      conquered(4, Date.UTC(2026, 9, 11, 23)), // lunes 01:00 en Madrid: domingo de juego
+      conquered(5, Date.UTC(2026, 8, 30)),
+    ];
+    expect(newThisWeek(list, NOW_OCT)).toBe(3);
+  });
+
+  it("se fija en el primer 1º: un campeón que solo repite esta semana no cuenta", () => {
+    const old = { ...conquered(1, Date.UTC(2026, 8, 1)), lastWinAt: NOW_OCT };
+    expect(newThisWeek([old], NOW_OCT)).toBe(0);
+  });
+
+  it("sin verificados: 0", () => {
+    expect(newThisWeek([], NOW_OCT)).toBe(0);
   });
 });
 

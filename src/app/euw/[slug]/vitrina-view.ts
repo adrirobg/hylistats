@@ -5,12 +5,14 @@
 // `title-badges.ts`, que pintaba un badge por título y periodo. Importa `ddragon.ts`
 // (`server-only`): se usa desde componentes de servidor y la carga, nunca desde cliente.
 
+import { championSlug } from "@/domain/album";
 import { type EloStanding, formatEloChange } from "@/domain/elo";
 import {
   formatAvgDamage,
   formatAvgPlacement,
   type PeriodKind,
   type PlayerTitle,
+  periodKey,
   TITLE_DEFINITIONS,
   type TitleHolder,
   type TitleId,
@@ -20,7 +22,7 @@ import type { GroupView, GroupViewMember } from "@/domain/group-view";
 import type { VerifiedChampion } from "@/domain/stats";
 import { ELO_LEAGUES } from "@/lib/config";
 import { type ChampionCatalog, championSplashUrl } from "@/lib/ddragon";
-import { formatCount } from "@/lib/format";
+import { formatCount, formatShortDate } from "@/lib/format";
 import { TITLES_ANCHOR, TITLES_LINK_LABEL } from "../../grupo/group-view-model";
 
 /**
@@ -376,6 +378,66 @@ export function splashChampion(
   );
   if (!champion) return null;
   return { name: champion.name, splashUrl: championSplashUrl(champion.ddId) };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Dios de Arena
+// ---------------------------------------------------------------------------------------------
+
+/** Un campeón de «Últimos conquistados» del trofeo Dios de Arena (revisión v5). */
+export interface RecentConquest {
+  championId: number;
+  /** Nombre de visualización (`es_ES`) del catálogo; sin él, el `championName` de la partida. */
+  name: string;
+  /** Slug del panel de campeón (`?campeon=`), el mismo que el del álbum (`championSlug`). */
+  slug: string;
+  /** Retrato de Data Dragon; `null` si el campeón no está en el catálogo. */
+  portraitUrl: string | null;
+  /** Epoch en ms del primer 1º. */
+  firstWinAt: number;
+  /** Fecha corta del primer 1º ("2 oct"; con el año si no es el de `now`). */
+  dateText: string;
+}
+
+/**
+ * Los `n` campeones con el primer 1º más reciente (`firstWinAt` desc; a igualdad, el `championId`
+ * mayor, para que sea determinista). `now` solo decide si la fecha lleva el año.
+ */
+export function recentConquests(
+  verified: readonly VerifiedChampion[],
+  catalog: ChampionCatalog,
+  now: number,
+  n = 5,
+): RecentConquest[] {
+  const champions = new Map(catalog.champions.map((c) => [c.championId, c]));
+  return [...verified]
+    .sort((a, b) => b.firstWinAt - a.firstWinAt || b.championId - a.championId)
+    .slice(0, n)
+    .map((v) => {
+      const champion = champions.get(v.championId);
+      const name = champion?.name ?? v.championName;
+      return {
+        championId: v.championId,
+        name,
+        slug: championSlug({ ddId: champion?.ddId ?? null, name }),
+        portraitUrl: champion?.portraitUrl ?? null,
+        firstWinAt: v.firstWinAt,
+        dateText: formatShortDate(v.firstWinAt, now),
+      };
+    });
+}
+
+/**
+ * Campeones con el primer 1º en la semana de juego de `now` (la de los títulos SEM: de lunes a
+ * domingo, desde las 06:00 de Madrid): el «+N esta semana» del trofeo.
+ */
+export function newThisWeek(
+  verified: readonly VerifiedChampion[],
+  now: number,
+): number {
+  const week = periodKey("week", now);
+  return verified.filter((v) => periodKey("week", v.firstWinAt) === week)
+    .length;
 }
 
 // ---------------------------------------------------------------------------------------------

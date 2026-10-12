@@ -1,7 +1,7 @@
 # Task T09 — Dios de Arena v5: barra con hitos y últimos conquistados
 
 **Owner**: worker:opus
-**Estado**: in_progress *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: derivada de `spec.md` → "Revisión v5" (D7, AC21). Depende de T08 (que reordenó la tarjeta en no miembros y movió avisos).
 

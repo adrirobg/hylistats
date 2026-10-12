@@ -6,7 +6,7 @@ import { getDb } from "@/db";
 import { loadStatus } from "@/domain/status";
 import { loadGroupSyncState } from "@/domain/sync-status";
 import { getSeasonStart } from "@/lib/config";
-import { getChampionCatalog } from "@/lib/ddragon";
+import { type ChampionCatalog, getChampionCatalog } from "@/lib/ddragon";
 import { formatDateTime } from "@/lib/format";
 import { getGameData } from "@/lib/game-data";
 import { parseProfileSlug, profileSlug } from "@/lib/riot-id";
@@ -42,6 +42,7 @@ import { TopBar } from "./top-bar";
 import { parseProfileTab, queryParams, visibleTabs } from "./view-model";
 import { Vitrina } from "./vitrina";
 import { TrophyCard, TrophyGrid } from "./vitrina-ui";
+import { newThisWeek, recentConquests } from "./vitrina-view";
 
 // Depende de la BD y cambia con el worker: nunca se prerenderiza.
 export const dynamic = "force-dynamic";
@@ -116,6 +117,7 @@ export default async function ProfilePage({
         >
           <ProfileCabin
             data={data}
+            catalog={await catalog}
             slug={actionSlug}
             periodo={parsePeriodo(query.periodo)}
           />
@@ -159,15 +161,19 @@ export default async function ProfilePage({
 
 function ProfileCabin({
   data,
+  catalog,
   slug,
   periodo,
 }: {
   data: ProfileView;
+  /** El catálogo que ya esperó la carga: retratos y nombres de los últimos conquistados. */
+  catalog: ChampionCatalog;
   slug: string;
   periodo: Periodo;
 }) {
   const { elo } = data;
   const { group } = data.vitrina;
+  const nowMs = Date.now();
   return (
     <Cabin
       header={
@@ -176,7 +182,7 @@ function ProfileCabin({
           gameName={data.gameName}
           tagLine={data.tagLine}
           iconUrl={data.profileIconUrl}
-          nowMs={Date.now()}
+          nowMs={nowMs}
           lastGameAt={data.lastGameAt}
           arenaQuietSince={data.arenaQuiet?.lastArenaGameAt ?? null}
           arenaDeity={data.arenaGod.reached}
@@ -204,14 +210,19 @@ function ProfileCabin({
                 <GroupToday rows={group.today} games={group.todayGames} />
               </TrophyCard>
             )}
-            {/* Fuera del grupo, a todo el ancho si lleva el aviso de descuadre; si no, a su medida. */}
+            {/* Fuera del grupo, a todo el ancho si lleva el aviso de descuadre; si no, a su medida,
+                con un mínimo para que la barra no quede corta. */}
             <TrophyCard
               className={
-                group ? undefined : "has-[[data-slot=god-notice]]:w-full"
+                group
+                  ? undefined
+                  : "min-w-[min(400px,100%)] has-[[data-slot=god-notice]]:w-full"
               }
             >
               <GodTrophy
                 wide={!group}
+                recent={recentConquests(data.verifiedChampions, catalog, nowMs)}
+                weekNew={newThisWeek(data.verifiedChampions, nowMs)}
                 gameName={data.gameName}
                 tagLine={data.tagLine}
                 verifiedIds={data.verifiedChampions.map((c) => c.championId)}
@@ -219,7 +230,7 @@ function ProfileCabin({
                 checkedAt={data.challenge.checkedAt?.getTime() ?? null}
                 goal={data.arenaGod.goal}
                 goalName={data.arenaGod.name}
-                nowMs={Date.now()}
+                nowMs={nowMs}
               />
             </TrophyCard>
           </TrophyGrid>

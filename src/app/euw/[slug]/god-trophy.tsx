@@ -1,8 +1,12 @@
 "use client";
 
 import { Check, Crown } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useId, useState } from "react";
 import { type ArenaGodState, arenaGodLabel } from "@/domain/arena-god";
+import { ARENA_GOD_THRESHOLD } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import {
   ArenaGodExplainButton,
@@ -11,23 +15,34 @@ import {
   type ArenaGodProps,
   useArenaGod,
 } from "./arena-god-notice";
-import { godMilestones, godRemaining, godRing } from "./god-ring";
+import { championHref } from "./champion-panel-view";
+import { type GodBar, godBar, godRemaining } from "./god-bar";
+import { initials } from "./view-model";
+import type { RecentConquest } from "./vitrina-view";
 
-// Trofeo Dios de Arena de la vitrina (tarjeta `.tw.g`, compacta desde la revisión v4): las tres
-// capas de la barra en un anillo (verificados en oro, manuales en azul rayado y la marca del
-// oficial), la cifra, «faltan N», el ✓ de «oficial N» cuando cuadra (sustituye al «Cuadra con el
-// contador oficial» del aviso), los hitos y, si no cuadra, el aviso con sus acciones de la antigua
-// barra. Sin envoltorio de tarjeta: fondo, borde y radio los pone la vitrina. La geometría es
-// `god-ring.ts`; las transiciones del arco las apaga el `prefers-reduced-motion` global.
+// Trofeo Dios de Arena de la vitrina (tarjeta `.tw.g5`, variante 1 de `propuestas-v5-dios.html`,
+// revisión v5): la cifra «N / meta» con el %, la barra con hitos (verificados en oro, manuales en
+// azul rayado y la marca del oficial; la Deidad, 60, con ✓ si se pasó, y el final), la línea de
+// datos («faltan N», «+N esta semana», el ✓ de «oficial N» cuando cuadra, que sustituye al «Cuadra
+// con el contador oficial» del aviso), los últimos conquistados (cada uno abre su panel de campeón,
+// `?campeon=`) y, si no cuadra, el aviso con sus acciones. Sin envoltorio de tarjeta: fondo, borde y
+// radio los pone la vitrina. La geometría es `god-bar.ts`; las transiciones de las capas las apaga
+// el `prefers-reduced-motion` global.
 //
-// Dos disposiciones. En columna (miembros, junto a El grupo hoy) el aviso va debajo. A lo ancho
-// (`wide`, fuera del grupo, T08) el aviso va a la derecha, tras un borde vertical, hasta 460 px.
+// Dos disposiciones. En columna (miembros, junto a El grupo hoy) el aviso va debajo y la tarjeta
+// reparte el alto de la fila. A lo ancho (`wide`, fuera del grupo, T08) el aviso va a la derecha,
+// tras un borde vertical, hasta 460 px.
 //
 // Rangos (container query `/god`: la propia tarjeta en columna; la rejilla de los trofeos a lo ancho,
-// `TrophyGrid single`): por debajo de 420 px anillo de 44 px, cifra de 30 y sin hitos; a lo ancho,
-// por debajo de 700 px el aviso vuelve a ir debajo.
+// `TrophyGrid single`): por debajo de 420 px cifra de 36 y retratos de 32 (la barra sigue entera);
+// desde 560 px (apilada o a lo ancho) más aire entre filas; a lo ancho, por debajo de 700 px el
+// aviso vuelve a ir debajo.
 
 export interface GodTrophyProps extends ArenaGodProps {
+  /** Hasta 5 campeones con el primer 1º más reciente (`recentConquests`); vacío sin verificados. */
+  recent: readonly RecentConquest[];
+  /** Campeones con el primer 1º en la semana de juego actual (`newThisWeek`). */
+  weekNew: number;
   /** A lo ancho, con el aviso a la derecha (fuera del grupo). */
   wide?: boolean;
   className?: string;
@@ -37,6 +52,8 @@ export function GodTrophy({
   checkedAt,
   goalName,
   nowMs,
+  recent,
+  weekNew,
   wide = false,
   className,
   ...input
@@ -44,28 +61,36 @@ export function GodTrophy({
   const explanationId = useId();
   const [explaining, setExplaining] = useState(false);
   const { state, mine } = useArenaGod(input);
+  const bar = godBar(state);
   // Cuando cuadra, el ✓ de «oficial N» ya lo dice: el aviso solo sale con descuadre.
   const notice = state.status !== "match";
 
   return (
     <div
       className={cn(
-        "grid content-start gap-2.5",
-        !wide && "@container/god",
+        "grid content-start gap-3",
+        // En columna ocupa el alto que le da El grupo hoy y lo reparte (`align-content: space-between`).
+        !wide && "@container/god h-full content-between",
         wide &&
           notice &&
           "@min-[700px]/god:grid-cols-[minmax(0,1fr)_minmax(0,460px)] @min-[700px]/god:gap-x-5",
         className,
       )}
     >
-      <div className="grid content-start gap-2.5">
+      <div
+        className={cn(
+          // Juntos para caber junto a El grupo hoy; con más aire cuando la tarjeta es ancha (apilada).
+          "grid content-start gap-1.5 @min-[560px]/god:gap-2.5",
+          !wide && !notice && "h-full content-between",
+        )}
+      >
         <div className="flex items-baseline justify-between gap-2">
           <div className="flex items-center gap-2">
             <h2 className="font-display text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
               {goalName}
             </h2>
             <ArenaGodExplainButton
-              label="¿Qué muestra este anillo?"
+              label="¿Qué muestra esta barra?"
               controls={explanationId}
               open={explaining}
               onToggle={() => setExplaining((open) => !open)}
@@ -74,49 +99,41 @@ export function GodTrophy({
           <span className="text-xs text-faint">temporada</span>
         </div>
 
-        <div className="flex items-center gap-3.5 @max-[420px]/god:gap-3">
-          <Ring state={state} />
-          <div className="min-w-0">
-            <p className="num font-display text-[50px] leading-none font-extrabold text-place-1 @max-[420px]/god:text-[30px]">
-              {state.total}
-              <small className="text-[22px] font-bold text-muted-foreground @max-[420px]/god:text-base">
-                {" "}
-                / {state.goal}
-              </small>
-            </p>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
-              <span>
-                faltan{" "}
-                <b className="num font-medium text-foreground">
-                  {godRemaining(state)}
-                </b>
-              </span>
-              {state.status === "match" && (
-                <span className="inline-flex items-center gap-1">
-                  <Check aria-hidden="true" size={13} className="text-ok" />
-                  oficial {state.official}
-                </span>
-              )}
-            </p>
-          </div>
+        <div className="flex items-baseline justify-between gap-2.5">
+          <p className="num font-display text-[50px] leading-none font-extrabold text-place-1 @max-[420px]/god:text-[36px]">
+            {state.total}
+            <small className="text-[22px] font-bold text-muted-foreground @max-[420px]/god:text-base">
+              {" "}
+              / {state.goal}
+            </small>
+          </p>
+          <p className="num font-mono text-sm font-medium text-muted-foreground">
+            <b className="text-xl font-medium text-foreground">{bar.percent}</b>{" "}
+            %
+          </p>
         </div>
 
-        <ul className="flex flex-wrap gap-x-2.5 gap-y-1 text-xs text-muted-foreground @max-[420px]/god:hidden">
-          {godMilestones(state).map((milestone) => (
-            <li
-              key={milestone.label}
-              className={cn(
-                "inline-flex items-center gap-1.5",
-                milestone.done && "text-place-1",
-                milestone.later && "text-faint",
-              )}
-            >
-              {milestone.done && <Crown aria-hidden="true" size={13} />}
-              {milestone.label}
-              {milestone.done && <span className="sr-only"> (conseguida)</span>}
-            </li>
-          ))}
-        </ul>
+        <Bar state={state} bar={bar} />
+
+        <p className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px] leading-tight text-muted-foreground">
+          <span>
+            faltan{" "}
+            <b className="num font-medium text-foreground">
+              {godRemaining(state)}
+            </b>
+          </span>
+          {weekNew > 0 && (
+            <span className="num text-ok">+{weekNew} esta semana</span>
+          )}
+          {state.status === "match" && (
+            <span className="inline-flex items-center gap-1">
+              <Check aria-hidden="true" size={13} className="text-ok" />
+              oficial {state.official}
+            </span>
+          )}
+        </p>
+
+        {recent.length > 0 && <Recent recent={recent} />}
       </div>
 
       {/* El `data-slot` lo busca la tarjeta de fuera del grupo para ir a todo el ancho. */}
@@ -147,108 +164,142 @@ export function GodTrophy({
   );
 }
 
-// --- Anillo ------------------------------------------------------------------------------
+// --- Barra -------------------------------------------------------------------------------
 
-/** Lienzo de 120 × 120: radio y trazo de `ringSvg` en la maqueta. */
-const CENTER = 60;
-const RADIUS = 50;
-const STROKE = 12;
-/** Marcas radiales (oficial e hito): un poco más largas que el grosor del trazo. */
-const MARK_FROM = CENTER - RADIUS - STROKE / 2 - 2;
-const MARK_TO = CENTER - RADIUS + STROKE / 2 + 2;
-const ARC_TRANSITION =
-  "transition-[stroke-dasharray,stroke-dashoffset] duration-400 ease-[ease]";
+const LAYER =
+  "absolute inset-y-0 left-0 rounded-md transition-[width] duration-400 ease-[ease]";
+/** Marcas verticales, centradas en su posición (2 px de ancho). */
+const MARK = "absolute w-0.5 rounded-[1px]";
+const LABEL =
+  "absolute top-[18px] inline-flex items-center gap-1 font-mono text-[11px] leading-none font-medium whitespace-nowrap text-faint";
 
-function Ring({ state }: { state: ArenaGodState }) {
-  // `useId` puede traer caracteres que no valen en `url(#…)`.
-  const stripesId = `stripes${useId().replace(/[^\w-]/g, "")}`;
-  const ring = godRing(state, RADIUS);
-  const circle = { cx: CENTER, cy: CENTER, r: RADIUS, fill: "none" } as const;
-  const arc = (length: number, offset: number) => ({
-    strokeDasharray: `${length} ${ring.circumference}`,
-    strokeDashoffset: -offset,
-  });
+function Bar({ state, bar }: { state: ArenaGodState; bar: GodBar }) {
+  const left = (percent: number) => ({ left: `calc(${percent}% - 1px)` });
+  // La Deidad: a medio camino con la meta en el catálogo; si la meta es ella, es el final.
+  const deity = (
+    <>
+      <Crown aria-hidden="true" size={11} />
+      Deidad · {ARENA_GOD_THRESHOLD}
+      {bar.deityReached && (
+        <>
+          <span aria-hidden="true">✓</span>
+          <span className="sr-only">(conseguida)</span>
+        </>
+      )}
+    </>
+  );
 
   return (
-    <svg
-      viewBox="0 0 120 120"
-      role="img"
-      aria-label={arenaGodLabel(state)}
-      className="size-[78px] flex-none @max-[420px]/god:size-[44px]"
-    >
-      <defs>
-        <pattern
-          id={stripesId}
-          width="6"
-          height="6"
-          patternUnits="userSpaceOnUse"
-          patternTransform="rotate(45)"
-        >
-          <rect width="3" height="6" fill="var(--trust)" />
-        </pattern>
-      </defs>
-      <circle {...circle} stroke="rgba(255,255,255,.08)" strokeWidth={STROKE} />
-      {/* Desde las 12 en sentido horario. Los manuales van debajo: el extremo redondeado del oro
-          tapa su arranque. */}
-      <g transform={`rotate(-90 ${CENTER} ${CENTER})`}>
-        {ring.manualLength > 0 && (
-          <circle
-            {...circle}
-            stroke={`url(#${stripesId})`}
-            strokeWidth={STROKE}
-            strokeLinecap="round"
-            className={ARC_TRANSITION}
-            style={arc(ring.manualLength, ring.verifiedLength)}
-          />
-        )}
-        {ring.verifiedLength > 0 && (
-          <circle
-            {...circle}
-            stroke="var(--place-1)"
-            strokeWidth={STROKE}
-            strokeLinecap="round"
-            className={ARC_TRANSITION}
-            style={arc(ring.verifiedLength, 0)}
-          />
-        )}
-      </g>
-      {/* Hito de la Deidad (60) con la meta en el catálogo: marca de oro o, bajo el arco, muesca. */}
-      {ring.milestoneAngle !== null && (
-        <line
-          x1={CENTER}
-          y1={MARK_FROM + 1}
-          x2={CENTER}
-          y2={MARK_TO - 1}
-          stroke={
-            ring.milestoneCovered ? "var(--background)" : "var(--place-1)"
-          }
-          strokeWidth={ring.milestoneCovered ? 2 : 3}
-          transform={`rotate(${ring.milestoneAngle} ${CENTER} ${CENTER})`}
-        />
-      )}
-      {ring.officialAngle !== null && (
-        <line
-          x1={CENTER}
-          y1={MARK_FROM}
-          x2={CENTER}
-          y2={MARK_TO}
-          stroke="var(--foreground)"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          transform={`rotate(${ring.officialAngle} ${CENTER} ${CENTER})`}
-        >
-          <title>{`oficial ${state.official}`}</title>
-        </line>
-      )}
-      <text
-        x={CENTER}
-        y={CENTER + 6}
-        textAnchor="middle"
-        fontSize={18}
-        className="num fill-foreground font-mono"
+    // Las etiquetas van fuera del `role="img"` (sus hijos no los lee un lector de pantalla).
+    <div className="relative mb-[17px]">
+      <div
+        role="img"
+        aria-label={arenaGodLabel(state)}
+        className="relative h-3 rounded-md bg-[rgba(255,255,255,.08)]"
       >
-        {ring.percent}%
-      </text>
-    </svg>
+        {/* Los manuales van debajo, desde el 0: el extremo redondeado del oro tapa su arranque. */}
+        {bar.total > bar.verified && (
+          <span
+            className={cn(
+              LAYER,
+              "bg-[repeating-linear-gradient(45deg,var(--trust)_0_3px,transparent_3px_6px)]",
+            )}
+            style={{ width: `${bar.total}%` }}
+          />
+        )}
+        {bar.verified > 0 && (
+          <span
+            className={cn(
+              LAYER,
+              "bg-[linear-gradient(90deg,#b5852c,var(--place-1))] shadow-[0_0_14px_color-mix(in_srgb,var(--place-1)_40%,transparent)]",
+            )}
+            style={{ width: `${bar.verified}%` }}
+          />
+        )}
+        {bar.godGoal && (
+          <span
+            className={cn(MARK, "-inset-y-[5px] bg-foreground")}
+            style={left(bar.deity)}
+          />
+        )}
+        {bar.official !== null && (
+          <span
+            className={cn(MARK, "-inset-y-[3px] bg-trust")}
+            style={left(bar.official)}
+          />
+        )}
+      </div>
+      <span className={cn(LABEL, "left-0")}>0</span>
+      {bar.godGoal ? (
+        <>
+          <span
+            className={cn(LABEL, "-translate-x-1/2 text-place-1")}
+            style={{ left: `${bar.deity}%` }}
+          >
+            {deity}
+          </span>
+          <span className={cn(LABEL, "right-0")}>Dios · {state.goal}</span>
+        </>
+      ) : (
+        <span className={cn(LABEL, "right-0 text-place-1")}>{deity}</span>
+      )}
+    </div>
+  );
+}
+
+// --- Últimos conquistados ----------------------------------------------------------------
+
+function Recent({ recent }: { recent: readonly RecentConquest[] }) {
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
+  return (
+    // La etiqueta a la izquierda de los retratos si caben (así la tarjeta no pasa del alto de El
+    // grupo hoy a 1440 px); si no, encima.
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <h3 className="font-display text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+        Últimos conquistados
+      </h3>
+      <ul className="flex gap-1.5">
+        {recent.map((champion, index) => (
+          <li key={champion.championId}>
+            {/* Como el álbum: abre el panel conservando la pestaña y el resto de la query. */}
+            <Link
+              prefetch={false}
+              scroll={false}
+              href={championHref(pathname, search, champion.slug)}
+              title={`${champion.name} · primer 1º el ${champion.dateText}`}
+              className="grid w-11 justify-items-center gap-0.5 rounded-md text-[10px] leading-none text-faint hover:text-muted-foreground @max-[420px]/god:w-[38px]"
+            >
+              <span
+                className={cn(
+                  "relative grid size-9 place-items-center overflow-hidden rounded-md bg-surface-2 font-display text-[11px] font-extrabold text-muted-foreground @max-[420px]/god:size-8",
+                  index === 0
+                    ? "outline-2 outline-place-1"
+                    : "outline-1 outline-won-deep",
+                )}
+              >
+                <span aria-hidden="true">{initials(champion.name)}</span>
+                {champion.portraitUrl && (
+                  // Sin clave: si la imagen falla quedan las iniciales de debajo, como en `PortraitImage`.
+                  <Image
+                    src={champion.portraitUrl}
+                    alt=""
+                    width={72}
+                    height={72}
+                    draggable={false}
+                    onError={(event) => {
+                      event.currentTarget.hidden = true;
+                    }}
+                    className="absolute inset-0 size-full object-cover"
+                  />
+                )}
+              </span>
+              <span className="sr-only">{champion.name}, </span>
+              {champion.dateText}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
