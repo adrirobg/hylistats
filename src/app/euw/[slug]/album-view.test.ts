@@ -12,6 +12,8 @@ import {
   DEFAULT_VISTA,
   defaultFiltro,
   effectiveState,
+  FILTRO_LABEL,
+  FILTROS,
   matchesQuery,
   ORDEN_LABEL,
   parseAlbumParams,
@@ -141,6 +143,7 @@ describe("parseAlbumParams", () => {
     for (const filtro of [
       "objetivos",
       "sin-ganar",
+      "frio-calor",
       "sin-jugar",
       "ganados",
       "todos",
@@ -154,7 +157,6 @@ describe("parseAlbumParams", () => {
       "intentos",
       "mejor",
       "reciente",
-      "calor",
     ]) {
       expect(parseAlbumParams(new URLSearchParams({ orden })).orden).toBe(
         orden,
@@ -196,15 +198,41 @@ describe("parseAlbumParams", () => {
   });
 });
 
-describe("orden Frío/calor", () => {
-  it("se llama «Frío/calor» y viaja en la URL como `calor`", () => {
-    expect(ORDEN_LABEL.calor).toBe("Frío/calor");
-    expect(albumSearch(params({ filtro: null, orden: "calor" }))).toBe(
-      "orden=calor",
+describe("Frío/calor en la URL", () => {
+  it("es un filtro: se llama «Frío/calor» y viaja como `filtro=frio-calor`", () => {
+    expect(FILTRO_LABEL["frio-calor"]).toBe("Frío/calor");
+    expect(albumSearch(params({ filtro: "frio-calor" }))).toBe(
+      "filtro=frio-calor",
     );
-    expect(parseAlbumParams(new URLSearchParams("orden=calor")).orden).toBe(
-      "calor",
+    expect(
+      parseAlbumParams(new URLSearchParams("tab=campeones&filtro=frio-calor"))
+        .filtro,
+    ).toBe("frio-calor");
+    // Disponible también en un perfil ajeno (no depende de objetivos ni marcas).
+    expect(
+      resolveFiltro("frio-calor", { mine: false, hasTargets: false }),
+    ).toBe("frio-calor");
+  });
+
+  it("va tras «Sin ganar» en el filtro segmentado", () => {
+    expect(FILTROS).toEqual([
+      "objetivos",
+      "sin-ganar",
+      "frio-calor",
+      "sin-jugar",
+      "ganados",
+      "todos",
+    ]);
+  });
+
+  it("ya no es un orden: el `?orden=calor` heredado cae en el orden por defecto", () => {
+    expect(Object.keys(ORDEN_LABEL)).not.toContain("calor");
+    const parsed = parseAlbumParams(
+      new URLSearchParams("filtro=ganados&orden=calor"),
     );
+    expect(parsed).toEqual(params({ filtro: "ganados", orden: "estado" }));
+    // Y al reescribir la URL desaparece.
+    expect(albumSearch(parsed, "orden=calor")).toBe("filtro=ganados");
   });
 });
 
@@ -620,114 +648,153 @@ describe("albumSections: orden", () => {
     ]);
   });
 
-  describe("calor (Frío/calor)", () => {
-    const hot = (id: number, name: string, adjusted: number) =>
-      entryOf(id, name, {
-        state: "played",
-        games: 6,
-        heat: "hot",
-        heatAdjustedAvg: adjusted,
-      });
-    const cold = (id: number, name: string, adjusted: number) =>
-      entryOf(id, name, {
-        state: "played",
-        games: 6,
-        heat: "cold",
-        heatAdjustedAvg: adjusted,
-      });
-    const HOT_MILD = hot(11, "Brand", 3.1);
-    const HOT_FIERY = hot(12, "Zilean", 2.6);
-    const COLD_MILD = cold(13, "Nami", 4.2);
-    const COLD_FREEZING = cold(14, "Anivia", 4.9);
-    const WITH_HEAT = [...ALBUM, COLD_FREEZING, HOT_MILD, COLD_MILD, HOT_FIERY];
-
-    it("🔥 primero (mejor ajustada antes), luego neutrales por banda de estado y ❄️ al final (peor ajustada la última)", () => {
-      const [section] = sections(
-        local([SETT.championId]),
-        params({ filtro: "todos", orden: "calor" }),
-        WITH_HEAT,
-      );
-      expect(section).toMatchObject({ key: "todos", title: "Todos" });
-      expect(names(section.entries)).toEqual([
-        "Zilean", // 🔥 2,6
-        "Brand", // 🔥 3,1
-        "Sett", // neutrales: objetivo
-        "Aatrox", // jugados
-        "Zed",
-        "Kai'Sa", // sin jugar
-        "Wukong",
-        "Ahri", // ganados
-        "Yasuo",
-        "Nami", // ❄️ 4,2
-        "Anivia", // ❄️ 4,9 (la peor, al final)
-      ]);
-    });
-
-    it("con un filtro concreto los neutrales van solo por nombre, como `estado`", () => {
-      const [section] = sections(
-        local([ZED.championId]),
-        params({ filtro: "sin-ganar", orden: "calor" }),
-        [ZED, AATROX, COLD_MILD, HOT_MILD],
-      );
-      expect(names(section.entries)).toEqual([
-        "Brand",
-        "Aatrox",
-        "Zed",
-        "Nami",
-      ]);
-    });
-
-    it("un campeón ganado a mano cuenta como ganado entre los neutrales", () => {
-      const [section] = sections(
-        local([], [ZED.championId]),
-        params({ filtro: "todos", orden: "calor" }),
-        [ZED, AATROX, KAISA],
-      );
-      expect(names(section.entries)).toEqual(["Aatrox", "Kai'Sa", "Zed"]);
-    });
-
-    it("un ganado a mano con heat hot va entre los neutrales, no primero", () => {
-      const MANUAL_HOT = hot(31, "Corki", 2.5);
-      const [section] = sections(
-        local([], [MANUAL_HOT.championId]),
-        params({ filtro: "todos", orden: "calor" }),
-        [MANUAL_HOT, HOT_MILD, COLD_MILD, AATROX],
-      );
-      expect(names(section.entries)).toEqual([
-        "Brand", // 🔥 real
-        "Aatrox", // neutral jugado
-        "Corki", // manual: neutral, en la banda de ganados
-        "Nami", // ❄️
-      ]);
-    });
-
-    it("con la misma media ajustada desempata por nombre y luego por championId", () => {
-      const a = hot(21, "Brand", 3);
-      const b = hot(22, "Brand", 3);
-      const c = cold(23, "Zac", 4);
-      const d = cold(24, "Alistar", 4);
-      const [section] = sections(
-        local(),
-        params({ filtro: "todos", orden: "calor" }),
-        [c, b, d, a],
-      );
-      expect(section.entries.map((e) => e.championId)).toEqual([
-        21, 22, 24, 23,
-      ]);
-    });
-
-    it("no muta la lista de entrada", () => {
-      const copy = [...WITH_HEAT];
-      sections(local(), params({ orden: "calor" }), WITH_HEAT);
-      expect(WITH_HEAT).toEqual(copy);
-    });
-  });
-
   it("no muta la lista de entrada", () => {
     const input = [ZED, AHRI, AATROX];
     const copy = [...input];
     sections(local(), params({ orden: "intentos" }), input);
     expect(input).toEqual(copy);
+  });
+});
+
+describe("albumSections: filtro Frío/calor", () => {
+  const hot = (id: number, name: string, adjusted: number) =>
+    entryOf(id, name, {
+      state: "played",
+      games: 6,
+      heat: "hot",
+      heatAdjustedAvg: adjusted,
+    });
+  const cold = (id: number, name: string, adjusted: number) =>
+    entryOf(id, name, {
+      state: "played",
+      games: 6,
+      heat: "cold",
+      heatAdjustedAvg: adjusted,
+    });
+  const HOT_MILD = hot(11, "Brand", 3.1);
+  const HOT_FIERY = hot(12, "Zilean", 2.6);
+  const COLD_MILD = cold(13, "Nami", 4.2);
+  const COLD_FREEZING = cold(14, "Anivia", 4.9);
+  const WITH_HEAT = [...ALBUM, COLD_FREEZING, HOT_MILD, COLD_MILD, HOT_FIERY];
+  const heatParams = (overrides: Partial<AlbumParams> = {}) =>
+    params({ filtro: "frio-calor", ...overrides });
+
+  it("solo los marcados, en dos bandas: 🔥 Modo diablo y después ❄️ Nevera", () => {
+    const result = sections(local(), heatParams(), WITH_HEAT);
+    expect(result.map((s) => [s.key, s.title, s.tone])).toEqual([
+      ["modo-diablo", "🔥 Modo diablo", "neutral"],
+      ["nevera", "❄️ Nevera", "neutral"],
+    ]);
+    // Ni neutrales (Aatrox, Zed), ni sin jugar, ni ganados.
+    expect(result.map((s) => names(s.entries))).toEqual([
+      ["Zilean", "Brand"], // 2,6 y 3,1: mejor ajustada primero
+      ["Nami", "Anivia"], // 4,2 y 4,9: la peor, la última
+    ]);
+  });
+
+  it("dentro de cada banda, misma media ajustada: por nombre y luego por championId", () => {
+    const a = hot(21, "Brand", 3);
+    const b = hot(22, "Brand", 3);
+    const c = cold(23, "Zac", 4);
+    const d = cold(24, "Alistar", 4);
+    const result = sections(local(), heatParams(), [c, b, d, a]);
+    expect(result.map((s) => s.entries.map((e) => e.championId))).toEqual([
+      [21, 22],
+      [24, 23],
+    ]);
+  });
+
+  it("una banda vacía no sale", () => {
+    const onlyCold = sections(local(), heatParams(), [
+      ...ALBUM,
+      COLD_MILD,
+      COLD_FREEZING,
+    ]);
+    expect(onlyCold.map((s) => s.key)).toEqual(["nevera"]);
+    const onlyHot = sections(local(), heatParams(), [...ALBUM, HOT_MILD]);
+    expect(onlyHot.map((s) => s.key)).toEqual(["modo-diablo"]);
+  });
+
+  it("sin ningún marcado: una sección vacía que lo explica", () => {
+    const result = sections(local(), heatParams());
+    expect(result).toEqual([
+      {
+        key: "frio-calor",
+        title: "Frío/calor",
+        tone: "neutral",
+        entries: [],
+        empty:
+          "Ningún campeón en modo diablo ni en la nevera. Solo se marcan los que aún no tienen un 1º, con 5 partidas o más.",
+      },
+    ]);
+  });
+
+  it("un ganado a mano es neutral: queda fuera aunque el dominio lo marque", () => {
+    const MANUAL_HOT = hot(31, "Corki", 2.5);
+    const MANUAL_COLD = cold(32, "Nasus", 5);
+    const result = sections(
+      local([], [MANUAL_HOT.championId, MANUAL_COLD.championId]),
+      heatParams(),
+      [MANUAL_HOT, MANUAL_COLD, HOT_MILD, AATROX],
+    );
+    expect(result.map((s) => names(s.entries))).toEqual([["Brand"]]);
+    // Si todos los marcados están ganados a mano, el estado vacío.
+    const none = sections(local([], [MANUAL_HOT.championId]), heatParams(), [
+      MANUAL_HOT,
+      AATROX,
+    ]);
+    expect(none.map((s) => s.key)).toEqual(["frio-calor"]);
+    expect(none[0].entries).toEqual([]);
+  });
+
+  it("los objetivos no cambian nada: un objetivo marcado sale en su banda", () => {
+    const result = sections(
+      local([COLD_MILD.championId, ZED.championId]),
+      heatParams(),
+      WITH_HEAT,
+    );
+    expect(result.map((s) => names(s.entries))).toEqual([
+      ["Zilean", "Brand"],
+      ["Nami", "Anivia"],
+    ]);
+  });
+
+  it("la búsqueda se aplica antes: bandas sin resultados fuera y, sin ninguno, el aviso de búsqueda", () => {
+    const result = sections(local(), heatParams({ q: "an" }), WITH_HEAT);
+    expect(result.map((s) => [s.key, names(s.entries)])).toEqual([
+      ["modo-diablo", ["Zilean", "Brand"]],
+      ["nevera", ["Anivia"]],
+    ]);
+    // Casa con un campeón, pero no marcado: el vacío del filtro.
+    const unmarked = sections(local(), heatParams({ q: "zed" }), WITH_HEAT);
+    expect(unmarked.map((s) => s.key)).toEqual(["frio-calor"]);
+    // No casa con nada: el aviso de la búsqueda, como en los demás filtros.
+    const nothing = sections(local(), heatParams({ q: "zzz" }), WITH_HEAT);
+    expect(nothing.map((s) => [s.key, s.empty])).toEqual([
+      ["sin-resultados", "Ningún campeón coincide con «zzz»."],
+    ]);
+  });
+
+  it("con otro orden las bandas se mantienen y ese orden manda dentro de cada una", () => {
+    // Brand: 🔥 3,1, 9 partidas, la última el día 1. Zilean: 🔥 2,6, 6 partidas, el día 7.
+    const BRAND = { ...HOT_MILD, games: 9, lastPlayedAt: day(1) };
+    const ZILEAN = { ...HOT_FIERY, lastPlayedAt: day(7) };
+    const input = [BRAND, ZILEAN, COLD_MILD, COLD_FREEZING];
+    const alpha = sections(local(), heatParams({ orden: "alfabetico" }), input);
+    expect(alpha.map((s) => names(s.entries))).toEqual([
+      ["Brand", "Zilean"],
+      ["Anivia", "Nami"],
+    ]);
+    const tries = sections(local(), heatParams({ orden: "intentos" }), input);
+    expect(names(tries[0].entries)).toEqual(["Brand", "Zilean"]);
+    const recent = sections(local(), heatParams({ orden: "reciente" }), input);
+    expect(names(recent[0].entries)).toEqual(["Zilean", "Brand"]);
+  });
+
+  it("no muta la lista de entrada", () => {
+    const copy = [...WITH_HEAT];
+    sections(local(), heatParams(), WITH_HEAT);
+    expect(WITH_HEAT).toEqual(copy);
   });
 });
 

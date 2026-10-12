@@ -333,10 +333,11 @@ describe("apartado Títulos", () => {
     );
   });
 
-  it("incluye las reglas comunes: competencia, empates y cortes", () => {
+  it("incluye las reglas comunes: competencia, desempate, empates y cortes", () => {
     const joined = guide.rules.join(" ");
     expect(joined).toMatch(/al menos 2 clasificados/);
-    expect(joined).toMatch(/empates comparten/i);
+    expect(joined).toMatch(/más partidas/);
+    expect(joined).toMatch(/empatados comparten el título/i);
     expect(joined).toMatch(/06:00/);
     expect(joined).toMatch(/lunes/);
   });

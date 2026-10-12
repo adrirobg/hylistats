@@ -464,7 +464,7 @@ export const TITLE_DEFINITIONS: readonly TitleDefinition[] = [
     subject: "trio",
     metric: "firsts",
     description:
-      "Trío de miembros con más 1º juntos; desempata el mejor puesto medio.",
+      "Trío de miembros con más 1º juntos (hace falta al menos uno); a igual nº de 1º, desempata el mejor puesto medio.",
     periods: PERIODS,
     minGames: TEAM_MIN,
     minimumText: TEAM_MIN_TEXT,
@@ -485,7 +485,7 @@ export const TITLE_DEFINITIONS: readonly TitleDefinition[] = [
     subject: "duo",
     metric: "firsts",
     description:
-      "Dúo de miembros con más 1º juntos; desempata el mejor puesto medio.",
+      "Dúo de miembros con más 1º juntos (hace falta al menos uno); a igual nº de 1º, desempata el mejor puesto medio.",
     periods: PERIODS,
     minGames: TEAM_MIN,
     minimumText: TEAM_MIN_TEXT,
@@ -508,7 +508,8 @@ export const TITLE_MIN_CONTENDERS = 2;
 /** Reglas comunes de los títulos, para el apartado Títulos. */
 export const TITLE_RULES: readonly string[] = [
   `Un título solo se otorga si hay al menos ${TITLE_MIN_CONTENDERS} clasificados (jugadores, dúos o tríos, según el título).`,
-  "Los empates comparten el título.",
+  "A igual cifra, se lo lleva quien jugó más partidas en el periodo (en dúos y tríos, más partidas juntos).",
+  "Si también empatan en partidas, los empatados comparten el título.",
   "Un dúo son dos miembros en el mismo equipo, sea el tercero miembro o no; un trío son tres miembros en el mismo equipo.",
   "El día va de las 06:00 a las 06:00, hora de Madrid; cada partida cuenta en el día en que empezó.",
   "La semana va del lunes a las 06:00 al lunes siguiente a las 06:00, hora de Madrid.",
@@ -568,15 +569,18 @@ export interface AwardedTitle {
 
 /**
  * Los que se llevan el título: los clasificados empatados en cabeza según `compare` (negativo si
- * `a` lo merece más que `b`). Vacío si hay menos de `TITLE_MIN_CONTENDERS` clasificados.
+ * `a` lo merece más que `b`) y, a igual `compare`, con más partidas (desempate común a todos los
+ * títulos). Si también empatan en partidas, lo comparten. Vacío si hay menos de
+ * `TITLE_MIN_CONTENDERS` clasificados.
  */
-function winners<T>(
+function winners<T extends { games: number }>(
   contenders: readonly T[],
   compare: (a: T, b: T) => number,
 ): T[] {
   if (contenders.length < TITLE_MIN_CONTENDERS) return [];
-  const sorted = [...contenders].sort(compare);
-  return sorted.filter((c) => compare(c, sorted[0]) === 0);
+  const withGames = (a: T, b: T) => compare(a, b) || b.games - a.games;
+  const sorted = [...contenders].sort(withGames);
+  return sorted.filter((c) => withGames(c, sorted[0]) === 0);
 }
 
 const worstPlacement = (
@@ -618,9 +622,12 @@ const byPuuids = (a: TitleHolder, b: TitleHolder) =>
  * `players` y `teams` son las cifras de las filas del periodo. Se aplica la regla literal:
  * - individuales: entre los miembros con `playerMinGames(kind)` partidas;
  * - dúo y trío: entre los equipos con `GROUP_TEAM_MIN_GAMES` partidas juntos;
- * - al menos `TITLE_MIN_CONTENDERS` clasificados del tipo del título; los empates lo comparten.
- * No hay más condiciones: "Equipo roto" se otorga aunque ningún trío tenga un 1º (decide el puesto
- * medio) y un mismo equipo puede ser "roto" y "mental boom" a la vez.
+ * - al menos `TITLE_MIN_CONTENDERS` clasificados del tipo del título;
+ * - a igual métrica (y en "roto" / "rota", mismos 1º y mismo puesto medio) gana quien tiene más
+ *   partidas en el periodo; si también empatan en partidas, lo comparten;
+ * - "Equipo roto" y "Pareja rota" exigen al menos un 1º del ganador: si el mejor clasificado no
+ *   tiene ninguno, ese periodo no se otorgan.
+ * Un mismo equipo puede ser "roto" y "mental boom" a la vez.
  */
 export function awardTitles(
   kind: PeriodKind,
@@ -658,10 +665,13 @@ export function awardTitles(
       }));
     } else {
       const broken = def.metric === "firsts";
-      holders = winners(
+      const top = winners(
         qualifiedTeams[def.subject],
         broken ? mostFirsts : worstPlacement,
-      ).map((t) => ({
+      );
+      // Roto / rota: sin ningún 1º no hay título (los empatados en cabeza tienen los mismos 1º).
+      const awarded = broken && top[0]?.firsts === 0 ? [] : top;
+      holders = awarded.map((t) => ({
         puuids: t.puuids,
         value: broken ? t.firsts : t.avgPlacement,
         games: t.games,
