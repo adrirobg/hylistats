@@ -43,9 +43,34 @@ La cabecera del perfil pasa a ser la vitrina C2 (splash del último 1º, trofeos
 | Accion | Destino canonico | Prioridad |
 |--------|-----------------|-----------|
 | AC13: aceptación del grupo tras la release | think.md (Hilos abiertos) | alta |
-| Integrar `develop` tras el merge de #26 y revisar títulos | rama / PR de iter-11 | alta |
+| ~~Integrar `develop` tras el merge de #26 y revisar títulos~~ (hecho el 2026-10-12, `49559b6`) | rama / PR de iter-11 | alta |
 | Revisar intensidad del velo del splash con el supervisor | think.md (hilo de pulido de la UI) | media |
 | Partir `vitrina.tsx` | think.md (hilo de pulido de la UI) | baja |
+
+## Revisión v4/v5 (2026-10-12) <!-- SHOULD -->
+
+**Qué funcionó**
+- **Captura anotada del supervisor sobre la app real** → maqueta con la **línea del pliegue** y la altura medida de las pestañas: convirtió "ocupa mucho" en un número (858 → 662 px) y en un criterio de aceptación.
+- **Maquetas a tamaño real junto a su vecino** (Dios de Arena al lado de El grupo hoy): enseñó el hueco que una maqueta aislada no enseñaba.
+- **Criterio explícito en vez de lista de casos** ("nada que aparece solo ocupa espacio; lo que abre el usuario, sí"): resolvió de una vez avisos, toasts y la explicación del trofeo.
+
+**Qué ajustar**
+- **La maqueta v4 desbordaba en anchos intermedios** (el supervisor lo vio a ~700 px): probar las maquetas también en el rango 640–1000, no solo escritorio y móvil.
+- **«Hoy» con dos semánticas** (estricto en El grupo hoy; último día con partidas en títulos y Clasificación): al añadir un dato "de hoy" nuevo, revisar cómo definen "hoy" los vecinos que se pintan al lado.
+- **El memo de la `GroupView` en `globalThis` sobrevive al HMR**: tras cambiar la forma de `GroupView` el perfil falla en dev hasta reiniciar el servidor. Reiniciar el servidor de verificación tras cambios de dominio.
+- **Layout a 0 en pestañas del panel en segundo plano**: medir solo con la pestaña al frente (o tras una captura).
+- **La revisión creció por rondas** (v4 → v5 → v5b, 6 tasks más) dentro de la misma iteración y PR: aceptable con el supervisor presente, pero la PR deja de ser pequeña.
+
+**Decisiones**
+
+| Decision | Accion | Razon |
+|----------|--------|-------|
+| Propuesta B (El grupo hoy, ordenada por rating) | Ratificada (supervisor) | Lo que más se mira al entrar en sesión |
+| Trofeo Liga y Escalera | Corregidas | La liga sube a la identidad; la escalera se fusiona en El grupo hoy |
+| Dios de Arena con anillo | Corregida | Barra con hitos + últimos conquistados (variante 1, supervisor) |
+| Avisos en banda / en el flujo | Corregida | Pila flotante global; error de actualización oculto con la key caducada |
+
+**Deuda nueva**: título del aviso «Dios de Arena» con meta «Deidad de Arena»; altura en móvil (1214 px, aceptada); `vitrina.tsx` 597 líneas.
 
 ## Candidatos a vault <!-- MAY -->
 

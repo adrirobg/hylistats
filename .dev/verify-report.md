@@ -73,3 +73,50 @@ No aplica: la iteración es de presentación sin cálculos nuevos sobre la BD (l
 **PASS**
 
 AC1–AC12 cumplidos; AC13 (aceptación del grupo) queda abierta para el supervisor tras la release.
+
+---
+
+## Revisión v4/v5 (2026-10-12) <!-- SHOULD -->
+
+**Consume**: commits `2cdcd4f` (T05), `bd71f96` (T06), `734b48d` (T08), `3948eaf` (T09), `dd0750a` (T10) y el merge de `develop` (`49559b6`, PR #26: reglas de títulos y filtro Frío/calor); AC14–AC22 de `spec.md` (revisiones v4, v5 y v5b).
+
+**Checks**: `npm run lint && npm run typecheck && npm test && npm run build` tras el merge → Biome 252 archivos sin avisos, tipos OK, **76 archivos y 1550 tests**, build OK. Servidor reiniciado tras el merge (la vista del grupo memoizada en `globalThis` sobrevive al HMR).
+
+**Navegador** (orquestador, T07; panel de Claude, BD local, hoy 2026-10-12 sin partidas de nadie, key de Riot caducada). Capturas en `.dev/research/cabecera/verify-v4/`:
+
+| Perfil · ancho | Pestañas (`[role=tablist]`) | Scroll horizontal | Observado |
+|---|---|---|---|
+| Hylimichi · 1440×860 | **662 px** (antes 858) | 0 | Identidad en una línea + línea de liga; El grupo hoy en «—» y atenuado («sin partidas hoy»); Dios de Arena con barra 112/173, Deidad ✓, últimos 5 conquistados; títulos en 2 columnas con chips de compañero; pila: pausa + Arena. `hylimichi-1440.jpg` |
+| Hylimichi · 700 | 1181 px | 0 | El grupo hoy y Dios de Arena apilados; la tabla con todas las columnas, sin desborde. `hylimichi-700.jpg` |
+| Hylimichi · 375 | **1214 px** (antes 1732) | 0 | Tabla sin rating ni últimas; pila: pausa + «+1 aviso». `hylimichi-375.jpg` |
+| Krill1nt · 1440 | — | 0 | Diamante 1578, «1º de 6 · líder por 34»; meta 60 (30/60, final en Deidad); título individual sin chips. `krill1nt-1440.jpg` |
+| elruffles · 1440 | 413 px | 0 | No miembro: sin línea de liga, El grupo hoy ni títulos; Dios de Arena a su medida con el rastro «! no cuadra con el oficial (3)»; pila: pausa + Dios de Arena (Sincronizar, Qué significa) + «+1 aviso». `elruffles-1440.jpg` |
+
+Un solo `#refresh-profile` en todos. Consola: solo un error de HMR del servidor anterior (import ya inexistente durante la edición de T10); ninguno con el servidor nuevo. Workers (T06, T08–T10): avisos cerrados sin mover el contenido (medido antes y después a 1440 y 375), cierre persistente de Dios de Arena y Arena tras recargar, «Marcar a mano» y «Sincronizar» desde la pila, «Qué significa» abriendo la explicación en la tarjeta, enlaces de los últimos conquistados al panel de campeón, tabla rellenada a mano sin desborde a 685 y 1060 px.
+
+**Resultados por criterio**:
+- **AC14** — 662 ≤ 700 a 1440×860: cumple. 375 px: 1214 > 1000, **no cumple**; el supervisor lo acepta ("No importa, déjalo así", 2026-10-06; móvil apenas se usa).
+- **AC15** — orden de Clasificación, enlaces, «—» y atenuado sin partidas hoy (hoy estricto), sin desborde de 380 a 1440: cumple. El cambio de ELO solo se pinta con partidas hoy (la Clasificación usa el último día con partidas).
+- **AC16** — línea de liga con liga, rating, hoy/semana, «Nº de N» y distancia/«líder por N»; nada en no miembros: cumple.
+- **AC17** — títulos agrupados por compañero con chips enlazados, mismo dúo hoy y semana en una línea, sin recuento: cumple.
+- **AC18 / AC22** — todos los avisos y toasts en la pila global; nada empuja; prioridad, plegado «+N», cierre persistente y rastro en la tarjeta: cumple. El toast de /grupo no se vio (botón deshabilitado por la pausa); usa el mismo `show`.
+- **AC19** — tests de lo puro (hoy estricto, últimos 5, títulos por compañero, textos cortos, barra, conquistados, semana, prioridad y plegado de la pila, firmas de cierre): cumple.
+- **AC20** — capturas a 1440, 700 y 375 de miembro, otro miembro y no miembro: cumple.
+- **AC21** — barra con capas y marcas, «+N esta semana» (oculto hoy: 0), últimos 5 enlazados, alto igual a El grupo hoy a 1440: cumple.
+
+**Juicio**:
+- Las decisiones del supervisor (B ordenada por rating, «—» si nadie juega, avisos que se cierran, compañeros enlazados, todo flotante, Dios de Arena variante 1) están aplicadas. Diseño del orquestador por delegación: Dios de Arena a su medida en no miembros, error de actualización oculto con la key caducada (engañaría), un aviso por familia en la pila.
+- **«Hoy» no es igual en todas partes**: El grupo hoy es estricto; los títulos HOY y el cambio de ELO de la Clasificación caen al último día con partidas. Con nadie jugando hoy se ve la tabla vacía y títulos «de hoy» del 2 oct. El supervisor lo deja así ("si eso lo cambiamos").
+- **El aviso flotante dice «Dios de Arena» aunque la meta del perfil sea «Deidad de Arena»** (elruffles, Krill1nt): menor, anotado.
+
+**Calidad del código**: lo nuevo puro vive en módulos propios con tests (`group-today.ts`, `vitrina-view.ts`, `god-bar.ts`, `floating-notices.ts`, `floating-stack.ts`); `data.ts` sin crecer (508). `vitrina.tsx` pasa de 561 a 597 líneas (deuda ya anotada); `floating.tsx` 429.
+
+| Hallazgo | Disposicion | Dueno | Destino / evidencia |
+|----------|-------------|-------|---------------------|
+| AC14 en móvil: 1214 px > 1000 | diferido (aceptado) | Supervisor | Decisión del 2026-10-06; móvil apenas se usa |
+| «Hoy» estricto solo en El grupo hoy | diferido | Supervisor | think.md (hilo de títulos) |
+| Título del aviso «Dios de Arena» con meta «Deidad de Arena» | diferido | Orquestador | Pulido de la UI |
+| Toast de /grupo y «Reintentar» sin contador oficial no vistos en navegador | diferido | Supervisor | AC13 en producción |
+| Memo de la vista del grupo sobrevive al HMR en dev | diferido | Orquestador | Reiniciar el servidor tras cambios en `GroupView`; anotado en learn |
+
+**Conclusión de la revisión**: **PASS** (AC14 en móvil aceptado por el supervisor). AC13 sigue abierta tras la release.
