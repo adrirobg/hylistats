@@ -1,7 +1,7 @@
 # Task T04 — Verificación visual y verify-report
 
 **Owner**: orchestrator
-**Estado**: pending *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
+**Estado**: done *(mirror legible — si diverge, manda `.dev/tasks/index.json`)*
 
 *Artefacto de ejecucion*: esta task es una instancia derivada de `spec.md`/issue. Su nucleo es el par `Contexto` + `Prompt / instrucciones para worker` + criterios de aceptacion; no sustituye el source of truth superior.
 
@@ -28,8 +28,10 @@ Comprobar en el navegador que la racha y las reglas nuevas se ven bien a 1280 y 
 
 ## Criterios de aceptacion <!-- MUST -->
 
-- [ ] AC10 y AC11, con capturas en `verify-report.md`.
+- [x] AC10 y AC11, con capturas en `verify-report.md`.
 
 ## Notas de implementacion <!-- MAY -->
 
 ## Evidencias <!-- MUST -->
+
+- `verify-report.md` (PASS): checks en verde (76 archivos, 1591 tests, build OK) y navegador a 1280 y 375 px sobre Krill1nt (racha de 3), con «mi perfil», cierre persistente y no miembro (elruffles). Capturas revisadas en la sesión; las pruebas quedan descritas con su texto en el informe.
