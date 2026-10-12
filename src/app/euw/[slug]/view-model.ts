@@ -120,7 +120,7 @@ export function dataAgePhrase(lastSyncedAt: number | null, now: number) {
   return text === "ahora" ? "Datos de ahora mismo." : `Datos del ${text}.`;
 }
 
-// --- Banda de sincronización (§4.10) -----------------------------------------------------
+// --- Sincronización (§4.10; avisos en la pila flotante, `floating-notices.ts`) -----------
 
 /**
  * Segundos por petición a Riot al estimar tiempos. Salen del limitador con la key personal: 100
@@ -177,7 +177,7 @@ export function sharingPhrase(sharing: number): string {
   return `cola compartida con ${sharing} ${sharing === 1 ? "perfil" : "perfiles"}`;
 }
 
-/** Aviso del límite de peticiones, en llano y sin códigos (§5). Lo usan la banda y el header. */
+/** Aviso del límite de peticiones, en llano y sin códigos (§5), del backfill y del incremental. */
 export function rateLimitPhrase(minutes: number): string {
   return `Límite de peticiones alcanzado: la sincronización se reanuda sola en ~${minutes} min`;
 }
@@ -187,7 +187,7 @@ export function queuedLabel(position: number): string {
   return `En cola (${position}º)…`;
 }
 
-/** Qué pinta la banda bajo el header; `null` = no hay banda. */
+/** Qué cuenta el backfill (o la pausa) en la pila flotante (`floating-notices.ts`); `null` = nada. */
 export type SyncBandModel =
   | { kind: "resolving" }
   | { kind: "listing"; listedIds: number }
@@ -224,9 +224,9 @@ function fetchProgress(
 }
 
 /**
- * Modelo de la banda. La pausa por key caducada manda sobre todo lo demás; luego el límite de
- * peticiones (progreso congelado, con la cuenta atrás hasta `retryAt`) y la cola. El incremental
- * no tiene banda: su estado va en el botón Actualizar o en el header (`incrementalStatus`, §4.10).
+ * Modelo del backfill y la pausa. La pausa por key caducada manda sobre todo lo demás; luego el
+ * límite de peticiones (progreso congelado, con la cuenta atrás hasta `retryAt`) y la cola. El
+ * incremental va aparte: en el botón Actualizar o en su aviso de límite (`incrementalStatus`).
  * `now` en ms.
  */
 export function syncBandModel(
@@ -271,16 +271,16 @@ export function syncBandModel(
   }
 }
 
-/** Estado del incremental que el header pinta (botón o aviso), porque no tiene banda. */
+/** Estado del incremental que pinta la vitrina (botón o aviso de la pila), sin progreso propio. */
 export type IncrementalStatus =
   /** Esperando turno tras otros perfiles: va en el texto del botón (`queuedLabel`). */
   | { kind: "queued"; position: number }
-  /** Límite de peticiones: va en un aviso bajo el header (`rateLimitPhrase`). */
+  /** Límite de peticiones: va en un aviso de la pila flotante (`rateLimitPhrase`). */
   | { kind: "rate_limit"; minutes: number };
 
 /**
  * Lo que el header dice de un incremental en curso, o `null` si va todo normal. Mismas reglas que
- * la banda del backfill: la key caducada manda (la explica la banda) y el límite de peticiones
+ * el backfill: la key caducada manda (la explica el aviso de pausa) y el límite de peticiones
  * va antes que la cola. `now` en ms.
  */
 export function incrementalStatus(

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  championSplashUrl,
   getChampionCatalog,
   loadChampionCatalog,
   parseChampionJson,
@@ -149,6 +150,14 @@ describe("profileIconUrl", () => {
   it("sin versión o sin icono: null", () => {
     expect(profileIconUrl(null, 7176)).toBeNull();
     expect(profileIconUrl(VERSION, null)).toBeNull();
+  });
+});
+
+describe("championSplashUrl", () => {
+  it("construye la URL del splash base, sin versión", () => {
+    expect(championSplashUrl("Nocturne")).toBe(
+      `${CDN}/cdn/img/champion/splash/Nocturne_0.jpg`,
+    );
   });
 });
 

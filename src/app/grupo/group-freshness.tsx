@@ -3,7 +3,7 @@
 import { RefreshCw } from "lucide-react";
 import { useActionState, useEffect } from "react";
 import { Btn } from "@/components/hy/btn";
-import { ToastRegion, useToast } from "@/components/hy/toast";
+import { useFloatingToast } from "@/components/hy/floating";
 import { cn } from "@/lib/utils";
 import { usePageStatus } from "../euw/[slug]/status-provider";
 import { refreshGroupAction } from "./actions";
@@ -26,12 +26,13 @@ export function GroupFreshness() {
   const { status } = usePageStatus();
   const group = status.group;
 
-  // Botón «Actualizar grupo»: la action (que revalida la página) y su resultado en un toast.
+  // Botón «Actualizar grupo»: la action (que revalida la página) y su resultado en un toast de la pila
+  // flotante.
   const [state, formAction, submitting] = useActionState(
     refreshGroupAction,
     null,
   );
-  const { toast, show } = useToast();
+  const { show } = useFloatingToast();
   useEffect(() => {
     if (!state) return;
     show(refreshMessage(state.summary));
@@ -68,7 +69,6 @@ export function GroupFreshness() {
           )}
         </Btn>
       </form>
-      <ToastRegion>{toast}</ToastRegion>
     </section>
   );
 }

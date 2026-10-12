@@ -1,4 +1,4 @@
-# Spec: hylistats
+# Spec: close-iter11
 **Estado**: plantilla
 **Consume**: think.md {§N referenciadas} como referencia y restriccion; brief de entrada en .dev/research/ si existe
 **Produce**: `.dev/tasks/` inicial + criterios de aceptacion verificables

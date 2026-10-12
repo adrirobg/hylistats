@@ -37,7 +37,10 @@ export interface AlbumEntry {
    * marca (también sin partidas o con algún 1º).
    */
   heat: HeatState;
-  /** Media ajustada que decide el frío/calor; `null` sin partidas. Da el orden «Frío/calor». */
+  /**
+   * Media ajustada que decide el frío/calor; `null` sin partidas. Ordena las bandas del filtro
+   * «Frío/calor» del álbum.
+   */
   heatAdjustedAvg: number | null;
 }
 
