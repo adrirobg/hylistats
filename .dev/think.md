@@ -1,7 +1,7 @@
 # Think: hylistats
 **Estado**: iter-10 cerrada — sin iteración activa
-**Ultima sesion**: 2026-10-03
-**Sesiones**: 2026-10-02 (grill de iter-10: carga, refrescos y flujo de ramas); 2026-10-02 (análisis de los 502 de la sesión conjunta y semilla de iter-10); 2026-10-02 (grill del ELO del grupo, con el grupo presente); 2026-10-02 (grill de iter-09 sobre protección de la superficie pública y modo mantenimiento: `no-init`); 2026-10-01 (grill de iter-05 sobre la capa de grupo); 2026-09-30 (grill de iter-04 sobre las ideas del grupo); 2026-09-29 (Webapp de estadísticas de perfil de jugador para trackear progreso en el modo Arena de LoL usando la Riot API (inspiración: lolalytics.com/arena, op.gg/lol/modes/arena, metasrc.com/lol/arena, arenasweats.lol, arena.trott.dev))
+**Ultima sesion**: 2026-10-06
+**Sesiones**: 2026-10-06 (análisis de la estabilidad del ELO con datos de PRO); 2026-10-02 (grill de iter-10: carga, refrescos y flujo de ramas); 2026-10-02 (análisis de los 502 de la sesión conjunta y semilla de iter-10); 2026-10-02 (grill del ELO del grupo, con el grupo presente); 2026-10-02 (grill de iter-09 sobre protección de la superficie pública y modo mantenimiento: `no-init`); 2026-10-01 (grill de iter-05 sobre la capa de grupo); 2026-09-30 (grill de iter-04 sobre las ideas del grupo); 2026-09-29 (Webapp de estadísticas de perfil de jugador para trackear progreso en el modo Arena de LoL usando la Riot API (inspiración: lolalytics.com/arena, op.gg/lol/modes/arena, metasrc.com/lol/arena, arenasweats.lol, arena.trott.dev))
 **Grill**: cerrado (2026-10-02) — §5 cerrada (F26–F27); gate confirmado, pasa a Spec
 **Grills anteriores**: cerrado (2026-09-29) — gate confirmado; §1 cerrada; I1–I4 entregadas. El supervisor da paso a desarrollo (2026-09-29). Grill de iter-04 (2026-09-30): §2 cerrada (F15–F17); gate confirmado, pasa a Spec. Grill de iter-05 (2026-10-01): §3 cerrada (F19–F21); gate confirmado, pasa a Spec. Grill de iter-09 (2026-10-02): `no-init` (F23); no abre Spec. Grill del ELO del grupo (2026-10-02, con el grupo): §4 cerrada (F24–F25); gate confirmado, pasa a Spec. Grill de iter-10 (2026-10-02): §5 cerrada (F26–F27); gate confirmado, pasa a Spec
 
@@ -11,6 +11,8 @@
 - Semilla del supervisor en `/dev-setup` + respuesta a Pregunta 1 del grill (2026-09-29) -> conversación
 - Ideas del grupo tras ver la v1 (2026-09-30), en `/dev-grill` → CAPTURED "Ideas del grupo tras ver la v1"
 - Webs de referencia: [arenasweats.lol](https://arenasweats.lol/) (leaderboard OpenSkill, badges Arena God, stats augments/items), [arena.trott.dev](https://arena.trott.dev/) (tracker Arena God por sync de historial), lolalytics/op.gg/metasrc (meta agregado)
+- Exploración de op.gg/LoLalytics como fuente de meta global de Arena (2026-10-05, conversación) → CAPTURED "Ficha de campeón con meta global de op.gg"
+- ELO demasiado volátil tras unos días de uso (supervisor, 2026-10-06) y análisis con datos de PRO → CAPTURED "Estabilizar el ELO del grupo"; análisis en `.dev/research/elo-estabilidad.md`
 - Issue #19 (sorteo de equipos, iteración paralela en cloud, 2026-10-02) → ORGANIZED "Sorteo de equipos"
 - 502 en la sesión conjunta de Arena (2026-10-02, 4–5 personas) y decisiones del supervisor en la conversación de análisis → ORGANIZED "iter-10: carga, refrescos y flujo de ramas"; análisis en `.dev/research/carga-y-refrescos.md`
 
@@ -34,6 +36,35 @@ Notas del supervisor, tomadas sobre la marcha en la sesión con Hylimichi, Azpek
 
 ### hylistats — capturada
 Webapp de apoyo para el grupo de amigos del supervisor en el modo Arena de LoL. Hoy el grupo combina varias webs para: progreso, campeones con los que han ganado (ninguna fuente 100% fiable), win ratio y win ratio junto a otros jugadores. Uso típico: abierta en la pantalla secundaria mientras se juega, como ayuda para elegir campeón (marcar campeones objetivo, ver los ya ganados para no repetir). Una sección de campeón (meta) ayudaría a no cambiar de web, pero replicaría op.gg/lolalytics — dudosa.
+
+### Ficha de campeón con meta global de op.gg — semilla (2026-10-05)
+Idea del supervisor: no tener que abrir op.gg durante la partida. Lo que el grupo usa en partida, por orden de importancia: (1) aumentos con más winrate para el campeón, (2) objetos con más winrate, (3) recomendación de composición de equipo (ADC + support + tanque, 3 asesinos…) para centrar la elección. Preocupación del supervisor: que la web se vuelva lenta en un servicio free.
+
+Verificación en el navegador integrado (2026-10-05, parche 16.19, Ahri):
+- **op.gg cubre las tres necesidades.** Por campeón hay `/lol/modes/arena/{champ}/` con `build`, `augments`, `items`, `synergies` y `skills`. `augments`: WR, pick rate y nº de partidas por aumento (Misil mágico 59,31 % en 13.594). `items`: WR, pick rate, posición media y % de 1º (botas, prismáticos, builds). `synergies`: tríos con WR y partidas, pero con muestras pequeñas (~39 partidas; filtrar por mínimo). La vista resumen `build` solo muestra pick rate de aumentos; el WR está en la pestaña `/augments`.
+- **Sin API pública ni endpoint JSON.** Son páginas Next.js de ~600 KB con los datos en el payload embebido (`self.__next_f`) y en tablas HTML. 173 campeones × 3 páginas ≈ 520 páginas por parche. El parseo es frágil: si op.gg cambia el HTML, la ingesta falla.
+- **Términos**: prohíben scraping, pero su ayuda lo tolera con cita de la fuente, sin uso comercial y sin peticiones excesivas. Zona gris, no permiso. `robots.txt` permite `/` a bots genéricos.
+- **LoLalytics descartado**: tiene aumentos, objetos y sinergias con WR (Emerald+), pero carga con Qwik y cientos de chunks JS, y no aporta nada que op.gg no tenga. METAsrc devuelve 403 a fetch. El MCP de op.gg (`mcp-api.op.gg`) documenta TFT, no consta que cubra Arena de LoL.
+- **Rendimiento (la preocupación del supervisor)**: el riesgo solo existe si el trabajo ocurre en la petición del usuario. Diseño propuesto: ingesta offline por parche (script manual o GitHub Action, con pausas) que escribe solo las filas útiles en la DB (orden de 1–3 MB); la app lee con una consulta pequeña y con tope (top N por WR con mínimo de partidas). La ingesta no corre en el servicio web ni compite con el worker de la cola de Riot. Si la ingesta falla, la app sigue sirviendo el último parche cargado.
+- **Composición de equipo sin dato externo** (alternativa o complemento): heurística propia sobre las clases de campeón de Data Dragon, más las sinergias reales del grupo ya calculadas.
+
+Decisiones pendientes del grill: alcance mínimo (¿solo aumentos y objetos, o también equipo?); filtro de calidad (mínimo de partidas); dónde se muestra la ficha (cromo del álbum, pantalla durante la partida); cadencia de actualización (por parche) y quién la lanza; cita visible de op.gg en la UI; plan B si la ingesta se rompe (degradar a enlace externo, ya existe en v1, F3).
+
+### Estabilizar el ELO del grupo — semilla (2026-10-06)
+Lo que pide el grupo tras unos días de uso: el ELO cambia demasiado rápido. Un día con muchas partidas pasa por todas las ligas y vuelve. El análisis con datos de PRO está en [`research/elo-estabilidad.md`](research/elo-estabilidad.md): mediana de 65 puntos entre el rating más alto y el más bajo del día, 5,5 cambios de liga al día y oscilación de ±38 puntos frente a ligas de 30.
+
+Ya decidido por el supervisor (2026-10-06):
+- **Propósito**: la Clasificación mide la racha y la forma de los días, no el nivel real ("cada uno sabe cómo juega y cómo jugamos el resto"). Se acepta así: el grupo está tan igualado (de −1,6 a +0,9 puntos por partida) que ningún ajuste mediría el nivel.
+- **El multiplicador por desconocidos se mantiene, pero se ajusta**: hoy sobrecompensa el peor puesto que se saca con desconocidos y sube a todos (todos están en Oro o Platino).
+- **Idea nueva**: un multiplicador por victorias consecutivas, que son muy difíciles.
+
+Propuesta del análisis, para el grill:
+- K×0,5: tabla de puntos y pendiente a la mitad.
+- Margen de ±10 al cambiar de liga.
+- Multiplicador por desconocidos: ×1,10/×0,85 con 1 desconocido y ×1,20/×0,80 con 2.
+- Racha de 1º: ×1,5 a la segunda victoria seguida y ×2 desde la tercera, solo sobre ganancias.
+
+Con todo junto, 1,1 cambios de liga al día y liga distinta de un día a otro el 36 % de los días (hoy 5,5 y 64 %). Las preguntas abiertas están en §6 del research.
 
 ---
 
@@ -335,8 +366,8 @@ Que el grupo (4–5 personas a la vez) use la web sin 502 ni esperas y que lo qu
 | Qué cuenta como "public consumption" con Personal key para web accesible por URL (I1 §11) | Supervisor | Revisar en Spec; F9 prevé código de acceso si hace falta |
 | Sync de datos personales entre dispositivos (token secreto de edición / verificación por icono) y, más adelante, una protección superior de los perfiles (quién puede registrar o tocar un perfil) | Supervisor | Post-v1, volver sobre ello. La protección de perfiles la apuntó el supervisor en el grill de iter-09 (2026-10-02): de momento, el modelo simple vale (F23) |
 | Evolución temporal del frío/calor por campeón (estado "descongelándose", peso de lo reciente) e indicador de forma del jugador (últimas 20 frente a la temporada) | Supervisor | Tras los primeros usos de F16, cuando haya campeones sin ganar con 20+ partidas; el indicador de forma del jugador quedó fuera de iter-05 (F21) |
-| Mejoras del ELO tras usarlo (F24, F25): títulos semanales de ELO (más ganado y más perdido), "Clásico" cara a cara entre miembros, ajustar constantes y cortes de liga, ajuste por compañeros si alguien se infla con un trío fijo | Supervisor | Tras las primeras sesiones con el ELO en uso |
-| Sección de campeón con datos de terceros (OPGG.py o similares) post-v1 | Supervisor | Post-v1; enlaces externos ya en v1 (F3) |
+| Mejoras del ELO tras usarlo (F24, F25): títulos semanales de ELO (más ganado y más perdido), "Clásico" cara a cara entre miembros, ajustar constantes y cortes de liga, ajuste por compañeros si alguien se infla con un trío fijo | Supervisor | Estabilidad, constantes, multiplicador por desconocidos y racha: en marcha desde el 2026-10-06 (CAPTURED "Estabilizar el ELO del grupo"; falta el grill). El resto sigue pendiente |
+| Sección de campeón con datos de terceros (OPGG.py o similares) post-v1 | Supervisor | Verificada como viable el 2026-10-05 con op.gg (aumentos y objetos con WR, sinergias de tríos): ver CAPTURED "Ficha de campeón con meta global de op.gg". Falta su propio grill; ingesta offline por parche para no cargar el servicio free |
 | AC10 y AC11 de #22 pendientes (iter-10): AC10, prueba de carga en producción tras la release `v1.1.0` (script `npm run sim:session` contra <https://hylistats.onrender.com>, 5 clientes, 15 min, "Actualizar grupo" a mitad; gates: 0 × 502, 0 `server_failed`, estado < 1 s); AC11, en la sesión conjunta (F18) sin 502 ni esperas, partidas ~2–3 min tras el final del lobby y lo de uno visible para los demás. La PR #23 se mergeó con ambos abiertos | Supervisor | AC10: tras la release, en un rato sin partidas y con el sí del supervisor; resultado a `archive/iter-10/verify-report.md`. AC11: próxima sesión conjunta, avisando de que en Arena la partida aparece al terminar el lobby, no al caer |
 | 602002 oficial 1 por encima del recuento propio en 2 de 7 perfiles (iter-10, T07; en ambos un campeón se repite en dos 1º) | Orquestador | Investigar cuando haya hueco: comparar la lista verificada con el contador y ver si el campeón repetido explica la diferencia (`archive/iter-10/learn.md` → Deuda y gaps) |
 | Reorganizar las pestañas y la información de la web (supervisor, 2026-10-02): lo más usado (ELO, títulos…) en un sitio prioritario y primero | Supervisor | Iteración posterior a iter-10, con su propio grill. Relacionado con el hilo de pulido de la UI |
