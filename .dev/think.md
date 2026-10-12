@@ -382,7 +382,7 @@ Revisión de §4 (F24, F25) según F28. Que la liga y el rating no oscilen dentr
    - Las constantes van en `config.ts`.
 3. **Liga con margen de ±10**:
    - Se sube a una liga cuando el rating llega a su `min + 10`.
-   - Se baja de una liga cuando el rating cae por debajo de su `min − 10`.
+   - Se baja de una liga cuando el rating llega a su `min − 10` o menos.
    - La liga se calcula recorriendo el historial, sin guardar nada. Los cortes de F25 no cambian.
    - El margen va en `config.ts`.
 4. **Recálculo de toda la temporada** con las reglas nuevas: sin migración y sin reglas por fecha.
