@@ -1,5 +1,5 @@
 # Spec: hylistats — iter-12 estabilizar el ELO del grupo
-**Estado**: draft (issue [#29](https://github.com/adrirobg/hylistats/issues/29); gate del grill confirmado por el supervisor el 2026-10-12. Las inferencias I1–I8 son del orquestador y esperan el visto bueno del supervisor; rama `feat/29-elo-estabilidad` desde `develop`)
+**Estado**: aprobada (issue [#29](https://github.com/adrirobg/hylistats/issues/29); gate del grill confirmado por el supervisor el 2026-10-12; el supervisor aprueba la spec con las inferencias I1–I8 y da paso a Execute, 2026-10-12; rama `feat/29-elo-estabilidad` desde `develop`)
 **Consume**: think.md §6 y F28 (revisan §4, F24 y F25) como referencia y restricción; análisis `.dev/research/elo-estabilidad.md` y scripts `.dev/research/elo-estabilidad/`; pila flotante de avisos de iter-11 (D8–D12)
 **Produce**: `.dev/tasks/` inicial + criterios de aceptación verificables
 
@@ -45,7 +45,7 @@ Que la liga y el rating del ELO del grupo dejen de ir y venir dentro de un día.
 - El resto de "Mejoras del ELO tras usarlo": títulos semanales de ELO, "Clásico", ajuste por compañeros.
 - Cambios en la escala `E` (400) y en el *provisional* (10 partidas).
 
-**Inferencias del orquestador** (las revisa el supervisor antes de aprobar):
+**Inferencias del orquestador** (aprobadas por el supervisor el 2026-10-12):
 - **I1 — Margen sobre el rating redondeado**, como la liga de hoy. Ejemplos: Plata → Oro al llegar a 1520; Oro → Plata al llegar a 1500 o menos. Un miembro sin partidas está en Plata.
 - **I2 — Bandas de la gráfica de evolución sin margen**: siguen en los cortes de F25, porque el rating que se dibuja es el real. La liga actual de la cabecera puede no coincidir con la banda en la que está el punto mientras el rating esté dentro del margen.
 - **I3 — Aviso de racha en el perfil de cada miembro**. En «mi perfil» va en segunda persona ("Llevas 2 primeros seguidos: tu próximo 1º vale ×2"); en el de otro miembro, con su nombre. En los perfiles de no miembros no sale.
