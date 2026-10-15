@@ -1,19 +1,18 @@
 // ELO interno de Arena de los miembros del grupo (iter-09, F24, F25; iter-12, F28). Funciones
 // puras (sin BD, sin red y sin React) sobre las partidas de los miembros, ya filtradas por
 // temporada y cola: rating de cada miembro, desglose de cada partida (con la racha de 1º seguidos),
-// liga con margen, *provisional*, cambio del día y de la semana y orden de la Clasificación. Como
+// liga, *provisional*, cambio del día y de la semana y orden de la Clasificación. Como
 // en el resto del dominio, solo cuentan los puestos 1..6: una fila con un puesto fuera de rango se
 // ignora.
 //
 // F28 estabiliza el rating: los puntos y la pendiente van a la mitad, los multiplicadores por
-// desconocidos se suavizan, un 1º tras otro multiplica la ganancia (racha) y la liga solo cambia
-// al pasar el corte con un margen (`ELO_LEAGUE_MARGIN`).
+// desconocidos se suavizan y un 1º tras otro multiplica la ganancia (racha). La liga sale
+// directamente del rating (#32: el margen de F28 hacía que la liga contradijera el orden).
 //
 // Nada se guarda: el rating se recalcula al leer (P9). Las claves de miembro (`puuid` en
 // `GroupMatchRow`) son identificadores internos: no se muestran en la UI ni van en URLs.
 
 import {
-  ELO_LEAGUE_MARGIN,
   ELO_LEAGUES,
   ELO_PLACEMENT_POINTS,
   ELO_PROVISIONAL_GAMES,
@@ -126,7 +125,7 @@ export function eloMatchChange(
 }
 
 // ---------------------------------------------------------------------------------------------
-// Ligas (F25, margen de F28)
+// Ligas (F25)
 // ---------------------------------------------------------------------------------------------
 
 export type EloLeague = (typeof ELO_LEAGUES)[number];
@@ -145,25 +144,6 @@ export function eloLeague(rating: number): EloLeague {
     if (rounded >= candidate.min) league = candidate;
   }
   return league;
-}
-
-/**
- * Liga tras una partida con margen (F28), sobre el rating **redondeado**: desde `current`, sube
- * mientras haya liga superior y el rating llegue a su `min + ELO_LEAGUE_MARGIN`, y baja mientras
- * se quede en el `min` de la actual `− ELO_LEAGUE_MARGIN` o por debajo. Puede saltar varias ligas;
- * Hierro no tiene suelo y Diamante no tiene techo. Con margen, Plata → Oro al llegar a 1520 y
- * Oro → Plata al llegar a 1500.
- */
-export function eloLeagueStep(current: EloLeague, rating: number): EloLeague {
-  const rounded = roundRating(rating);
-  let index = ELO_LEAGUES.findIndex((league) => league.id === current.id);
-  for (;;) {
-    const upper = ELO_LEAGUES[index + 1];
-    if (!upper || rounded < upper.min + ELO_LEAGUE_MARGIN) break;
-    index += 1;
-  }
-  while (rounded <= ELO_LEAGUES[index].min - ELO_LEAGUE_MARGIN) index -= 1;
-  return ELO_LEAGUES[index];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -205,10 +185,7 @@ export interface EloMember {
   games: number;
   /** Menos de `ELO_PROVISIONAL_GAMES` partidas. */
   provisional: boolean;
-  /**
-   * Liga con margen (F28): la de `eloLeagueStep` tras cada partida de su historial, desde Plata
-   * (la de 1500). Puede no coincidir con `eloLeague(rating)` mientras el rating esté en el margen.
-   */
+  /** Liga del rating actual (`eloLeague(rating)`): siempre coherente con el orden. */
   league: EloLeague;
   /** Racha en curso (F28): 1º seguidos al final de su historial; 0 si la última no fue 1º. */
   streak: number;
@@ -268,8 +245,8 @@ function periodChange(
  *   ve el cambio de otro en la misma partida. Los desconocidos se cuentan por las filas de miembros
  *   con el mismo `matchId` y `playerSubteamId`; miembros en equipos rivales puntúan cada uno por
  *   su puesto, sin trato especial.
- * - La racha (1º seguidos) y la liga con margen se llevan por miembro sobre sus partidas en orden
- *   cronológico; la liga empieza en la de `ELO_START_RATING` (Plata).
+ * - La racha (1º seguidos) se lleva por miembro sobre sus partidas en orden cronológico; la liga
+ *   sale del rating final (`eloLeague`).
  * - El cambio del día y de la semana se suma sobre el periodo de `displayedPeriod(rows, now, …)`,
  *   el mismo que muestra el bloque Hoy / Semana.
  */
@@ -290,19 +267,16 @@ export function computeGroupElo(
     membersInTeam.set(teamKey(row), (membersInTeam.get(teamKey(row)) ?? 0) + 1);
   }
 
-  const startLeague = eloLeague(ELO_START_RATING);
   const ratings = new Map<string, number>();
   const streaks = new Map<string, number>();
-  const leagues = new Map<string, EloLeague>();
   const histories = new Map<string, EloMatch[]>();
   for (const key of members) {
     ratings.set(key, ELO_START_RATING);
     streaks.set(key, 0);
-    leagues.set(key, startLeague);
     histories.set(key, []);
   }
 
-  // Cada fila solo toca el rating, la racha y la liga de su miembro, así que procesarlas en orden
+  // Cada fila solo toca el rating y la racha de su miembro, así que procesarlas en orden
   // cronológico basta para que todos los de una partida usen su rating previo.
   for (const row of counted) {
     const ratingBefore = ratings.get(row.puuid) ?? ELO_START_RATING;
@@ -317,10 +291,6 @@ export function computeGroupElo(
     const ratingAfter = ratingBefore + change.delta;
     ratings.set(row.puuid, ratingAfter);
     streaks.set(row.puuid, streak);
-    leagues.set(
-      row.puuid,
-      eloLeagueStep(leagues.get(row.puuid) ?? startLeague, ratingAfter),
-    );
     histories.get(row.puuid)?.push({
       matchId: row.matchId,
       gameStartTimestamp: row.gameStartTimestamp,
@@ -346,7 +316,7 @@ export function computeGroupElo(
         roundedRating: roundRating(rating),
         games: history.length,
         provisional: history.length < ELO_PROVISIONAL_GAMES,
-        league: leagues.get(key) ?? startLeague,
+        league: eloLeague(rating),
         streak: streaks.get(key) ?? 0,
         history,
         dayChange: periodChange(history, day),

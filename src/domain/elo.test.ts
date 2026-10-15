@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  ELO_LEAGUE_MARGIN,
   ELO_LEAGUES,
   ELO_PLACEMENT_POINTS,
   ELO_PROVISIONAL_GAMES,
@@ -15,7 +14,6 @@ import {
   eloBaseChange,
   eloExpected,
   eloLeague,
-  eloLeagueStep,
   eloMatchChange,
   eloMultiplier,
   eloStrangers,
@@ -309,9 +307,8 @@ describe("cambio de una partida (F24, F28)", () => {
     ]);
     expect(a.rating).toBeCloseTo(1517.55976, 5);
     expect(a.roundedRating).toBe(1518);
-    // 1518 está en el corte de Oro sin margen, pero con margen no llega a 1520: sigue en Plata.
-    expect(eloLeague(a.rating).name).toBe("Oro");
-    expect(a.league.name).toBe("Plata");
+    // 1518: Oro, la liga sale directamente del rating (#32).
+    expect(a.league.name).toBe("Oro");
     expect(a.games).toBe(7);
     expect(a.provisional).toBe(true);
   });
@@ -475,15 +472,8 @@ describe("clasificación", () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// F28 — Cifras, racha y liga con margen (AC1, AC2 y AC3 de iter-12)
+// F28 — Cifras y racha (AC1 y AC2 de iter-12)
 // ---------------------------------------------------------------------------------------------
-
-/** Liga de `ELO_LEAGUES` por id. */
-const league = (id: string) => {
-  const found = ELO_LEAGUES.find((l) => l.id === id);
-  if (!found) throw new Error(`Sin liga ${id}`);
-  return found;
-};
 
 describe("cifras de F28 (AC1)", () => {
   it.each([
@@ -615,76 +605,35 @@ describe("racha de 1º seguidos (AC2)", () => {
   });
 });
 
-describe("liga con margen (AC3)", () => {
-  it(`el margen es ${ELO_LEAGUE_MARGIN} sobre el rating redondeado`, () => {
-    expect(ELO_LEAGUE_MARGIN).toBe(10);
-  });
-
-  it("sube al llegar a min + 10 de la superior y no sube en + 9", () => {
-    expect(eloLeagueStep(league("plata"), 1520).id).toBe("oro");
-    expect(eloLeagueStep(league("plata"), 1519).id).toBe("plata");
-    expect(eloLeagueStep(league("plata"), 1519.5).id).toBe("oro");
-    expect(eloLeagueStep(league("plata"), 1519.49).id).toBe("plata");
-  });
-
-  it("baja al llegar a min − 10 de la propia y no baja en − 9", () => {
-    expect(eloLeagueStep(league("oro"), 1500).id).toBe("plata");
-    expect(eloLeagueStep(league("oro"), 1501).id).toBe("oro");
-    expect(eloLeagueStep(league("oro"), 1500.49).id).toBe("plata");
-    expect(eloLeagueStep(league("oro"), 1500.5).id).toBe("oro");
-  });
-
-  it("dentro del margen se queda en la liga actual", () => {
-    // 1505 es Plata sin margen, pero desde Oro no ha bajado a 1500.
-    expect(eloLeague(1505).id).toBe("plata");
-    expect(eloLeagueStep(league("oro"), 1505).id).toBe("oro");
-    expect(eloLeagueStep(league("plata"), 1515).id).toBe("plata");
-  });
-
-  it("salta varias ligas con un cambio grande", () => {
-    expect(eloLeagueStep(league("plata"), 1600).id).toBe("diamante");
-    expect(eloLeagueStep(league("plata"), 1579).id).toBe("platino");
-    expect(eloLeagueStep(league("plata"), 1400).id).toBe("hierro");
-    expect(eloLeagueStep(league("plata"), 1441).id).toBe("bronce");
-  });
-
-  it("Hierro no tiene suelo y Diamante no tiene techo", () => {
-    expect(eloLeagueStep(league("hierro"), 1000).id).toBe("hierro");
-    expect(eloLeagueStep(league("hierro"), 1459).id).toBe("hierro");
-    expect(eloLeagueStep(league("hierro"), 1460).id).toBe("bronce");
-    expect(eloLeagueStep(league("diamante"), 2000).id).toBe("diamante");
-    expect(eloLeagueStep(league("diamante"), 1561).id).toBe("diamante");
-    expect(eloLeagueStep(league("diamante"), 1560).id).toBe("platino");
-  });
-
+describe("liga directa del rating (#32, sin el margen de F28)", () => {
   it("un miembro sin partidas está en Plata", () => {
     const { standings } = computeGroupElo([], ["a"], NOW);
     expect(standings[0]).toMatchObject({ streak: 0 });
     expect(standings[0].league.id).toBe("plata");
   });
 
-  it("computeGroupElo lleva la liga con margen partida a partida", () => {
-    // 2 desconocidos. Calculado aparte: 1º 1515 (Plata) · 1º 1536,645696 (Oro) · 6º 1528,120945
-    // · 6º 1519,810236 · 6º 1511,709017 · 6º 1503,812558 (sigue en Oro: no ha bajado a 1500)
-    // · 6º 1496,115996 (Plata).
+  it("la liga es siempre la del rating actual, sin memoria de la anterior", () => {
+    // 2 desconocidos. Calculado aparte: 1º 1515 (Oro) · 1º 1536,645696 (Oro) · 6º 1528,120945
+    // · 6º 1519,810236 · 6º 1511,709017 · 6º 1503,812558 (Plata, aunque venga de Oro).
     const placements = [1, 1, 6, 6, 6, 6];
     const six = computeGroupElo(solo("a", placements), ["a"], NOW);
     const a6 = standing(six.standings, "a");
     expect(a6.rating).toBeCloseTo(1503.812558, 5);
-    expect(eloLeague(a6.rating).id).toBe("plata");
-    expect(a6.league.id).toBe("oro");
+    expect(a6.league.id).toBe("plata");
 
-    const seven = computeGroupElo(solo("a", [...placements, 6]), ["a"], NOW);
-    const a7 = standing(seven.standings, "a");
-    expect(a7.rating).toBeCloseTo(1496.115996, 5);
-    expect(a7.league.id).toBe("plata");
+    const one = computeGroupElo(solo("a", [1]), ["a"], NOW);
+    expect(standing(one.standings, "a").league.id).toBe("oro");
 
     const climb = computeGroupElo(solo("a", [1, 1, 1, 1]), ["a"], NOW);
-    // 1589,072095: Diamante (1580 o más) desde Plata, pasando por Oro y Platino.
+    // 1589,072095: Diamante.
     expect(standing(climb.standings, "a").league.id).toBe("diamante");
-    const one = computeGroupElo(solo("a", [1]), ["a"], NOW);
-    // 1515: sin margen sería Oro; con margen sigue en Plata.
-    expect(standing(one.standings, "a").league.id).toBe("plata");
+  });
+
+  it("un rating menor nunca tiene una liga mayor (el color respeta el orden)", () => {
+    const index = (r: number) => ELO_LEAGUES.indexOf(eloLeague(r));
+    for (let r = 1400; r < 1650; r += 1) {
+      expect(index(r + 1)).toBeGreaterThanOrEqual(index(r));
+    }
   });
 });
 
