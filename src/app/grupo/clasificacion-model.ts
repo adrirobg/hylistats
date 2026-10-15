@@ -7,10 +7,9 @@
 // Las claves de `EloStanding.key` son claves de miembro (`GroupViewMember.key`), como en el resto
 // de la vista del grupo.
 
-import { type EloStanding, eloLeague, formatEloChange } from "@/domain/elo";
+import { type EloStanding, formatEloChange } from "@/domain/elo";
 import type { DisplayedPeriod } from "@/domain/group-titles";
 import {
-  ELO_LEAGUE_MARGIN,
   ELO_LEAGUES,
   ELO_PLACEMENT_POINTS,
   ELO_PROVISIONAL_GAMES,
@@ -178,21 +177,6 @@ export function streakMultipliersText(): string {
   return parts.join("; ");
 }
 
-/**
- * Margen de las ligas (F28) con el ejemplo de la liga de salida y la de arriba, a partir de
- * `ELO_LEAGUE_MARGIN` y `ELO_LEAGUES`: "… (de Plata se pasa a Oro con 1520 y se vuelve con 1500)".
- */
-export function leagueMarginText(): string {
-  const margin = formatCount(ELO_LEAGUE_MARGIN);
-  const start = eloLeague(ELO_START_RATING);
-  const upper =
-    ELO_LEAGUES[ELO_LEAGUES.findIndex((l) => l.id === start.id) + 1];
-  const example = upper
-    ? ` (de ${start.name} se pasa a ${upper.name} con ${String(upper.min + ELO_LEAGUE_MARGIN)} y se vuelve con ${String(upper.min - ELO_LEAGUE_MARGIN)})`
-    : "";
-  return `se sube al llegar ${margin} por encima del corte de la liga de arriba y se baja al quedarse ${margin} por debajo del de la tuya${example}`;
-}
-
 /** "Hierro < 1450 · Bronce 1450–1479 · … · Diamante ≥ 1570" a partir de `ELO_LEAGUES`. */
 export function leaguesText(): string {
   return ELO_LEAGUES.map((league, index) => {
@@ -214,7 +198,7 @@ export function clasificacionNote(): ClasificacionNote {
       `Todos empiezan la temporada en ${String(ELO_START_RATING)}. Cada partida de Arena suma o resta según el puesto (con ${String(ELO_START_RATING)}): ${placementPointsText()}. Cuanto más alto estás, un poco menos ganas y un poco más pierdes; por debajo, al revés.`,
       `Los compañeros de equipo que no son del grupo cuentan como desconocidos y cambian el resultado: ${strangerMultipliersText()}.`,
       `Los 1º seguidos tienen premio, solo en las partidas que suman (${streakMultipliersText()}). La racha sigue aunque cambie el día; cualquier otro puesto la corta.`,
-      `Ligas por rating redondeado: ${leaguesText()}. Para que la liga no suba y baje en el mismo día hay margen: ${leagueMarginText()}. Con menos de ${formatCount(ELO_PROVISIONAL_GAMES)} partidas en la temporada, la fila es provisional. Solo cuenta la temporada actual.`,
+      `Ligas por rating redondeado: ${leaguesText()}. Con menos de ${formatCount(ELO_PROVISIONAL_GAMES)} partidas en la temporada, la fila es provisional. Solo cuenta la temporada actual.`,
     ],
   };
 }

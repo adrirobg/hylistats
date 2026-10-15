@@ -153,12 +153,5 @@ export const ELO_LEAGUES = [
   { id: "diamante", name: "Diamante", min: 1570 },
 ] as const;
 
-/**
- * Margen de las ligas (F28), en puntos de rating redondeado: se sube al llegar al `min` de la liga
- * superior más el margen y se baja al quedarse en el `min` de la propia menos el margen o por
- * debajo. Las bandas de la gráfica de evolución siguen en los cortes sin margen.
- */
-export const ELO_LEAGUE_MARGIN = 10;
-
 /** Partidas de la temporada por debajo de las cuales un miembro está *provisional* (F25). */
 export const ELO_PROVISIONAL_GAMES = 10;

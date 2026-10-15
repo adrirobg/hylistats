@@ -7,7 +7,6 @@ import {
   changeHeader,
   clasificacionNote,
   clasificacionRows,
-  leagueMarginText,
   leaguesText,
   placementPointsText,
   strangerMultipliersText,
@@ -60,7 +59,7 @@ describe("changeCell", () => {
 describe("clasificacionRows", () => {
   it("respeta el orden y las posiciones compartidas del dominio, y marca el provisional", () => {
     // Ana y Beto empatan a 1515 (un 1º cada uno, con desconocidos iguales); Cris no tiene partidas.
-    // Con el margen de F28, 1515 no llega a 1520: siguen en Plata.
+    // 1515: Oro (la liga sale directamente del rating, #32).
     const rows = [...game(1, ["1"]), ...game(1, ["2"])];
     const elo = computeGroupElo(rows, ["1", "2", "3"], NOW);
     const model = clasificacionRows(
@@ -74,7 +73,7 @@ describe("clasificacionRows", () => {
     ]);
     expect(model.map((r) => r.position)).toEqual([1, 1, 3]);
     expect(model[0]).toMatchObject({
-      leagueName: "Plata",
+      leagueName: "Oro",
       rating: String(elo.standings[0].roundedRating),
       games: "1",
       provisional: true,
@@ -194,12 +193,6 @@ describe("nota de la regla", () => {
     );
   });
 
-  it("describe el margen de las ligas con el ejemplo de la de salida (F28)", () => {
-    expect(leagueMarginText()).toBe(
-      "se sube al llegar 10 por encima del corte de la liga de arriba y se baja al quedarse 10 por debajo del de la tuya (de Plata se pasa a Oro con 1520 y se vuelve con 1500)",
-    );
-  });
-
   it("junta todo en párrafos, con el mínimo provisional y la temporada", () => {
     const text = clasificacionNote().paragraphs.join(" ");
     expect(text).toContain("1500");
@@ -209,6 +202,7 @@ describe("nota de la regla", () => {
     expect(text).toContain(streakMultipliersText());
     expect(text).toContain("solo en las partidas que suman");
     expect(text).toContain("aunque cambie el día");
-    expect(text).toContain(leagueMarginText());
+    expect(text).toContain(leaguesText());
+    expect(text).not.toContain("margen");
   });
 });
